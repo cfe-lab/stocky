@@ -1,5 +1,8 @@
 
 
+# This is a rudimentary testing class called CrossTestCase that can be run under
+# both Cpython and when it is transpiled into javascript.
+
 class BaseException(Exception):
     def __init__(self, msg):
         self.msg = msg

@@ -12,7 +12,6 @@ RUN apt-get update ;\
     apt-get -y upgrade ;\
     apt-get install -y less tcsh unzip patch xsltproc gcc libreadline-dev python3-dev libbluetooth-dev bluez;\
     apt-get clean
-#    apt-get install -y redis-server nginx less lynx unzip sqlite3 graphviz ;\
 
 # Copy the source code into the image
 COPY stocky /stockysrc

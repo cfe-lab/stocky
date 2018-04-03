@@ -1,4 +1,7 @@
 
+*.pyc
+
+.cache/
 
 # no development environment files
 stocky-devel/env/
