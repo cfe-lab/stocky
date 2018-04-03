@@ -1,0 +1,11 @@
+
+
+# mypy cache files
+.mypy_cache/
+
+# edited files
+*~
+
+# generated javascript files
+__javascript__/
+__pycache__
