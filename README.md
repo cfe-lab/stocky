@@ -36,16 +36,23 @@ All of the server and webclient code is designed to be compiled and run within a
    runlocal: run the stocky docker image interactively with bash.
    runprod:  run the stocky docker image for production.
    clean-logs: remove all log files from the stocky-devel-state directory
-```
-    To build the docker container, issue a `make build` command.
+   ```
+   To build the docker container, issue a `make build` command.
 
 3. **Configure the Stocky application**
    Still in the `stockygit/stocky-devel` directory, make two directories that stocky
-   will when running. These directories will be mounted by the docker container when it launches
-   (see the Makefile for details of how this is done).
+   will access when running. These directories will be mounted by the docker container
+   when it launches (see the Makefile for details of how this is done):
    ```
    mkdir stocky-devel-config; mkdir stocky-devel-state
    ```
-
+   The two sample configuration files in the current directory must now be copied into
+   stocky-devel-config, renamed and appropriately changed to reflect your requirements:
+   ```
+   cp logging_sample.yaml stocky-devel-config/logging.yaml
+   cp serverconfig_sample.yaml stocky-devel-config/serverconfig.yaml
+   ```
+   Now edit these two files to your taste.
+   
 4. **Run Stocky in its docker container**
 

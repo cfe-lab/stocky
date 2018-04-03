@@ -6,10 +6,14 @@ BASE_DOCKERFILE = stocky-base.dock
 # DEVEL_DOCKERFILE = stocky-devel.dock
 # DEVEL_IMAGE_NAME = stocky-devel
 
-#NOTE: there may be no leading or trailing spaces on the R.H.S, or the -v option will fail
-DEV_SRC           =${HOME}/stocky-devel/stocky
-STOCKY_STATE_DIR  =${HOME}/stocky-devel/stocky-devel-state
-STOCKY_CONFIG_DIR =${HOME}/stocky-devel/stocky-devel-config
+STOCKY_TOP_DIR = ${CURDIR}
+
+# NOTE: there may be no leading or trailing spaces on the R.H.S of the equals sign of these
+# variables, otherwise the docker -v option will fail when launching
+# NOTE: In addition, docker requires an absolute path name for these directories
+DEV_SRC           =${STOCKY_TOP_DIR}/stocky
+STOCKY_STATE_DIR  =${STOCKY_TOP_DIR}/stocky-devel-state
+STOCKY_CONFIG_DIR =${STOCKY_TOP_DIR}/stocky-devel-config
 
 
 #ENV_OPTS = -ePYTHONPATH=/stockysrc/utils
