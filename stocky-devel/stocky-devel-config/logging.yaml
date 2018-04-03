@@ -1,0 +1,22 @@
+version: 1
+formatters:
+  detailed:
+    class: logging.Formatter
+    format: "%(asctime)s %(name)-15s %(levelname)-8s %(processName)-10s %(message)s"
+handlers:
+  scoconsole:
+    class: logging.StreamHandler
+    formatter: detailed    
+  stockylogfile:
+    class: logging.FileHandler
+    mode: w
+    filename: '/stockystate/stockyserver.log'
+    formatter: detailed    
+loggers:
+  stocky:
+    level: DEBUG
+    handlers: [ stockylogfile ]
+root:
+  level: INFO
+  # handlers: [ scoconsole, stockylogfile]
+  handlers: [ stockylogfile]

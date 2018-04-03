@@ -1,0 +1,22 @@
+Flask>=0.12
+# need these this for flask-socket
+Flask-Sockets>=0.2
+gevent-websocket>=0.10.
+gunicorn>=19.7
+#--time zone information
+pytz
+#--
+pyyaml>=3.12
+fuzzywuzzy>=0.16
+python-Levenshtein>=0.12
+#- detecting USB events
+inotify>=0.2.9
+# under jessie:
+pyusb>=1.0
+#under stretch libusb1
+# -- bluetooth package
+pybluez>=0.22
+# --- client side ---
+transcrypt>=3.6.27
+# for testing
+pytest-cov>=2.5.1

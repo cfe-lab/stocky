@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block pagetitle %}Main Page{% endblock %}
+%
+{% block pagehead %}
+<h1>Stocky</h1>
+<a href="#">
+  <img class="scologopic-cls" src="{{ url_for('static', filename='lablogo.png') }}">
+</a>
+<div id="state-div" class="led-red"></div>
+<!-- <div id="scannerstate" title="Scanner Status" class="led-red"></div>  -->
+{% endblock %}
+%
+{% block pagecontent %}
+<div id="main-menu-div" class="w3-sidebar w3-light-grey w3-bar-block">
+  <!-- <h3 class="w3-bar-item">Menu</h3>
+  <a href="#" class="w3-bar-item w3-button">Link 1</a>
+   -->
+</div>
+<div id="page-wrapper">
+<div id="stockyframe"> </div>
+</div>
+{% endblock %}

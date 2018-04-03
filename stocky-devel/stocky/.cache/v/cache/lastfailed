@@ -1,0 +1,4 @@
+{
+  "serverlib/tests/test_inotify.py::Test_Inotify::()::test01": true,
+  "serverlib/tests/test_inotify.py::Test_Inotify::()::test02": true
+}

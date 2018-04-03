@@ -1,0 +1,124 @@
+
+
+/*
+these styles are taken from
+http://matthewjamestaylor.com/blog/keeping-footers-at-the-bottom-of-the-page
+selectors: element, #id, .class
+*/
+
+html, body {
+   margin:0;
+   padding:0;
+   height:100%;
+}
+
+#pagecontainer {
+   min-height:100%;
+   position:relative;
+}
+
+#pagehead {
+   background:#ff0;
+   padding:10px;
+}
+
+#pagecontent {
+   padding:10px;
+   padding-bottom:60px;   /* Height of the footer */
+   min-height:100%;
+}
+
+#pagefoot {
+   position:absolute;
+   bottom:0;
+   width:100%;
+   height:60px;   /* Height of the footer */
+   background:#6cf;
+   z-index: 2; /* Stay on top */
+}
+
+
+#page-wrapper {
+    height: 100%; /* 100% Full-height */
+    width: 90%; /* 0 width - change this with JavaScript */
+    left: 25%;
+    position: relative; /* Stay in place */
+    
+}
+
+
+.scologopic-cls {
+    color: #fff;
+    /* background: #202020;*/
+    width: 30%;
+/* text-align: center;
+font-size: 30px;
+font-weight: 700;  */
+}
+
+
+
+/* display up/down arrows on sortable table headings.
+  Modified from 
+  https://stackoverflow.com/questions/17639562/add-sorting-arrows-to-th-like-table-sorter
+NOTE: these arrows are currently not clever, i.e. do not change with the sorted state.
+*/
+
+
+.headerSortDown:after,
+.headerSortUp:after{
+  content: ' ';
+  position: relative;
+  left: 2px;
+  border: 8px solid transparent;
+}
+.headerSortDown:after{
+  top: 10px;
+  border-top-color: silver;
+}
+.headerSortUp:after{
+  bottom: 15px;
+  border-bottom-color: silver;
+}
+
+.headerSortUpDown:after{
+  content: ' ';
+  position: relative;
+  left: 2px;
+  border: 8px solid transparent;
+  border-top-color: silver;
+  border-bottom-color: silver;
+}
+
+.headerSortUpDown:hover{
+    color: blue !important;
+}
+
+/*   top: 0px;
+  bottom: -35px
+
+ */
+
+.headerSortDown,
+.headerSortUp,
+.headerSortUpDown,{
+  padding-right: 10px;
+}
+
+
+/* .w3-green,.w3-hover-green:hover */
+.scanFOUNDclass {
+    color:#fff!important;background-color:#4CAF50!important
+}
+
+/* .w3-red,.w3-hover-red:hover{  */
+.scanABSENTclass {
+    color:#fff!important;background-color:#f44336!important
+}
+
+ /* .w3-purple,.w3-hover-purple:hover{  */
+ .scanUNEXPECTEDclass {
+     color:#fff!important;background-color:#9c27b0!important
+}
+
+ 

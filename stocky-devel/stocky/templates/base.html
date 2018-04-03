@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='w3.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='leds.css') }}">
+    <title>Stocky - {% block pagetitle %}{% endblock %}</title>
+  </head>
+  <body>
+    <div id="pagecontainer">
+      <div id="pagehead">{% block pagehead %}{% endblock %}
+      </div>
+      <div id="pagecontent">{% block pagecontent %}{% endblock %}
+      </div>
+      <div id="pagefoot">
+	BC CfE Stocky Program version 0.1 (wscott@cfenet.ubc.ca, January 2018)
+      </div>
+    </div>
+{% raw %}
+    <script id="checkstock-template" type="text/x-handlebars-template">
+      Choose a Location:<br>
+    <select id="locky-button" name="loc-selector">
+      {{#each loclist}}
+      {{#if_eq this.isselected true}}
+      <option value={{this.name}} selected="selected">{{this.name}}</option>
+      {{else}}
+      <option value={{this.name}}>{{this.name}}</option>
+      {{/if_eq}}
+      {{/each}}
+    </select>
+    <table id="scantable" class="w3-table w3-border w3-bordered w3-hoverable sort-table" >
+      <tr class="w3-blue">
+	<th class="headerSortUpDown" onclick="w3.sortHTML('#scantable','.item', 'td:nth-child(1)')"> Item Name</th>
+	<th class="headerSortUpDown" onclick="w3.sortHTML('#scantable','.item', 'td:nth-child(2)')"> Scan ID</th>
+	<th class="headerSortUpDown" onclick="w3.sortHTML('#scantable','.item', 'td:nth-child(3)')"> Scan Status </th>
+      </tr>
+      {{#each scanlist}}
+      <tr class="item">
+	<td> {{this.name}} </td>
+	<td> {{this.id}} </td>
+	<td class="scan{{this.status}}class"> {{this.status}} </td>
+      </tr>
+      {{/each}}
+    </table>
+  </script>
+  <script id="scolist-template" type="text/x-handlebars-template">
+    <ul>
+      {{#each numlist}}
+      <li> {{this}} </li>
+      {{/each}}
+    </ul>
+  </script>
+{% endraw %}  
+  </body>
+  <script src="{{ url_for('static', filename='handlebars-v4.0.11.js') }}" charset="UTF-8" type="text/javascript"></script>
+  <script src="{{ url_for('static', filename='handlebars-helpers.js') }}" charset="UTF-8" type="text/javascript"></script>
+  <script src="{{ url_for('static', filename='w3.js') }}" charset="UTF-8" type="text/javascript"></script>
+  <script src="/webclient/__javascript__/webclient.js" charset="UTF-8" type="text/javascript"></script>
+</html>

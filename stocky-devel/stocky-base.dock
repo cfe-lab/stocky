@@ -1,0 +1,44 @@
+
+FROM python:3.6-/mjessie
+
+# cannot use stretch as yet: different USB libraries.
+# FROM python:3.6-stretch
+
+MAINTAINER wscott@cfenet.ubc.ca
+
+# NOTE: we need the bluetooth library for the pip package pybluez
+# we need bluez for the rfcomm and hcitool executables
+RUN apt-get update ;\
+    apt-get -y upgrade ;\
+    apt-get install -y less tcsh unzip patch xsltproc gcc libreadline-dev python3-dev libbluetooth-dev bluez;\
+    apt-get clean
+#    apt-get install -y redis-server nginx less lynx unzip sqlite3 graphviz ;\
+
+# Copy the source code into the image
+COPY stocky /stockysrc
+WORKDIR /stockysrc
+
+RUN pip install --upgrade pip ;\
+    pip install --no-cache-dir -r requirements.txt
+
+
+ENV PYTHONPATH "${PYTHONPATH}:/stockysrc/stocky/serverlib:/stockysrc/stocky:/stockysrc"
+# not needed /usr/local/lib/python3.6/site-packages/transcrypt/modules/"
+
+
+# mypy (including transcrypt) needs this in order to find all modules
+ENV MYPYPATH="/stockysrc/webqai:/stockysrc:/stockysrc/stocky/serverlib:/stockysrc/stocky"
+# :/usr/local/lib/python3.6"
+
+
+ENV FLASK_APP=/stockysrc/stocky.py
+
+ENV STOCKY_CONFIG_DIR=/stockyconfig
+ENV STOCKY_STATE_DIR=/stockystate
+
+# The web server listens on this port number
+EXPOSE 5000
+
+RUN (cd webclient; make webclient)
+
+CMD ./runserver.sh
