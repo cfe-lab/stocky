@@ -3,6 +3,7 @@
 # no development environment files
 stocky-devel/env/
 stocky-devel/stocky-devel-state/
+stocky-devel/stocky-devel-config/
 stocky-devel/stocky/static/*.png
 
 # mypy cache files

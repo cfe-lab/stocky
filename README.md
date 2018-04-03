@@ -21,9 +21,9 @@ All of the server and webclient code is designed to be compiled and run within a
 
 ## Quick Start
 1. **Prerequisites:** In order to build and compile Stocky, you will need a (linux) computer with the following installed:
-  1. docker
-  2. the GNU make program
-  3. a web browser such as firefox.
+  - docker
+  - the GNU make program
+  - a web browser such as firefox.
 
 2. **Build the docker image:** Once you have copied the source code from github, perform
      a `cd stockygit/stocky-devel`.
@@ -40,6 +40,12 @@ All of the server and webclient code is designed to be compiled and run within a
     To build the docker container, issue a `make build` command.
 
 3. **Configure the Stocky application**
+   Still in the `stockygit/stocky-devel` directory, make two directories that stocky
+   will when running. These directories will be mounted by the docker container when it launches
+   (see the Makefile for details of how this is done).
+   ```
+   mkdir stocky-devel-config; mkdir stocky-devel-state
+   ```
 
 4. **Run Stocky in its docker container**
 
