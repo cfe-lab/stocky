@@ -1,22 +1,25 @@
-# configuration file for stocky server program. This is a YAML file defining
+# configuration file for the stocky server program. This is a YAML file defining
 # a single dictionary
 #
 # configuration file version
 VERSION: 1.0
 #
-#- the USB device number of the bluetooth dongle used to communicate withthe RFID reader
+#- the USB device ID of the bluetooth dongle used to communicate with the RFID reader
+# Determine this using 'lsusb'
 BT_USB_DEVICE: '0a5c:21e8'
 #
-# the bluetooth imac address of the reader. Determine this with 'hcitool scan'
+# The bluetooth imac address of the RFID reader. With the RFID reader switched on in the vicinity,
+# determine this with 'hcitool scan'
 BT_READER_ADR: '98:D6:F7:B5:7D:E2'
 #--
-# the region mode of the RFID reader. This defines the operation frequency and power output
-# of the reader. This must be valid according to the TLS ASCII protocol, command ".sr" .
+# The region mode of the RFID reader. This defines the operation frequency and power output
+# of the reader. This must be a valid entry according to the TLS ASCII protocol, command ".sr" .
 RFID_REGION_CODE: 'us'
 # --
 # The time zone that should be used in reporting times.
 # This must be a string known to the pytz module 'print(pytz.all_timezones)'
-# NOTE: set the question mark and run the server to get a list of all known time zones.
+# NOTE: set this variable to a question mark and run the server to get a list of all
+# known time zones.
 #TIME_ZONE: '?'
 TIME_ZONE: 'America/Vancouver'
 

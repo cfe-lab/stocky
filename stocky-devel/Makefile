@@ -1,4 +1,6 @@
 
+# Makefile to facilitate the building and running of Stocky.
+# ****** Simply run 'make' in this directory to get a list of options *******
 
 BASE_IMAGE_NAME = stocky-base
 BASE_DOCKERFILE = stocky-base.dock
@@ -54,7 +56,7 @@ build: $(BASE_DOCKERFILE) ## build the docker image for stocky
 build-nocache: $(BASE_DOCKERFILE) ## build the docker image for stocky from scratch
 	( docker build --no-cache -f $(BASE_DOCKERFILE) -t ${BASE_IMAGE_NAME} . )
 
-runlocal:  ## run the stocky docker image interactively with bash.
+runlocal:  ## run the stocky docker image with local code interactively with bash.
 	${DOCKER_RUN_CMD} -v ${DEV_SRC}:/stockysrc -it ${BASE_IMAGE_NAME} tcsh
 
 runprod: ## run the stocky docker image for production.

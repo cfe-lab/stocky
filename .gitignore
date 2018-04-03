@@ -4,7 +4,9 @@
 stocky-devel/env/
 stocky-devel/stocky-devel-state/
 stocky-devel/stocky-devel-config/
+# only the sample_logo PNG file is included, exclude all other PNG files...
 stocky-devel/stocky/static/*.png
+!stocky-devel/stocky/static/sample_logo.png
 
 # mypy cache files
 .mypy_cache/
