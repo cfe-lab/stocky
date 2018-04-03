@@ -1,5 +1,10 @@
 
 
+# no development environment files
+stocky-devel/env/
+stocky-devel/stocky-devel-state/
+stocky-devel/stocky/static/*.png
+
 # mypy cache files
 .mypy_cache/
 
@@ -9,3 +14,4 @@
 # generated javascript files
 __javascript__/
 __pycache__
+
