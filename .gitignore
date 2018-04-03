@@ -11,7 +11,8 @@ stocky-devel/stocky/static/*.png
 # edited files
 *~
 
-# generated javascript files
+# generated caches
 __javascript__/
 __pycache__
+.pytest_cache
 
