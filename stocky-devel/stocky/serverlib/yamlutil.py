@@ -13,9 +13,10 @@ def yamldump(data: typing.Any) -> str:
 
 def readyamlfile(yamlfilename: str, ENV_NAME: str=None):
     """Open and read a filename, returning the data structure read.
-    If ENV_NAME is not None, then the contents of an environment variable called ENV_NAME
-    is accessed. If this is successful, the file name is looked for in the directory
-    specified by the environment variable ENV_NAME.
+    If the yamlfilename does not start witha period and ENV_NAME is not None, then the
+    contents of an environment variable called ENV_NAME is accessed.
+    If this is successful, the file name is looked for in the directory specified by the
+    environment variable ENV_NAME.
     This function will raise a RuntimeError if there are any problems.
     """
     if not yamlfilename.startswith('.') and ENV_NAME is not None:

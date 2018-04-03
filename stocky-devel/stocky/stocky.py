@@ -25,7 +25,7 @@ from webclient.commonmsg import CommonMSG
 from random import random
 
 
-# initial ideas for this program were taken from
+# NOTE: initial ideas for this program were taken from
 # random number thread -- BUT that was for flask socketIO, NOT flask sockets
 # https://github.com/shanealynn/async_flask/blob/master/application.py
 
@@ -203,7 +203,5 @@ def main_page():
 if __name__ == "__main__":
     print("Sorry Dave, stocky.py main program will not run....")
     print("Start the stocky server using the runserver.sh script")
-    print("""Or something like: 'gunicorn -k flask_sockets.worker "stocky:init_app('serverconfig.yaml')" --bind 0.0.0.0:5000'""")
-    
-    # app.run()
-    #init_app('serverconfig.yaml')
+    print("""Or something like:
+'gunicorn -k flask_sockets.worker "stocky:init_app('serverconfig.yaml')" --bind 0.0.0.0:5000'""")

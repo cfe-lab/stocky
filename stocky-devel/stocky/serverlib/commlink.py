@@ -1,8 +1,8 @@
 
 
-import typing
+# define a bluetooth communication link class for the TLS ASCII protocol
 
-# define a bluetooth communication link class
+import typing
 
 
 OK_RESP = 'OK'

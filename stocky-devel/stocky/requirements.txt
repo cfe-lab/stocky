@@ -1,5 +1,5 @@
 Flask>=0.12
-# need these this for flask-socket
+# need these for websocket support
 Flask-Sockets>=0.2
 gevent-websocket>=0.10.
 gunicorn>=19.7

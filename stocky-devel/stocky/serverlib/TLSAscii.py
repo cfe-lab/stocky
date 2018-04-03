@@ -64,8 +64,8 @@ class BarcodeParams:
 
     def tostr(self) -> str:
         cmdstr = "-al {} -dt {} -t {}".format(onoffdct[self.doalert],
-                                           onoffdct[self.with_date_time],
-                                           self.read_time_secs)
+                                              onoffdct[self.with_date_time],
+                                              self.read_time_secs)
         return cmdstr
 
 
@@ -305,4 +305,4 @@ class TLS:
 
     def read_TLS_msg(self) -> CommonMSG:
         """Block and return a message to the web server."""
-        
+        pass
