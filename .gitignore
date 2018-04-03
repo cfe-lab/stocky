@@ -8,8 +8,9 @@ stocky-devel/stocky/static/*.png
 # mypy cache files
 .mypy_cache/
 
-# edited files
+# unwanted emacs files
 *~
+flymd.*
 
 # generated caches
 __javascript__/

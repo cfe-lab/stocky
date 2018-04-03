@@ -1,7 +1,7 @@
 
-FROM python:3.6-/mjessie
+FROM python:3.6-jessie
 
-# cannot use stretch as yet: different USB libraries.
+# 2018-04: cannot use the newer stretch as yet: different USB libraries.
 # FROM python:3.6-stretch
 
 MAINTAINER wscott@cfenet.ubc.ca
