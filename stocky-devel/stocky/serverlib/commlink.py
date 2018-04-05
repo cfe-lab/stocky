@@ -3,6 +3,7 @@
 # define a bluetooth communication link class for the TLS ASCII protocol
 
 import typing
+import serial
 
 
 OK_RESP = 'OK'
@@ -11,7 +12,7 @@ RI_VAL = 'RI'
 
 resp_code_lst = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'CS', 'DA', 'DP',
                  'DT', 'EA', 'EB', 'FN', 'IA', 'IX', 'KS', 'LB', 'LE', 'LL', 'LK', 'LS',
-                 'ME', 'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP',
+                 'ME', 'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP', 'BV',
                  'SR', 'SW', 'TD', 'TM', 'UB', 'UF', 'US', 'WW', OK_RESP, ER_RESP, RI_VAL]
 
 resp_code_set = frozenset(resp_code_lst)
@@ -27,7 +28,10 @@ command_lst = ['al', 'ab', 'bc', 'bl', 'bt', 'da', 'dp', 'ea', 'ec',
                'ss', 'st', 'tm', 'ts', 'vr', 'wa', 'wr', 'ws']
 command_set = frozenset(command_lst)
 
-CRLF = "\r\n"
+CR = b'\r'
+LF = b'\n'
+
+CRLF = b"\r\n"
 
 OK_RESP_TUPLE = (OK_RESP, '')
 
@@ -66,9 +70,14 @@ _tlsretcode_dct = {0: 'No Error',
 class BaseCommLink:
     RC_OK = 0
 
-    def __init__(self, id: str) -> None:
-        """Open a communication channel defined by its id."""
+    def __init__(self, id: str, cfgdct: dict) -> None:
+        """Open a communication channel defined by its id.
+        Information needed to open such a channel will be extracted from
+        the cfgdct. This is the dict resulting from the server configuration file.
+        """
         self.id = id
+        self.cfgdct = cfgdct
+        self.logger = cfgdct['logger']
 
     @staticmethod
     def _line_2_resptup(l: str) -> ResponseTuple:
@@ -119,6 +128,11 @@ class BaseCommLink:
         """Return a list with only those response codes equal to respcode"""
         assert respcode in resp_code_set, "illegal respcode"
         return [t for t in l if t[0] == respcode]
+
+    @staticmethod
+    def _response_todict(l: ResponseList) -> dict:
+        """Convert the response list into a dictionary"""
+        return dict(l)
 
     @staticmethod
     def RC_string(ret_code: TLSRetCode) -> str:
@@ -186,9 +200,105 @@ class BaseCommLink:
         return BaseCommLink._check_get_int_val(rssi_lst[0], RI_VAL)
 
 
+class SerialCommLink(BaseCommLink):
+    """Communicate with the RFID reader via a serial device (i.e. USB or Bluetooth)"""
+
+    def __init__(self, id: str, cfgdct: dict) -> None:
+        super().__init__(id, cfgdct)
+        devname = cfgdct['RFID_READER_DEVNAME']
+        self.logger.debug("commlink opening '{}'".format(devname))
+        try:
+            myser = serial.Serial(devname,
+                                  baudrate=19200,
+                                  parity='N',
+                                  timeout=20)
+            self.logger.debug('YAHOO')
+        except IOError as e:
+            self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname, e))
+            myser = None
+        except Exception as e:
+            self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname))
+            myser = None
+        self.mydev = myser
+        self.logger.debug('BLABLA OK {}'.format(devname))
+
+    def raw_send_cmd(self, cmdstr: str) -> None:
+        """Send a string to the device as a command.
+        The call returns as soon as the cmdstr data has been written.
+        """
+        if self.mydev is None:
+            msg = 'raw_send_cmd: Device is not alive!'
+            self.logger.error(msg)
+            raise RuntimeError(msg)
+        try:
+            self.mydev.write(cmdstr + CRLF)
+            # self.mydev.write(CRLF)
+            self.mydev.flush()
+        except Exception as e:
+            self.logger.error("write failed '{}'".format(e))
+            raise
+
+    def _sco_readline(self, timeout_secs: int) -> str:
+        mydev = self.mydev
+        retbytes, doread = b'', True
+        while doread:
+            newbytes = mydev.read(size=1)
+            if newbytes != CR:
+                retbytes += newbytes
+            else:
+                newbytes = mydev.read(size=1)
+                if newbytes != LF:
+                    self.logger.error("rd: internal error 1")
+                    raise RuntimeError('protocol error')
+                doread = False
+        return str(retbytes, 'utf-8')
+
+    def raw_read_response(self, timeout_secs: int) -> ResponseList:
+        """Read a sequence of response tuples from the device.
+        This code blocks until a terminating response tuple is returned, i.e.
+        either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF> or
+        until a timeout occurs.
+        """
+        self.logger.debug("raw_read...")
+        rlst, done = [], False
+        while not done:
+            try:
+                cur_line = self._sco_readline(timeout_secs)
+            except Exception as e:
+                self.logger.error("readline failed '{}'".format(e))
+                raise
+            self.logger.debug("rr '{}' ({})".format(cur_line, len(cur_line)))
+            if len(cur_line) > 0:
+                rlst.append(BaseCommLink._line_2_resptup(cur_line))
+            else:
+                # we have reached a 'terminal' message (OK or ER)
+                done = True        # --
+        return rlst
+
+    def is_alive(self, doquick: bool=True) -> bool:
+        return self.mydev is not None
+
+    def id_string(self) -> str:
+        resp_lst = self.execute_cmd(b'.vr')
+        self.logger.debug("ID_STRING RESP: {}".format(resp_lst))
+        dd = BaseCommLink._response_todict(resp_lst)
+        self.logger.debug("ID_STRING RESP: {}".format(dd))
+        klst = [('Manufacturer', 'MF'),
+                ('Unit serial number', 'US'),
+                ('Unit firmware version', 'UF'),
+                ('Unit bootloader version', 'UB'),
+                ('Antenna serial number', 'AS'),
+                ('Radio serial number', 'RS'),
+                ('Radio firmware version', 'RF'),
+                ('Radio bootloader version', 'RB'),
+                ('BT address', 'BA'),
+                ('Protocol version', 'PV')]
+        return ", ".join(["%s: %s" % (title, dd.get(k, None)) for title, k in klst])
+
+
 class DummyCommLink(BaseCommLink):
-    def __init__(self, id: str) -> None:
-        super().__init__(id)
+    def __init__(self, id: str, cfgdct: dict) -> None:
+        super().__init__(id, cfgdct)
         self.resplst: typing.List[str] = []
 
     def is_alive(self, doquick: bool=True) -> bool:

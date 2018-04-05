@@ -46,18 +46,27 @@ class serverclass:
     """The class that implements the web server. It is instantiated as a singleton."""
 
     def __init__(self, app: flask.Flask, CommLinkClass, cfgname: str) -> None:
-        self.cfg_dct = serverconfig.read_server_config(cfgname)
+        # must set logging  before anything else...
         self._app = app
         self.logger = app.logger
-        self.name = "Johnny"
+
         self.logger.info("serverclass: reading config file '{}'".format(cfgname))
+        self.cfg_dct = serverconfig.read_server_config(cfgname)
+        self.cfg_dct['logger'] = self.logger
+        self.logger.debug("serverclass: config file read...{}".format(self.cfg_dct))
+        self.name = "Johnny"
         self.msgQ = Queue()
-        self.cl = CommLinkClass('myservercl')
+        self.logger.debug("serverclass: instantiating CommLinkClass...")
+        self.cl = CommLinkClass('myservercl', self.cfg_dct)
         if self.cl.is_alive():
-            idstr = self.cl.id_string()
-            self.logger.info("Commlink is alive and idents as '{}'".format(idstr))
+            self.logger.debug("Commlink is alive")
         else:
-            raise RuntimeError("Commlink is NOT alive, exiting")
+            msg = "Commlink is NOT alive, exiting"
+            self.logger.info(msg)
+            raise RuntimeError(msg)
+        self.logger.debug("serverclass: getting id_string...")
+        idstr = self.cl.id_string()
+        self.logger.info("Commlink is alive and idents as '{}'".format(idstr))
         self.tls = TLSAscii.TLS(self.cl)
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
@@ -177,7 +186,7 @@ def init_app(cfgname: str):
     gunicorn -k flask_sockets.worker "stocky:init_app('scoconfig.yaml')" --bind 0.0.0.0:5000
     """
     global the_main
-    the_main = serverclass(app, commlink.DummyCommLink, cfgname)
+    the_main = serverclass(app, commlink.SerialCommLink, cfgname)
     logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
     return app
 

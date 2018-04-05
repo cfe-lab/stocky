@@ -3,7 +3,7 @@
 # Start the flask server with our stocky.py application
 
 # Can set this to set default logging mode for flask -- or can use the logging.yaml file instead
-# export FLASK_DEBUG=1
+export FLASK_DEBUG=1
 
 # build the javascript of the client...
 # (cd webclient; make webclient)

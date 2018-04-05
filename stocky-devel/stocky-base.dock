@@ -8,9 +8,10 @@ MAINTAINER wscott@cfenet.ubc.ca
 
 # NOTE: we need the bluetooth library for the pip package pybluez
 # we need bluez for the rfcomm and hcitool executables
+# libbluetooth-dev bluez
 RUN apt-get update ;\
     apt-get -y upgrade ;\
-    apt-get install -y less tcsh unzip patch xsltproc gcc libreadline-dev python3-dev libbluetooth-dev bluez;\
+    apt-get install -y less tcsh unzip patch xsltproc gcc libreadline-dev python3-dev usbutils;\
     apt-get clean
 
 # Copy the source code into the image

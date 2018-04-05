@@ -8,7 +8,7 @@ import serverlib.TLSAscii as TLSAscii
 class Test_TLSAscii:
 
     def setup_method(self) -> None:
-        self.cl = commlink.DummyCommLink("bla")
+        self.cl = commlink.DummyCommLink("bla", {})
         if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()

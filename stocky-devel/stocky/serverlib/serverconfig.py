@@ -17,7 +17,8 @@ CONFIG_DIR_ENV_NAME = 'STOCKY_CONFIG_DIR'
 VERSION_FLT = 1.0
 
 known_set = frozenset(['VERSION', 'BT_USB_DEVICE',
-                       'BT_READER_ADR', 'RFID_REGION_CODE', 'TIME_ZONE'])
+                       'BT_READER_ADR', 'RFID_REGION_CODE', 'TIME_ZONE',
+                       'RFID_READER_DEVNAME'])
 
 
 def read_logging_config(yamlfilename: str) -> dict:
