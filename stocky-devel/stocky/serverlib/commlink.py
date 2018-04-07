@@ -9,10 +9,12 @@ import serial
 OK_RESP = 'OK'
 ER_RESP = 'ER'
 RI_VAL = 'RI'
+ME_VAL = 'ME'
+
 
 resp_code_lst = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'CS', 'DA', 'DP',
                  'DT', 'EA', 'EB', 'FN', 'IA', 'IX', 'KS', 'LB', 'LE', 'LL', 'LK', 'LS',
-                 'ME', 'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP', 'BV',
+                 ME_VAL, 'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP', 'BV',
                  'SR', 'SW', 'TD', 'TM', 'UB', 'UF', 'US', 'WW', OK_RESP, ER_RESP, RI_VAL]
 
 resp_code_set = frozenset(resp_code_lst)
@@ -28,10 +30,11 @@ command_lst = ['al', 'ab', 'bc', 'bl', 'bt', 'da', 'dp', 'ea', 'ec',
                'ss', 'st', 'tm', 'ts', 'vr', 'wa', 'wr', 'ws']
 command_set = frozenset(command_lst)
 
-CR = b'\r'
-LF = b'\n'
 
-CRLF = b"\r\n"
+byteCR = b'\r'
+byteLF = b'\n'
+
+byteCRLF = b"\r\n"
 
 OK_RESP_TUPLE = (OK_RESP, '')
 
@@ -130,8 +133,20 @@ class BaseCommLink:
         return [t for t in l if t[0] == respcode]
 
     @staticmethod
+    def _return_message(l: ResponseList) -> str:
+        """Return a message sent from the RFID reader in the ME: field of the
+        ResponseList. Return None if there is no message."""
+        rlst = BaseCommLink._extract_response(l, ME_VAL)
+        if len(rlst) != 1:
+            return None
+        else:
+            return rlst[0][1]
+
+    @staticmethod
     def _response_todict(l: ResponseList) -> dict:
-        """Convert the response list into a dictionary"""
+        """Convert the response list into a dictionary.
+        Beware: double key entries will lead to silent data loss.
+        """
         return dict(l)
 
     @staticmethod
@@ -160,7 +175,7 @@ class BaseCommLink:
         raise NotImplementedError("id_string not defined")
 
     def execute_cmd(self, cmdstr: str, timeout_secs=DEFAULT_TIMEOUT_SECS) -> ResponseList:
-        """ send a command string to the reader, returning its list of response strings."""
+        """Send a command string to the reader, returning its list of response strings."""
         self.raw_send_cmd(cmdstr)
         return self.raw_read_response(timeout_secs)
 
@@ -168,36 +183,18 @@ class BaseCommLink:
         """Execute a command and return := 'response is OK'
         This routine can be used whenever we are simply interested in setting reader parameters,
         and do not expect any tag data to be returned."""
+        self.logger.debug('CL: execute_is_ok')
         resp_lst = self.execute_cmd(cmdstr)
+        self.logger.debug('CL: execute_is_ok got {}'.format(resp_lst))
         ret_code = BaseCommLink.return_code(resp_lst)
         is_ok = ret_code == BaseCommLink.RC_OK
         if not is_ok and verbose:
-            print("Error code {} on cmd '{}'".format(ret_code, cmdstr))
-            print("Err string: {}".format(BaseCommLink.RC_string(ret_code)))
+            msg = BaseCommLink._return_message(resp_lst)
+            self.logger.debug("Error on cmd: '{}'; code: {}: {}, msg: {}".format(cmdstr,
+                                                                                 ret_code,
+                                                                                 BaseCommLink.RC_string(ret_code),
+                                                                                 msg))
         return is_ok
-
-    def RadarSetup(self, EPCcode: str) -> None:
-        """Set up the reader to search for a tag with a specific Electronic Product Code (EPC).
-        by later on issuing RadarGet() commands.
-        The 'Radar' functionality allows the user to search for a specific tag, and to determine
-        its distance from the reader using the RSS (return signal strength) field.
-
-        See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
-        """
-        cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(EPCcode)
-        if not self.execute_is_ok(cmdstr):
-            raise RuntimeError("radarsetup failed")
-
-    def RadarGet(self) -> RSSI:
-        """Return an RSSI value of the tag previously selected by its EPC in RadarSetup"""
-        resplst = self.execute_cmd(".iv")
-        ret_code = BaseCommLink.return_code(resplst)
-        if ret_code != BaseCommLink.RC_OK:
-            raise RuntimeError("radarget failed")
-        rssi_lst = BaseCommLink._extract_response(resplst, RI_VAL)
-        if len(rssi_lst) != 1:
-            raise RuntimeError("no single RSSI value detected: rssi_lst is {}".format(rssi_lst))
-        return BaseCommLink._check_get_int_val(rssi_lst[0], RI_VAL)
 
 
 class SerialCommLink(BaseCommLink):
@@ -220,19 +217,20 @@ class SerialCommLink(BaseCommLink):
             self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname))
             myser = None
         self.mydev = myser
-        self.logger.debug('BLABLA OK {}'.format(devname))
+        self.logger.debug('serial commlink OK {}'.format(devname))
 
     def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         """
         if self.mydev is None:
-            msg = 'raw_send_cmd: Device is not alive!'
+            msg = 'CL: raw_send_cmd: Device is not alive!'
             self.logger.error(msg)
             raise RuntimeError(msg)
         try:
-            self.mydev.write(cmdstr + CRLF)
-            # self.mydev.write(CRLF)
+            self.logger.error("CL: writing..")
+            bytecmd = bytes(cmdstr, 'utf-8') + byteCRLF
+            self.mydev.write(bytecmd)
             self.mydev.flush()
         except Exception as e:
             self.logger.error("write failed '{}'".format(e))
@@ -243,11 +241,11 @@ class SerialCommLink(BaseCommLink):
         retbytes, doread = b'', True
         while doread:
             newbytes = mydev.read(size=1)
-            if newbytes != CR:
+            if newbytes != byteCR:
                 retbytes += newbytes
             else:
                 newbytes = mydev.read(size=1)
-                if newbytes != LF:
+                if newbytes != byteLF:
                     self.logger.error("rd: internal error 1")
                     raise RuntimeError('protocol error')
                 doread = False
@@ -273,13 +271,14 @@ class SerialCommLink(BaseCommLink):
             else:
                 # we have reached a 'terminal' message (OK or ER)
                 done = True        # --
+        self.logger.debug("raw_read got {}...".format(rlst))
         return rlst
 
     def is_alive(self, doquick: bool=True) -> bool:
         return self.mydev is not None
 
     def id_string(self) -> str:
-        resp_lst = self.execute_cmd(b'.vr')
+        resp_lst = self.execute_cmd('.vr')
         self.logger.debug("ID_STRING RESP: {}".format(resp_lst))
         dd = BaseCommLink._response_todict(resp_lst)
         self.logger.debug("ID_STRING RESP: {}".format(dd))

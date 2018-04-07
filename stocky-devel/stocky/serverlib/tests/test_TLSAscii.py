@@ -1,6 +1,8 @@
 
 import pytest
 
+import logging
+
 import serverlib.commlink as commlink
 import serverlib.TLSAscii as TLSAscii
 
@@ -8,11 +10,13 @@ import serverlib.TLSAscii as TLSAscii
 class Test_TLSAscii:
 
     def setup_method(self) -> None:
-        self.cl = commlink.DummyCommLink("bla", {})
+        logger = logging.Logger("testing")
+        self.cl = commlink.DummyCommLink("bla", {'logger': logger})
         if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
+        self.tls = TLSAscii.TLS(self.cl)
 
     def test_cl_response_codes_len(self) -> None:
         """All commlink response codes must be of length 2"""
@@ -44,6 +48,14 @@ class Test_TLSAscii:
             resp_got = commlink.BaseCommLink._line_2_resptup(test_line)
             assert resp_got == resp_exp, "unexpected RespTuple"
 
+    def test_cl_return_message01(self) -> None:
+        test_lst = [([("ME", "hello")], "hello"),
+                    ([("AA", "funny")], None)
+                    ]
+        for test_lst, resp_exp in test_lst:
+            resp_got = commlink.BaseCommLink._return_message(test_lst)
+            assert resp_got == resp_exp, "unexpected RespTuple"
+            
     def test_dummyCL01(self):
         """Issue a valid raw command."""
         self.cl.raw_send_cmd(".ec -p")
@@ -63,8 +75,8 @@ class Test_TLSAscii:
 
     def test_radar01(self):
         EPCcode = "123456"
-        self.cl.RadarSetup(EPCcode)
-        rssi = self.cl.RadarGet()
+        self.tls.RadarSetup(EPCcode)
+        rssi = self.tls.RadarGet()
         assert isinstance(rssi, int), "int expected"
         print("GOOT {}".format(rssi))
         # assert False, "force fail"

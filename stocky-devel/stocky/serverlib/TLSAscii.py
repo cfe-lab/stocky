@@ -1,4 +1,5 @@
 
+import typing
 from enum import Enum
 
 import serverlib.commlink as commlink
@@ -162,7 +163,7 @@ class RFIDParams:
     def __init__(self, **kw) -> None:
         # self.doalert = doalert
         # self.with_date_time = with_date_time
-        self.pdct = {}
+        self.pdct: typing.Dict[str, str] = {}
         got_err = False
         for kuser, v in kw.items():
             kinternal = valid_rfid_dct.get(kuser, None)
@@ -187,9 +188,10 @@ class RFIDParams:
 
 
 class TLS:
-    def __init__(self, cl: commlink.BaseCommLink):
+    def __init__(self, cl: commlink.BaseCommLink) -> None:
         """Create a class that can talk to the RFID reader via the provided commlink class."""
         self._cl = cl
+        self.logger = cl.logger
 
     def _sendcmd(self, cmdstr: str) -> commlink.ResponseList:
         cl = self._cl
@@ -204,18 +206,28 @@ class TLS:
         """
         cl = self._cl
         if not cl.is_alive():
-            raise RuntimeError("commlink is not alive")
+            msg = "TLS: commlink is not alive"
+            self.logger.error(msg)
+            raise RuntimeError(msg)
         if not cl.execute_is_ok(cmdstr, verbose=True):
-            raise RuntimeError("_send_command_check_ok failed")
+            msg = "TLS: _send_command_check_ok failed for '{}'".format(cmdstr)
+            self.logger.error(msg)
+            raise RuntimeError(msg)
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.
         Examples of this are 'us', 'eu', 'tw', etc.
+        NOTE: not all 1128 readers support this command and will return and error message
+        instead.
         """
         if len(region_code) != 2:
             raise RuntimeError("length of region code <> 2!")
         cmdstr = ".sr -s {}".format(region_code)
-        self._send_command_check_ok(cmdstr)
+        # the operation might not be supported by the reader.. gracefully handle this case
+        # self._send_command_check_ok(cmdstr)
+        if not self._cl.execute_is_ok(cmdstr, verbose=True):
+            msg = "TLS: command failed for '{}'".format(cmdstr)
+            self.logger.error(msg)
 
     def doalert(self, p: AlertParams) -> None:
         """Perform the alert command: play a tone and/or buzz the vibrator
@@ -288,7 +300,7 @@ class TLS:
             raise RuntimeError("minute is out of range")
         if not (0 <= secs < 60):
             raise RuntimeError("second is out of range")
-        cmdstr = ".tm -s {}{}{}".format(hrs, mins, secs)
+        cmdstr = ".tm -s {:02d}{:02d}{:02d}".format(hrs, mins, secs)
         self._send_command_check_ok(cmdstr)
 
         if yy < 2000:
@@ -297,12 +309,57 @@ class TLS:
             raise RuntimeError("month is out of range")
         if not (1 <= dd <= 31):
             raise RuntimeError("day is out of range")
-        cmdstr = ".da -s {}{}{}".format(yy-2000, mm, dd)
+        cmdstr = ".da -s {:02d}{:02d}{:02d}".format(yy-2000, mm, dd)
         self._send_command_check_ok(cmdstr)
 
     def readRFID(self, p: RFIDParams) -> None:
         pass
 
+    def RadarSetup(self, EPCcode: str) -> None:
+        """Set up the reader to search for a tag with a specific Electronic Product Code (EPC).
+        by later on issuing RadarGet() commands.
+        The 'Radar' functionality allows the user to search for a specific tag, and to determine
+        its distance from the reader using the RSS (return signal strength) field.
+
+        See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
+        """
+        cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(EPCcode)
+        if not self._cl.execute_is_ok(cmdstr):
+            raise RuntimeError("radarsetup failed")
+
+    def RadarGet(self) -> commlink.RSSI:
+        """Return an RSSI value of the tag previously selected by its EPC in RadarSetup"""
+        resplst = self._cl.execute_cmd(".iv")
+        ret_code = commlink.BaseCommLink.return_code(resplst)
+        if ret_code != commlink.BaseCommLink.RC_OK:
+            raise RuntimeError("radarget failed")
+        rssi_lst = commlink.BaseCommLink._extract_response(resplst, commlink.RI_VAL)
+        if len(rssi_lst) != 1:
+            raise RuntimeError("no single RSSI value detected: rssi_lst is {}".format(rssi_lst))
+        return commlink.BaseCommLink._check_get_int_val(rssi_lst[0], commlink.RI_VAL)
+
+    def BT_set_stock_check_mode(self):
+        """Set the RFID reader into stock taking mode."""
+        alert_parms = AlertParams(buzzeron=True, vibrateon=True,
+                                  vblen=BuzzViblen('med'),
+                                  pitch=Buzzertone('med'))
+        self.doalert(alert_parms)
+
+    # stocky main server messaging service....
     def read_TLS_msg(self) -> CommonMSG:
-        """Block and return a message to the web server."""
-        pass
+        """Block and return a message to the web server
+        Typically, when the user presses the trigger of the RFID reader,
+        we will send a message with the scanned data back.
+
+        """
+        time_out_secs = 10
+        while True:
+            resp_lst = self._cl.raw_read_response(time_out_secs)
+            self.logger.debug("YEEEEE got {}".format(resp_lst))
+
+
+    def send_RFID_msg(self, msg: CommonMSG) -> None:
+        """The stocky server uses this routine to send messages (commands) to the
+        RFID reader device."""
+        if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
+            self.BT_set_stock_check_mode()

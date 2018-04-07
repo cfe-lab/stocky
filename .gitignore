@@ -11,6 +11,8 @@ stocky-devel/stocky-devel-config/
 stocky-devel/stocky/static/*.png
 !stocky-devel/stocky/static/sample_logo.png
 
+stocky-devel/stocky/.coverage
+
 # mypy cache files
 .mypy_cache/
 

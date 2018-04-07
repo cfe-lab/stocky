@@ -68,6 +68,7 @@ class serverclass:
         idstr = self.cl.id_string()
         self.logger.info("Commlink is alive and idents as '{}'".format(idstr))
         self.tls = TLSAscii.TLS(self.cl)
+        self.BT_init_reader()
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
         """Send a command to the web client over websocket in a standard JSON format."""
@@ -90,13 +91,13 @@ class serverclass:
         """
         # st = self.b.get_state()
         print("USB state is {}".format(newstate))
-        self.send_WS_msg(CommonMSG(CommonMSG.MSG_USB_STATE_CHANGE, newstate))
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_USB_STATE_CHANGE, newstate))
 
     def random_worker(self):
         while True:
             number = round(random()*10, 3)
             self.logger.debug("random: {} {}".format(self.name, number))
-            self.enQ(CommonMSG(CommonMSG.MSG_RAND_NUM, number))
+            self.enQ(CommonMSG(CommonMSG.MSG_SV_RAND_NUM, number))
             # send_msg(self.ws, 'number', number)
             gevent.sleep(1)
 
@@ -122,35 +123,43 @@ class serverclass:
         self.logger.debug("setting RFID region '{}'".format(reg_code))
         self.tls.set_region(reg_code)
         # set date and time to local time.
-        loc_t = dt.datetime.now()
+        utc_t = dt.datetime.now()
+        tz_info = self.cfg_dct['TZINFO']
+        loc_t = utc_t.astimezone(tz_info)
         self.logger.debug("setting RFID date/time to '{}'".format(loc_t))
         self.tls.set_date_time(loc_t.year, loc_t.month, loc_t.day,
                                loc_t.hour, loc_t.minute, loc_t.second)
 
-    def BT_set_stock_check_mode(self):
-        """Set the RFID read in stock taking mode."""
-        # self.tls.
-        pass
-
     def mainloop(self, ws: websocket):
         # the set of messages we simply pass on to the web client.
-        MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_RAND_NUM, CommonMSG.MSG_USB_STATE_CHANGE])
+        MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_SV_RAND_NUM,
+                                    CommonMSG.MSG_SV_USB_STATE_CHANGE,
+                                    CommonMSG.MSG_RF_STOCK_DATA,
+                                    CommonMSG.MSG_RF_RADAR_DATA])
+
+        # the set of messages to send to the TLS class (the RFID reader)
+        MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
+                                      CommonMSG.MSG_WC_RADAR_MODE])
 
         self.ws = ws
         self.b = USBProc.USBProc(self.cfg_dct['USB_TUPLE'])
-        self.BT_init_reader()
 
         self.b.reg_CB(self.usb_state_change)
         gevent.spawn(self.random_worker)
         gevent.spawn(self.WS_reader)
+        gevent.spawn(self.BT_reader)
         while True:
             msg: CommonMSG = self.msgQ.get()
+            self.logger.debug("handling msgtype '{}'".format(msg.msg))
+            is_handled = False
             if msg.msg in MSG_FOR_WC_SET:
+                is_handled = True
                 self.send_WS_msg(msg)
-            else:
-                self.logger.debug("handling msgtype '{}'".format(msg.msg))
-                if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
-                    self.BT_set_stock_check_mode()
+            if msg.msg in MSG_FOR_RFID_SET:
+                is_handled = True
+                self.tls.send_RFID_msg(msg)
+            if not is_handled:
+                self.logger.debug("server NOT handling msgtype '{}'".format(msg.msg))
 
 
 def test_logging(l):

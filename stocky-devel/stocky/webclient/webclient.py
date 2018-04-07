@@ -38,10 +38,15 @@ menulst = [
                 'title': "Compare scanned items to current stocklist",
                 'id': 'BV3'}
      },
+    {'name': RADAR_VIEW_NAME,
+     'button': {'label': 'Locate a Specific Item',
+                'title': "Search for an item with a given EPC",
+                'id': 'BV4'}
+     },
     {'name': 'upload',
      'button': {'label': 'Upload QAI Stock list',
                 'title': "Write the current stock list back to QAI",
-                'id': 'BV4'}
+                'id': 'BV5'}
      }
     ]
 
@@ -136,7 +141,7 @@ class stocky_mainprog(widgets.base_controller):
         self.showchecklist(None)
 
     def showchecklist(self, my_loc: str):
-        raw_loc_lst = []
+        raw_loc_lst: typing.List[str] = []
         for loc, itm_str, tagnum in stocklist:
             if loc not in raw_loc_lst:
                 raw_loc_lst.append(loc)
@@ -203,7 +208,7 @@ class stocky_mainprog(widgets.base_controller):
                 return
             cmd = msgdat.get("msg", None)
             val = msgdat.get("data", None)
-            if cmd == CommonMSG.MSG_USB_STATE_CHANGE:
+            if cmd == CommonMSG.MSG_SV_USB_STATE_CHANGE:
                 print("GOT state {}".format(val))
                 if val:
                     # set to green
@@ -211,7 +216,7 @@ class stocky_mainprog(widgets.base_controller):
                 else:
                     # set to red
                     self.status_led.setcolour(html.LEDElement.RED)
-            elif cmd == CommonMSG.MSG_RAND_NUM:
+            elif cmd == CommonMSG.MSG_SV_RAND_NUM:
                 # print("GOT number {}".format(val))
                 newnum = val
                 numlst = self.numlst
