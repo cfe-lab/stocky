@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Start the flask server with our stocky.py application
+# -- NOTE: run this script from WITHIN the running docker container.
 
+
+# Start the flask server with our stocky.py application
 # Can set this to set default logging mode for flask -- or can use the logging.yaml file instead
 export FLASK_DEBUG=1
 

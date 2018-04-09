@@ -16,8 +16,7 @@ CONFIG_DIR_ENV_NAME = 'STOCKY_CONFIG_DIR'
 
 VERSION_FLT = 1.0
 
-known_set = frozenset(['VERSION', 'BT_USB_DEVICE',
-                       'BT_READER_ADR', 'RFID_REGION_CODE', 'TIME_ZONE',
+known_set = frozenset(['VERSION', 'RFID_REGION_CODE', 'TIME_ZONE',
                        'RFID_READER_DEVNAME'])
 
 
@@ -26,17 +25,6 @@ def read_logging_config(yamlfilename: str) -> dict:
     if not isinstance(cfg_dct, dict):
         raise RuntimeError("config must be a single dict class , but found a {}".format(type(cfg_dct)))
     return cfg_dct
-
-
-def hexint(instr: str) -> int:
-    """Attempt to convert a hex string into an integer.
-    Return None iff this fails.
-    """
-    try:
-        i = int(instr, 16)
-    except ValueError:
-        return None
-    return i
 
 
 def read_server_config(yamlfilename: str) -> dict:
@@ -60,25 +48,6 @@ def read_server_config(yamlfilename: str) -> dict:
     ver_flt = cfg_dct['VERSION']
     if math.fabs(ver_flt - VERSION_FLT) > 0.001:
         raise RuntimeError("Required VERSION = {}, but got {}".format(VERSION_FLT, ver_flt))
-
-    # check BT_USB_DEVICE: must be a string separated by a colon
-    usb_devstr = cfg_dct['BT_USB_DEVICE']
-    cols = usb_devstr.split(':')
-    is_ok = False
-    if len(cols) == 2:
-        usb_a = hexint(cols[0])
-        usb_b = hexint(cols[1])
-        is_ok = usb_a is not None and usb_b is not None
-    if not is_ok:
-        raise RuntimeError("""Bluetooth USB device name '{}' must be colon separated hex numbers
-such as '0a5c:21e8'. Run the 'lsusb' command to see all attached USB devices.""".format(usb_devstr))
-    cfg_dct["USB_TUPLE"] = (usb_a, usb_b)
-
-    # check BT_READER_ADR: six colon separated hex numbers.
-    bt_adr = cfg_dct['BT_READER_ADR']
-    cols = bt_adr.split(':')
-    if not(len(cols) == 6 and all([hexint(s) for s in cols])):
-        raise RuntimeError("""Bluetooth MAC address '{}' must contain six colon separated numbers.""".format(bt_adr))
 
     # check RFID_REGION_CODE: just check length.
     reg_code = cfg_dct['RFID_REGION_CODE']

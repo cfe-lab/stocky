@@ -340,7 +340,7 @@ class TLS:
 
     def BT_set_stock_check_mode(self):
         """Set the RFID reader into stock taking mode."""
-        alert_parms = AlertParams(buzzeron=True, vibrateon=True,
+        alert_parms = AlertParams(buzzeron=False, vibrateon=True,
                                   vblen=BuzzViblen('med'),
                                   pitch=Buzzertone('med'))
         self.doalert(alert_parms)
@@ -350,7 +350,6 @@ class TLS:
         """Block and return a message to the web server
         Typically, when the user presses the trigger of the RFID reader,
         we will send a message with the scanned data back.
-
         """
         time_out_secs = 10
         while True:

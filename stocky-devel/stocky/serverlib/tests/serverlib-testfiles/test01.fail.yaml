@@ -4,14 +4,6 @@
 # configuration file version
 VERSION: 1.0
 #
-#- the USB device ID of the bluetooth dongle used to communicate with the RFID reader
-# Determine this using 'lsusb'
-BT_USB_DEVICE: '0a5c:21e8'
-#
-# The bluetooth imac address of the RFID reader. With the RFID reader switched on in the vicinity,
-# determine this with 'hcitool scan'
-BT_READER_ADR: '98:D6:F7:B5:7D:E2'
-#--
 # The region mode of the RFID reader. This defines the operation frequency and power output
 # of the reader. This must be a valid entry according to the TLS ASCII protocol, command ".sr" .
 RFID_REGION_CODE: 'us'
