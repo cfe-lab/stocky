@@ -16,6 +16,8 @@ pyusb>=1.0
 #..under stretch libusb1
 #--for reading the serial device
 pyserial>=3.4
+# for accessing the QAI server
+requests>=2.18
 # --- client side ---
 transcrypt>=3.6.27
 # for testing

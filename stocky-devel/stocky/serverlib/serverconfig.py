@@ -5,19 +5,25 @@
     :synopsis: Implement reading of YAML files to configure the stocky server.
 """
 
-# import typing
 import math
 import serverlib.yamlutil as yamlutil
 import pytz
+import pytz.exceptions
 import fuzzywuzzy.process
 
 # configuration files are looked for in the directory defined by this environment variable
 CONFIG_DIR_ENV_NAME = 'STOCKY_CONFIG_DIR'
 
+# state files (such as the QAI stock list and log files) are looked for in the
+# directory defined by this environment variable
+STATE_DIR_ENV_NAME = 'STOCKY_STATE_DIR'
+
+
 VERSION_FLT = 1.0
 
 known_set = frozenset(['VERSION', 'RFID_REGION_CODE', 'TIME_ZONE',
-                       'RFID_READER_DEVNAME'])
+                       'RFID_READER_DEVNAME', 'STOCK_LIST_URL',
+                       'STOCK_LIST_FILE'])
 
 
 def read_logging_config(yamlfilename: str) -> dict:
@@ -63,7 +69,7 @@ def read_server_config(yamlfilename: str) -> dict:
         raise RuntimeError("TIME_ZONE helper: exiting")
     try:
         tzinfo = pytz.timezone(tz_name)
-    except pytz.exceptions.UnknownTimeZoneError:
+    except pytz.exceptions.UnknownTimeZoneError:  # type: ignore
         print("Error in server config file: unknown timezone '{}'".format(tz_name))
         sugg_names = [n for n, s in fuzzywuzzy.process.extract(tz_name, pytz.all_timezones, limit=10)]
         print("Did you mean any of the following: {} ?".format(", ".join(sugg_names)))

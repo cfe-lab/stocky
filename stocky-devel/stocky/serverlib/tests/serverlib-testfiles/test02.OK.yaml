@@ -9,6 +9,9 @@ VERSION: 1.0
 # when connected by Bluetooth, this is usually something like '/dev/rfcomm0'
 RFID_READER_DEVNAME:  '/dev/rfcomm0'
 #
+STOCK_LIST_URL: "https://qai.cfenet.ubc.ca:3000/qcs_reagents/json_get"
+#
+STOCK_LIST_FILE: 'localstock.yaml'
 #The region mode of the RFID reader. This defines the operation frequency and power output
 # of the reader. This must be a valid entry according to the TLS ASCII protocol, command ".sr" .
 RFID_REGION_CODE: 'us'

@@ -23,7 +23,6 @@ ENV_OPTS =
 
 PORTNUM=5000
 
-
 #NOTE Must run the docker image with --privileged to give the container access to devices
 USB_DIR = /dev/bus/usb
 
@@ -31,6 +30,8 @@ DOCKER_RUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
 -v ${STOCKY_STATE_DIR}:/stockystate \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
 -v ${USB_DIR}:${USB_DIR} -w /stockysrc ${ENV_OPTS} 
+
+
 default: help
 
 # NOTE: this code taken from https://gist.github.com/rcmachado/af3db315e31383502660
