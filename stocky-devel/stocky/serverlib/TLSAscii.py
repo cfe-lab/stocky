@@ -2,7 +2,11 @@
 import typing
 from enum import Enum
 
+import gevent.queue
+
 import serverlib.commlink as commlink
+import serverlib.Taskmeister as Taskmeister
+
 from webclient.commonmsg import CommonMSG
 
 """Implement some of the Technology Solutions (UK) TSL ASCII Protocoll 2.4
@@ -187,11 +191,11 @@ class RFIDParams:
         return retstr
 
 
-class TLS:
-    def __init__(self, cl: commlink.BaseCommLink) -> None:
+class TLSReader(Taskmeister.BaseTaskMeister):
+    def __init__(self, msgQ: gevent.queue.Queue, logger, cl: commlink.BaseCommLink) -> None:
         """Create a class that can talk to the RFID reader via the provided commlink class."""
+        super().__init__(msgQ, logger)
         self._cl = cl
-        self.logger = cl.logger
 
     def _sendcmd(self, cmdstr: str) -> commlink.ResponseList:
         cl = self._cl
@@ -346,16 +350,17 @@ class TLS:
         self.doalert(alert_parms)
 
     # stocky main server messaging service....
-    def read_TLS_msg(self) -> CommonMSG:
+    def generate_msg(self) -> CommonMSG:
         """Block and return a message to the web server
         Typically, when the user presses the trigger of the RFID reader,
         we will send a message with the scanned data back.
+        NOTE: this method is overrulling the BaseTaskMeister method
         """
         time_out_secs = 10
-        while True:
-            resp_lst = self._cl.raw_read_response(time_out_secs)
-            self.logger.debug("YEEEEE got {}".format(resp_lst))
-
+        resp_lst = self._cl.raw_read_response(time_out_secs)
+        self.logger.debug("YEEEEE got {}".format(resp_lst))
+        # do something with resp_lst here and return a CommonMSG
+        return None
 
     def send_RFID_msg(self, msg: CommonMSG) -> None:
         """The stocky server uses this routine to send messages (commands) to the

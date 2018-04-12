@@ -2,44 +2,28 @@
 # See the runserver.sh script in this directory for how to launch the program.
 
 
-import typing
 import datetime as dt
 
 import logging.config
-import json
 import flask
 from flask_sockets import Sockets
 
-import gevent
 from gevent.queue import Queue
 
 from geventwebsocket import websocket
 
 import serverlib.serverconfig as serverconfig
-import serverlib.USBProc as USBProc
 import serverlib.commlink as commlink
 import serverlib.TLSAscii as TLSAscii
+import serverlib.QAILib as QAILib
+import serverlib.Taskmeister as Taskmeister
 
 from webclient.commonmsg import CommonMSG
-
-from random import random
 
 
 # NOTE: initial ideas for this program were taken from
 # random number thread -- BUT that was for flask socketIO, NOT flask sockets
 # https://github.com/shanealynn/async_flask/blob/master/application.py
-
-
-def tojson(data) -> str:
-    """Convert the data structure to json.
-    see https://docs.python.org/3.4/library/json.html
-    """
-    return json.dumps(data, separators=(',', ':'))
-
-
-def fromjson(data_str: str) -> typing.Any:
-    """Convert a string into a data struct which we return."""
-    return json.loads(data_str)
 
 
 class serverclass:
@@ -67,54 +51,12 @@ class serverclass:
         self.logger.debug("serverclass: getting id_string...")
         idstr = self.cl.id_string()
         self.logger.info("Commlink is alive and idents as '{}'".format(idstr))
-        self.tls = TLSAscii.TLS(self.cl)
+        self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl)
         self.BT_init_reader()
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
         """Send a command to the web client over websocket in a standard JSON format."""
-        self.ws.send(tojson(msg.as_dict()))
-
-    def read_WS_msg(self) -> CommonMSG:
-        """Block until a command is received from the webclient over websocket.
-        Return the JSON string received as a CommonMSG instance."""
-        dct = fromjson(self.ws.receive())
-        return CommonMSG(dct['msg'], dct['data'])
-
-    def enQ(self, msg: CommonMSG) -> None:
-        """Put a message onto the server Queue"""
-        self.msgQ.put(msg)
-
-    def usb_state_change(self, newstate):
-        """This routine is called whenever the USB device (the bluetooth dongle)
-        is removed or plugged in.
-        We pass this information to the web client so that it can show the device status.
-        """
-        # st = self.b.get_state()
-        print("USB state is {}".format(newstate))
-        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_USB_STATE_CHANGE, newstate))
-
-    def random_worker(self):
-        while True:
-            number = round(random()*10, 3)
-            self.logger.debug("random: {} {}".format(self.name, number))
-            self.enQ(CommonMSG(CommonMSG.MSG_SV_RAND_NUM, number))
-            # send_msg(self.ws, 'number', number)
-            gevent.sleep(1)
-
-    def WS_reader(self) -> None:
-        """The websocket reader process.
-        Read a message from the web client and put it on the queue.
-        """
-        while True:
-            self.enQ(self.read_WS_msg())
-
-    def BT_reader(self) -> None:
-        """The bluetooth reader process.
-        We read from the TLS commands on the commlink, translate them
-        and send the resulting data/commands to the Queue.
-        """
-        while True:
-            self.enQ(self.tls.read_TLS_msg())
+        self.ws.send(QAILib.tojson(msg.as_dict()))
 
     def BT_init_reader(self):
         """Initialise the RFID reader. Raise an exception if this fails."""
@@ -142,12 +84,19 @@ class serverclass:
                                       CommonMSG.MSG_WC_RADAR_MODE])
 
         self.ws = ws
-        self.b = USBProc.USBProc(self.cfg_dct['USB_TUPLE'])
+        # self.b = USBProc.USBProc(self.cfg_dct['USB_TUPLE'])
+        # self.b.reg_CB(self.usb_state_change)
+        # start a random generator thread
+        self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
+        self.randTM.start_job()
 
-        self.b.reg_CB(self.usb_state_change)
-        gevent.spawn(self.random_worker)
-        gevent.spawn(self.WS_reader)
-        gevent.spawn(self.BT_reader)
+        # start a websocket reader thread
+        self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, ws)
+        self.websocketTM.start_job()
+
+        # start the previously initialised  bluetooth reader thread
+        self.tls.start_job()
+
         while True:
             msg: CommonMSG = self.msgQ.get()
             self.logger.debug("handling msgtype '{}'".format(msg.msg))
@@ -160,6 +109,15 @@ class serverclass:
                 self.tls.send_RFID_msg(msg)
             if not is_handled:
                 self.logger.debug("server NOT handling msgtype '{}'".format(msg.msg))
+
+    def usb_state_change(self, newstate):
+        """This routine is called whenever the USB device (the bluetooth dongle)
+        is removed or plugged in.
+        We pass this information to the web client so that it can show the device status.
+        """
+        # st = self.b.get_state()
+        print("USB state is {}".format(newstate))
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_USB_STATE_CHANGE, newstate))
 
 
 def test_logging(l):

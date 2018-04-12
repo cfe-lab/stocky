@@ -81,6 +81,8 @@ class BaseCommLink:
         self.id = id
         self.cfgdct = cfgdct
         self.logger = cfgdct['logger']
+        # we keep track of command numbers.
+        self._cmdnum = 0
 
     @staticmethod
     def _line_2_resptup(l: str) -> ResponseTuple:
@@ -92,12 +94,6 @@ class BaseCommLink:
         if ret_code not in resp_code_set or colon != ':':
             return None
         return (ret_code, rest)
-
-    def raw_send_cmd(self, cmdstr: str) -> None:
-        """Send a string to the device as a command.
-        The call returns as soon as the cmdstr data has been written.
-        """
-        raise NotImplementedError("send not defined")
 
     @staticmethod
     def _check_get_int_val(r: ResponseTuple, resp_code: str) -> int:
@@ -160,6 +156,12 @@ class BaseCommLink:
             raise RuntimeError("unknown error code {}".format(ret_code))
         return ret_str
 
+    def raw_send_cmd(self, cmdstr: str) -> None:
+        """Send a string to the device as a command.
+        The call returns as soon as the cmdstr data has been written.
+        """
+        raise NotImplementedError("send not defined")
+
     def raw_read_response(self, timeout_secs: int) -> ResponseList:
         """Read a sequence of response tuples from the device.
         This code blocks until a terminating response tuple is returned, i.e.
@@ -174,12 +176,12 @@ class BaseCommLink:
     def id_string(self) -> str:
         raise NotImplementedError("id_string not defined")
 
-    def execute_cmd(self, cmdstr: str, timeout_secs=DEFAULT_TIMEOUT_SECS) -> ResponseList:
+    def _blocking_cmd(self, cmdstr: str, timeout_secs=DEFAULT_TIMEOUT_SECS) -> ResponseList:
         """Send a command string to the reader, returning its list of response strings."""
         self.raw_send_cmd(cmdstr)
         return self.raw_read_response(timeout_secs)
 
-    def execute_is_ok(self, cmdstr: str, verbose: bool=True) -> bool:
+    def BLAexecute_is_ok(self, cmdstr: str, verbose: bool=True) -> bool:
         """Execute a command and return := 'response is OK'
         This routine can be used whenever we are simply interested in setting reader parameters,
         and do not expect any tag data to be returned."""
@@ -218,6 +220,7 @@ class SerialCommLink(BaseCommLink):
             myser = None
         self.mydev = myser
         self.logger.debug('serial commlink OK {}'.format(devname))
+        self._idstr = None
 
     def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.
@@ -278,21 +281,23 @@ class SerialCommLink(BaseCommLink):
         return self.mydev is not None
 
     def id_string(self) -> str:
-        resp_lst = self.execute_cmd('.vr')
-        self.logger.debug("ID_STRING RESP: {}".format(resp_lst))
-        dd = BaseCommLink._response_todict(resp_lst)
-        self.logger.debug("ID_STRING RESP: {}".format(dd))
-        klst = [('Manufacturer', 'MF'),
-                ('Unit serial number', 'US'),
-                ('Unit firmware version', 'UF'),
-                ('Unit bootloader version', 'UB'),
-                ('Antenna serial number', 'AS'),
-                ('Radio serial number', 'RS'),
-                ('Radio firmware version', 'RF'),
-                ('Radio bootloader version', 'RB'),
-                ('BT address', 'BA'),
-                ('Protocol version', 'PV')]
-        return ", ".join(["%s: %s" % (title, dd.get(k, None)) for title, k in klst])
+        if self._idstr is None:
+            resp_lst = self._blocking_cmd('.vr')
+            self.logger.debug("ID_STRING RESP: {}".format(resp_lst))
+            dd = BaseCommLink._response_todict(resp_lst)
+            self.logger.debug("ID_STRING RESP: {}".format(dd))
+            klst = [('Manufacturer', 'MF'),
+                    ('Unit serial number', 'US'),
+                    ('Unit firmware version', 'UF'),
+                    ('Unit bootloader version', 'UB'),
+                    ('Antenna serial number', 'AS'),
+                    ('Radio serial number', 'RS'),
+                    ('Radio firmware version', 'RF'),
+                    ('Radio bootloader version', 'RB'),
+                    ('BT address', 'BA'),
+                    ('Protocol version', 'PV')]
+            self._idstr = ", ".join(["%s: %s" % (title, dd.get(k, None)) for title, k in klst])
+        return self._idstr
 
 
 class DummyCommLink(BaseCommLink):
