@@ -208,11 +208,11 @@ class BaseCommLink:
         """
         raise NotImplementedError("send not defined")
 
-    def raw_read_response(self, timeout_secs: int) -> CLResponse:
+    def raw_read_response(self) -> CLResponse:
         """Read a sequence of response tuples from the device.
         This code blocks until a terminating response tuple is returned, i.e.
-        either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF> or
-        until a timeout occurs.
+        either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF>.
+        The response is packed up into a CLResponse instance and returned.
         """
         raise NotImplementedError("read not defined")
 
@@ -223,11 +223,10 @@ class BaseCommLink:
         raise NotImplementedError("id_string not defined")
 
     def _blocking_cmd(self, cmdstr: str,
-                      comment: str=None,
-                      timeout_secs=DEFAULT_TIMEOUT_SECS) -> CLResponse:
+                      comment: str=None) -> CLResponse:
         """Send a command string to the reader, returning its list of response strings."""
         self.send_cmd(cmdstr, comment)
-        return self.raw_read_response(timeout_secs)
+        return self.raw_read_response()
 
 
 class SerialCommLink(BaseCommLink):
@@ -241,8 +240,8 @@ class SerialCommLink(BaseCommLink):
             myser = serial.Serial(devname,
                                   baudrate=19200,
                                   parity='N',
-                                  timeout=20)
-            self.logger.debug('YAHOO')
+                                  timeout=DEFAULT_TIMEOUT_SECS)
+            self.logger.debug('SerialCommlink: opening serial device.')
         except IOError as e:
             self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname, e))
             myser = None
@@ -250,12 +249,13 @@ class SerialCommLink(BaseCommLink):
             self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname))
             myser = None
         self.mydev = myser
-        self.logger.debug('serial commlink OK {}'.format(devname))
+        self.logger.debug("serial commlink '{}' OK".format(devname))
         self._idstr = None
 
     def raw_send_cmd(self, cmdstr: str, comment: str=None) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
+        An exception is raised if something goes wrong.
         """
         if self.mydev is None:
             msg = 'CL: raw_send_cmd: Device is not alive!'
@@ -263,17 +263,17 @@ class SerialCommLink(BaseCommLink):
             raise RuntimeError(msg)
         try:
             commdct = {'MSG': str(self._cmdnum), 'CMT': comment}
-            commstr = BaseCommLink.encode_comment_dict(commdct)
-            cmdstr += commstr
+            cmdstr += BaseCommLink.encode_comment_dict(commdct)
             self.logger.debug("CL: writing '{}'".format(cmdstr))
-            bytecmd = bytes(cmdstr, 'utf-8') + byteCRLF
-            self.mydev.write(bytecmd)
+            self.mydev.write(bytes(cmdstr, 'utf-8') + byteCRLF)
             self.mydev.flush()
         except Exception as e:
             self.logger.error("write failed '{}'".format(e))
             raise
 
-    def _sco_readline(self, timeout_secs: int) -> str:
+    def _str_readline(self) -> str:
+        """Read bytes (not strings) from the serial device until we hit
+        a (CR, LF) then collect together into a line and return as a string"""
         mydev = self.mydev
         retbytes, doread = b'', True
         while doread:
@@ -288,17 +288,15 @@ class SerialCommLink(BaseCommLink):
                 doread = False
         return str(retbytes, 'utf-8')
 
-    def raw_read_response(self, timeout_secs: int) -> CLResponse:
+    def raw_read_response(self) -> CLResponse:
         """Read a sequence of response tuples from the device.
-        This code blocks until a terminating response tuple is returned, i.e.
-        either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF> or
-        until a timeout occurs.
+        Return a CLResponse instance.
         """
         self.logger.debug("raw_read...")
         rlst, done = [], False
         while not done:
             try:
-                cur_line = self._sco_readline(timeout_secs)
+                cur_line = self._str_readline()
             except Exception as e:
                 self.logger.error("readline failed '{}'".format(e))
                 raise
@@ -333,6 +331,8 @@ class SerialCommLink(BaseCommLink):
 
 
 class DummyCommLink(BaseCommLink):
+    """A dummy commlink used for testing"""
+
     def __init__(self, cfgdct: dict) -> None:
         super().__init__(cfgdct)
         self.resplst: typing.List[str] = []
@@ -387,7 +387,7 @@ class DummyCommLink(BaseCommLink):
             self.resplst.append('RI: -40')
         self.resplst.extend(['OK:', ''])
 
-    def raw_read_response(self, timeout_secs: int) -> CLResponse:
+    def raw_read_response(self) -> CLResponse:
         rlst = []
         done = len(self.resplst) == 0
         while not done:

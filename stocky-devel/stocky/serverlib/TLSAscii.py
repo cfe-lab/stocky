@@ -210,8 +210,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         we will send a message with the scanned data back.
         NOTE: this method is overrulling the BaseTaskMeister method
         """
-        time_out_secs = 10
-        clresp = self._cl.raw_read_response(time_out_secs)
+        clresp = self._cl.raw_read_response()
         self.logger.debug("YEEEEE got {}".format(clresp))
         # do something with resp_lst here and return a CommonMSG
         return CommonMSG(CommonMSG.MSG_RF_CMD_RESP, clresp)
