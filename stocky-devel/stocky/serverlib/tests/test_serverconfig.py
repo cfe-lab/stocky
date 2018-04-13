@@ -16,7 +16,7 @@ class Test_serverlib:
 
     def test_missing_file(self):
         "A missing config file should raise an error"
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(RuntimeError):
             serverconfig.read_server_config(get_testfilename('test0.not_there.yaml'))
 
     def test_missing_KW(self):
