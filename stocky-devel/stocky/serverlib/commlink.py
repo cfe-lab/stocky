@@ -1,21 +1,21 @@
-
-
 # define a bluetooth communication link class for the TLS ASCII protocol
 
 import typing
 import serial
 
+import serverlib.QAILib as QAILib
 
 OK_RESP = 'OK'
 ER_RESP = 'ER'
 RI_VAL = 'RI'
 ME_VAL = 'ME'
+CS_VAL = 'CS'
 
-
-resp_code_lst = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'CS', 'DA', 'DP',
+resp_code_lst = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'DA', 'DP',
                  'DT', 'EA', 'EB', 'FN', 'IA', 'IX', 'KS', 'LB', 'LE', 'LL', 'LK', 'LS',
-                 ME_VAL, 'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP', 'BV',
-                 'SR', 'SW', 'TD', 'TM', 'UB', 'UF', 'US', 'WW', OK_RESP, ER_RESP, RI_VAL]
+                 'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP', 'BV',
+                 'SR', 'SW', 'TD', 'TM', 'UB', 'UF', 'US', 'WW', OK_RESP, ER_RESP, RI_VAL,
+                 ME_VAL, CS_VAL]
 
 resp_code_set = frozenset(resp_code_lst)
 
@@ -23,6 +23,10 @@ DEFAULT_TIMEOUT_SECS = 20
 
 ResponseTuple = typing.Tuple[str, str]
 ResponseList = typing.List[ResponseTuple]
+
+ResponseDict = typing.Dict[str, str]
+StringList = typing.List[str]
+
 
 command_lst = ['al', 'ab', 'bc', 'bl', 'bt', 'da', 'dp', 'ea', 'ec',
                'fd', 'hc', 'hd', 'hs', 'iv', 'ki', 'lk', 'lo', 'mt',
@@ -70,15 +74,81 @@ _tlsretcode_dct = {0: 'No Error',
                    255: 'System Error'}
 
 
+class CLResponse:
+    def __init__(self, rl: ResponseList) -> None:
+        self.rl = rl
+        dd: typing.Dict[str, StringList] = {}
+        self._mydct = dd
+        for resp_code, msg in self.rl:
+            dd.setdefault(resp_code, []).append(msg)
+        # now, from the CS field, extract the comment dict
+        cdict = None
+        cslst = dd.get(CS_VAL, None)
+        if cslst is not None:
+            if len(cslst) != 1:
+                raise RuntimeError("CS field must be present exactly once")
+            cs_string = cslst[0]
+            cdict = BaseCommLink.extract_comment_dict(cs_string)
+        self._cdict = cdict
+
+    def __getitem__(self, respcode: str) -> StringList:
+        """Return a list with only those response codes equal to respcode.
+        NOTE: this routine overwrites the [] operator for this class.
+        """
+        assert respcode in resp_code_set, "illegal respcode"
+        # print("looking for '{}', have {}".format(respcode, self._mydct))
+        return self._mydct.get(respcode, None)
+
+    @staticmethod
+    def _check_get_int_val(r: ResponseTuple, resp_code: str) -> int:
+        """Extract an integer value from the send part of r.
+        Raise an exception if it does not contain an integer string.
+        """
+        cmd, arg = r
+        if cmd == resp_code:
+            # convert the arg string into an int
+            return int(arg)
+        else:
+            raise RuntimeError("return_code: unexpected {}, expected {}".format(cmd, resp_code))
+
+    def return_code(self) -> TLSRetCode:
+        """Return a return code as an integer from a ResponseList received
+        from the TLS reader.
+        For the error codes, see the document 'TLS ASCII protocol 2.5 rev B', page 14.
+        We include an error code zero here to indicate a success.
+        """
+        if len(self.rl) == 0:
+            raise RuntimeError("return code from empty list")
+        last_tup = self.rl[-1]
+        if last_tup == OK_RESP_TUPLE:
+            return BaseCommLink.RC_OK
+        else:
+            return CLResponse._check_get_int_val(last_tup, ER_RESP)
+
+    def _return_message(self) -> str:
+        """Return a message sent from the RFID reader in the ME: field of the
+        ResponseList. Return None if there is no message."""
+        rlst = self.__getitem__(ME_VAL)
+        if rlst is None or len(rlst) != 1:
+            return None
+        else:
+            return rlst[0]
+
+    def get_comment_dct(self) -> dict:
+        return self._cdict
+
+    def __str__(self):
+        return "CLResponse: '{}'".format(self.rl)
+
+
 class BaseCommLink:
     RC_OK = 0
 
-    def __init__(self, id: str, cfgdct: dict) -> None:
+    def __init__(self, cfgdct: dict) -> None:
         """Open a communication channel defined by its id.
         Information needed to open such a channel will be extracted from
         the cfgdct. This is the dict resulting from the server configuration file.
         """
-        self.id = id
         self.cfgdct = cfgdct
         self.logger = cfgdct['logger']
         # we keep track of command numbers.
@@ -96,54 +166,23 @@ class BaseCommLink:
         return (ret_code, rest)
 
     @staticmethod
-    def _check_get_int_val(r: ResponseTuple, resp_code: str) -> int:
-        """Extract an integer value from the send part of r.
-        Raise an exception if it does not contain an integer string.
+    def encode_comment_dict(d: dict) -> str:
+        """Convert a dict into a json string suitable for sending
+        to the RFID reader as a comment
         """
-        cmd, arg = r
-        if cmd == resp_code:
-            # convert the arg string into an int
-            return int(arg)
-        else:
-            raise RuntimeError("return_code: unexpected {}, expected {}".format(cmd, resp_code))
+        return "A{}B".format(QAILib.tojson(d))
 
     @staticmethod
-    def return_code(l: ResponseList) -> TLSRetCode:
-        """Return a return code as an integer from a ResponseList received
-        from the TLS reader.
-        For the error codes, see the document 'TLS ASCII protocol 2.5 rev B', page 14.
-        We include an error code zero here to indicate a success.
+    def extract_comment_dict(s: str) -> dict:
+        """Extract a previously encoded comment dict from a string.
+        Return None if the string does not have the required delimiters '#' and '@'
         """
-        if len(l) == 0:
-            raise RuntimeError("return code from empty list")
-        last_tup = l[-1]
-        if last_tup == OK_RESP_TUPLE:
-            return BaseCommLink.RC_OK
-        else:
-            return BaseCommLink._check_get_int_val(last_tup, ER_RESP)
-
-    @staticmethod
-    def _extract_response(l: ResponseList, respcode: str) -> ResponseList:
-        """Return a list with only those response codes equal to respcode"""
-        assert respcode in resp_code_set, "illegal respcode"
-        return [t for t in l if t[0] == respcode]
-
-    @staticmethod
-    def _return_message(l: ResponseList) -> str:
-        """Return a message sent from the RFID reader in the ME: field of the
-        ResponseList. Return None if there is no message."""
-        rlst = BaseCommLink._extract_response(l, ME_VAL)
-        if len(rlst) != 1:
+        hash_ndx = s.find('A')
+        ampers_ndx = s.find('B')
+        if hash_ndx == -1 or ampers_ndx == -1:
             return None
-        else:
-            return rlst[0][1]
-
-    @staticmethod
-    def _response_todict(l: ResponseList) -> dict:
-        """Convert the response list into a dictionary.
-        Beware: double key entries will lead to silent data loss.
-        """
-        return dict(l)
+        dict_str = s[hash_ndx+1:ampers_ndx]
+        return QAILib.fromjson(bytes(dict_str, 'utf-8'))
 
     @staticmethod
     def RC_string(ret_code: TLSRetCode) -> str:
@@ -156,13 +195,20 @@ class BaseCommLink:
             raise RuntimeError("unknown error code {}".format(ret_code))
         return ret_str
 
-    def raw_send_cmd(self, cmdstr: str) -> None:
+    def send_cmd(self, cmdstr: str, comment: str=None) -> None:
+        """Send a string to the device as a command.
+        The call returns as soon as the cmdstr data has been written.
+        """
+        self.raw_send_cmd(cmdstr, comment)
+        self._cmdnum += 1
+
+    def raw_send_cmd(self, cmdstr: str, comment: str=None) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         """
         raise NotImplementedError("send not defined")
 
-    def raw_read_response(self, timeout_secs: int) -> ResponseList:
+    def raw_read_response(self, timeout_secs: int) -> CLResponse:
         """Read a sequence of response tuples from the device.
         This code blocks until a terminating response tuple is returned, i.e.
         either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF> or
@@ -176,34 +222,19 @@ class BaseCommLink:
     def id_string(self) -> str:
         raise NotImplementedError("id_string not defined")
 
-    def _blocking_cmd(self, cmdstr: str, timeout_secs=DEFAULT_TIMEOUT_SECS) -> ResponseList:
+    def _blocking_cmd(self, cmdstr: str,
+                      comment: str=None,
+                      timeout_secs=DEFAULT_TIMEOUT_SECS) -> CLResponse:
         """Send a command string to the reader, returning its list of response strings."""
-        self.raw_send_cmd(cmdstr)
+        self.send_cmd(cmdstr, comment)
         return self.raw_read_response(timeout_secs)
-
-    def BLAexecute_is_ok(self, cmdstr: str, verbose: bool=True) -> bool:
-        """Execute a command and return := 'response is OK'
-        This routine can be used whenever we are simply interested in setting reader parameters,
-        and do not expect any tag data to be returned."""
-        self.logger.debug('CL: execute_is_ok')
-        resp_lst = self.execute_cmd(cmdstr)
-        self.logger.debug('CL: execute_is_ok got {}'.format(resp_lst))
-        ret_code = BaseCommLink.return_code(resp_lst)
-        is_ok = ret_code == BaseCommLink.RC_OK
-        if not is_ok and verbose:
-            msg = BaseCommLink._return_message(resp_lst)
-            self.logger.debug("Error on cmd: '{}'; code: {}: {}, msg: {}".format(cmdstr,
-                                                                                 ret_code,
-                                                                                 BaseCommLink.RC_string(ret_code),
-                                                                                 msg))
-        return is_ok
 
 
 class SerialCommLink(BaseCommLink):
     """Communicate with the RFID reader via a serial device (i.e. USB or Bluetooth)"""
 
-    def __init__(self, id: str, cfgdct: dict) -> None:
-        super().__init__(id, cfgdct)
+    def __init__(self, cfgdct: dict) -> None:
+        super().__init__(cfgdct)
         devname = cfgdct['RFID_READER_DEVNAME']
         self.logger.debug("commlink opening '{}'".format(devname))
         try:
@@ -222,7 +253,7 @@ class SerialCommLink(BaseCommLink):
         self.logger.debug('serial commlink OK {}'.format(devname))
         self._idstr = None
 
-    def raw_send_cmd(self, cmdstr: str) -> None:
+    def raw_send_cmd(self, cmdstr: str, comment: str=None) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         """
@@ -231,7 +262,10 @@ class SerialCommLink(BaseCommLink):
             self.logger.error(msg)
             raise RuntimeError(msg)
         try:
-            self.logger.error("CL: writing..")
+            commdct = {'MSG': str(self._cmdnum), 'CMT': comment}
+            commstr = BaseCommLink.encode_comment_dict(commdct)
+            cmdstr += commstr
+            self.logger.debug("CL: writing '{}'".format(cmdstr))
             bytecmd = bytes(cmdstr, 'utf-8') + byteCRLF
             self.mydev.write(bytecmd)
             self.mydev.flush()
@@ -254,7 +288,7 @@ class SerialCommLink(BaseCommLink):
                 doread = False
         return str(retbytes, 'utf-8')
 
-    def raw_read_response(self, timeout_secs: int) -> ResponseList:
+    def raw_read_response(self, timeout_secs: int) -> CLResponse:
         """Read a sequence of response tuples from the device.
         This code blocks until a terminating response tuple is returned, i.e.
         either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF> or
@@ -275,17 +309,15 @@ class SerialCommLink(BaseCommLink):
                 # we have reached a 'terminal' message (OK or ER)
                 done = True        # --
         self.logger.debug("raw_read got {}...".format(rlst))
-        return rlst
+        return CLResponse(rlst)
 
     def is_alive(self, doquick: bool=True) -> bool:
         return self.mydev is not None
 
     def id_string(self) -> str:
         if self._idstr is None:
-            resp_lst = self._blocking_cmd('.vr')
-            self.logger.debug("ID_STRING RESP: {}".format(resp_lst))
-            dd = BaseCommLink._response_todict(resp_lst)
-            self.logger.debug("ID_STRING RESP: {}".format(dd))
+            cl_resp = self._blocking_cmd('.vr')
+            self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
             klst = [('Manufacturer', 'MF'),
                     ('Unit serial number', 'US'),
                     ('Unit firmware version', 'UF'),
@@ -296,20 +328,20 @@ class SerialCommLink(BaseCommLink):
                     ('Radio bootloader version', 'RB'),
                     ('BT address', 'BA'),
                     ('Protocol version', 'PV')]
-            self._idstr = ", ".join(["%s: %s" % (title, dd.get(k, None)) for title, k in klst])
+            self._idstr = ", ".join(["{}: {}".format(title, cl_resp[k]) for title, k in klst])
         return self._idstr
 
 
 class DummyCommLink(BaseCommLink):
-    def __init__(self, id: str, cfgdct: dict) -> None:
-        super().__init__(id, cfgdct)
+    def __init__(self, cfgdct: dict) -> None:
+        super().__init__(cfgdct)
         self.resplst: typing.List[str] = []
 
     def is_alive(self, doquick: bool=True) -> bool:
         return True
 
     def id_string(self) -> str:
-        return "DummyCommLink {}".format(self.id)
+        return "DummyCommLink"
 
     @staticmethod
     def get_cmd_from_str(cmdstr: str) -> typing.Tuple[str, dict]:
@@ -341,18 +373,21 @@ class DummyCommLink(BaseCommLink):
             i += 1
         return cc, optdct
 
-    def raw_send_cmd(self, cmdstr: str) -> None:
+    def raw_send_cmd(self, cmdstr: str, comment: str=None) -> None:
         """Perform a sanity check of cmdstr and save it for later.
         Raise an exception if there is an error in the command.
         Also, for testing purposes, pretend to return some actual values depending
         on the command issued.
         """
         cc, optdct = DummyCommLink.get_cmd_from_str(cmdstr)
+        commdct = {'MSG': str(self._cmdnum), 'CMT': comment}
+        commstr = BaseCommLink.encode_comment_dict(commdct)
+        self.resplst.append('CS: {} {}'.format(cmdstr, commstr))
         if cc == 'iv' and 'x' not in optdct:
             self.resplst.append('RI: -40')
         self.resplst.extend(['OK:', ''])
 
-    def raw_read_response(self, timeout_secs: int) -> ResponseList:
+    def raw_read_response(self, timeout_secs: int) -> CLResponse:
         rlst = []
         done = len(self.resplst) == 0
         while not done:
@@ -364,4 +399,4 @@ class DummyCommLink(BaseCommLink):
                 done = True
             done = len(self.resplst) == 0
         # --
-        return rlst
+        return CLResponse(rlst)

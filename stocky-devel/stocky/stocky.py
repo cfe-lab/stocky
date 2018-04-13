@@ -41,7 +41,7 @@ class serverclass:
         self.name = "Johnny"
         self.msgQ = Queue()
         self.logger.debug("serverclass: instantiating CommLinkClass...")
-        self.cl = CommLinkClass('myservercl', self.cfg_dct)
+        self.cl = CommLinkClass(self.cfg_dct)
         if self.cl.is_alive():
             self.logger.debug("Commlink is alive")
         else:

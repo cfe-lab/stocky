@@ -28,8 +28,8 @@ class Test_qailib:
         if res is not None:
             raise RuntimeError("Expected None")
 
-    def test_qai_01(self, tmpdir: py.path.local):
+    def BLAtest_qai_01(self, tmpdir: py.path.local):
         print("TMPDIR IS '{}".format(tmpdir))
-        locfname = tmpdir.join('bla.yaml')
+        locfname = tmpdir.join('./bla.yaml')
         qai = QAILib.QAIdata(qai_url, locfname)
         # assert False, "force fail"

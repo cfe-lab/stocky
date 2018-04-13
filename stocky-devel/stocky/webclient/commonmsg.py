@@ -30,6 +30,9 @@ class CommonMSG:
     # the RFID reader has produced some radar data
     MSG_RF_RADAR_DATA = 'RADAR_DATA'
 
+    # the RFID reader has produced a command response
+    MSG_RF_CMD_RESP = 'RF_CMD_RESP'
+
     # the RFID 
     def __init__(self, msg: str, data: typing.Any) -> None:
         self.msg = msg
