@@ -144,6 +144,9 @@ class CLResponse:
 class BaseCommLink:
     RC_OK = 0
 
+    DCT_START_CHAR = 'A'
+    DCT_STOP_CHAR = 'B'
+
     def __init__(self, cfgdct: dict) -> None:
         """Open a communication channel defined by its id.
         Information needed to open such a channel will be extracted from
@@ -170,15 +173,17 @@ class BaseCommLink:
         """Convert a dict into a json string suitable for sending
         to the RFID reader as a comment
         """
-        return "A{}B".format(QAILib.tojson(d))
+        return " {}{}{}".format(BaseCommLink.DCT_START_CHAR,
+                                QAILib.tojson(d),
+                                BaseCommLink.DCT_STOP_CHAR)
 
     @staticmethod
     def extract_comment_dict(s: str) -> dict:
         """Extract a previously encoded comment dict from a string.
         Return None if the string does not have the required delimiters '#' and '@'
         """
-        hash_ndx = s.find('A')
-        ampers_ndx = s.find('B')
+        hash_ndx = s.find(BaseCommLink.DCT_START_CHAR)
+        ampers_ndx = s.find(BaseCommLink.DCT_STOP_CHAR)
         if hash_ndx == -1 or ampers_ndx == -1:
             return None
         dict_str = s[hash_ndx+1:ampers_ndx]
@@ -199,10 +204,12 @@ class BaseCommLink:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         """
-        self.raw_send_cmd(cmdstr, comment)
+        commdct = {'MSG': str(self._cmdnum), 'CMT': comment}
+        cmdstr += BaseCommLink.encode_comment_dict(commdct)
+        self.raw_send_cmd(cmdstr)
         self._cmdnum += 1
 
-    def raw_send_cmd(self, cmdstr: str, comment: str=None) -> None:
+    def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         """
@@ -252,7 +259,7 @@ class SerialCommLink(BaseCommLink):
         self.logger.debug("serial commlink '{}' OK".format(devname))
         self._idstr = None
 
-    def raw_send_cmd(self, cmdstr: str, comment: str=None) -> None:
+    def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         An exception is raised if something goes wrong.
@@ -262,8 +269,6 @@ class SerialCommLink(BaseCommLink):
             self.logger.error(msg)
             raise RuntimeError(msg)
         try:
-            commdct = {'MSG': str(self._cmdnum), 'CMT': comment}
-            cmdstr += BaseCommLink.encode_comment_dict(commdct)
             self.logger.debug("CL: writing '{}'".format(cmdstr))
             self.mydev.write(bytes(cmdstr, 'utf-8') + byteCRLF)
             self.mydev.flush()
@@ -345,6 +350,10 @@ class DummyCommLink(BaseCommLink):
 
     @staticmethod
     def get_cmd_from_str(cmdstr: str) -> typing.Tuple[str, dict]:
+        # split off any comment dict it if exists...
+        comm_ndx = cmdstr.find(BaseCommLink.DCT_START_CHAR)
+        if comm_ndx != -1:
+            cmdstr = cmdstr[:comm_ndx-1]
         if len(cmdstr) < 3:
             raise RuntimeError("cmdstr too short")
         cmdargs = cmdstr.split()
@@ -373,16 +382,14 @@ class DummyCommLink(BaseCommLink):
             i += 1
         return cc, optdct
 
-    def raw_send_cmd(self, cmdstr: str, comment: str=None) -> None:
+    def raw_send_cmd(self, cmdstr: str) -> None:
         """Perform a sanity check of cmdstr and save it for later.
         Raise an exception if there is an error in the command.
         Also, for testing purposes, pretend to return some actual values depending
         on the command issued.
         """
         cc, optdct = DummyCommLink.get_cmd_from_str(cmdstr)
-        commdct = {'MSG': str(self._cmdnum), 'CMT': comment}
-        commstr = BaseCommLink.encode_comment_dict(commdct)
-        self.resplst.append('CS: {} {}'.format(cmdstr, commstr))
+        self.resplst.append('CS: {}'.format(cmdstr))
         if cc == 'iv' and 'x' not in optdct:
             self.resplst.append('RI: -40')
         self.resplst.extend(['OK:', ''])
