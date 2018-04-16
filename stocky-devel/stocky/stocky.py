@@ -84,8 +84,6 @@ class serverclass:
                                       CommonMSG.MSG_WC_RADAR_MODE])
 
         self.ws = ws
-        # self.b = USBProc.USBProc(self.cfg_dct['USB_TUPLE'])
-        # self.b.reg_CB(self.usb_state_change)
         # start a random generator thread
         self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
         self.randTM.start_job()
@@ -109,15 +107,6 @@ class serverclass:
                 self.tls.send_RFID_msg(msg)
             if not is_handled:
                 self.logger.debug("server NOT handling msgtype '{}'".format(msg.msg))
-
-    def usb_state_change(self, newstate):
-        """This routine is called whenever the USB device (the bluetooth dongle)
-        is removed or plugged in.
-        We pass this information to the web client so that it can show the device status.
-        """
-        # st = self.b.get_state()
-        print("USB state is {}".format(newstate))
-        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_USB_STATE_CHANGE, newstate))
 
 
 def test_logging(l):

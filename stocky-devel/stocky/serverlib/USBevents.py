@@ -27,6 +27,8 @@ def get_USB_set():
 
 # class CheckerThread(gevent.Greenlet):
 # class CheckerThread(Process):
+
+
 class CheckerThread(threading.Thread):
 
     def __init__(self):
@@ -45,10 +47,12 @@ class CheckerThread(threading.Thread):
             self.curset = get_USB_set()
             # check for new devices
             wtab = self.watchtab
-            for devtup, cbfunc in [(newdevtup, wtab[newdevtup]) for newdevtup in self.curset - self.prevset if newdevtup in wtab]:
+            for devtup, cbfunc in [(newdevtup, wtab[newdevtup]) for
+                                   newdevtup in self.curset - self.prevset if newdevtup in wtab]:
                 cbfunc(devtup, True)
             # check for removed devices
-            for devtup, cbfunc in [(olddevtup, wtab[olddevtup]) for olddevtup in self.prevset - self.curset if olddevtup in wtab]:
+            for devtup, cbfunc in [(olddevtup, wtab[olddevtup]) for
+                                   olddevtup in self.prevset - self.curset if olddevtup in wtab]:
                 cbfunc(devtup, False)
             # print("len {}".format(len(self.usbset)))
 
@@ -87,7 +91,8 @@ class CheckerThread(threading.Thread):
     def run(self):
         self.check_loop()
 
-usb_checker = CheckerThread()
+
+# usb_checker = CheckerThread()
 
 
 class USBState:

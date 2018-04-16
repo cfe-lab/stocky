@@ -1,8 +1,5 @@
 
-FROM python:3.6-jessie
-
-# 2018-04: cannot use the newer stretch as yet: different USB libraries.
-# FROM python:3.6-stretch
+FROM python:3.6-stretch
 
 MAINTAINER wscott@cfenet.ubc.ca
 
@@ -18,7 +15,7 @@ RUN apt-get update ;\
 COPY stocky /stockysrc
 WORKDIR /stockysrc
 
-RUN pip install --upgrade pip ;\
+RUN pip install --upgrade pip;\
     pip install --no-cache-dir -r requirements.txt
 
 
