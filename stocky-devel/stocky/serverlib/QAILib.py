@@ -35,17 +35,25 @@ def raw_get_json_data(url: str) -> typing.Any:
     return fromjson(r.content)
 
 
-QAI_dict = typing.Dict[str, typing.Any]
+QAI_dct = typing.Dict[str, typing.Any]
+
+StockItem_dct = typing.Dict[str, typing.Any]
+
+Location_dct = typing.Dict[str, StockItem_dct]
 
 
-def get_json_data_with_time(url: str) -> QAI_dict:
+def rawdata_to_qaidct(mydat: typing.Any) -> QAI_dct:
+    return {"utc_time": dt.datetime.now(), "data": mydat}
+
+
+def get_json_data_with_time(url: str) -> QAI_dct:
     """Perform a http request to the provided url.
     Return a dict containing a time stamp in UTC and the requested data.
     """
     mydat = raw_get_json_data(url)
     if mydat is None:
         return None
-    return {"utc_time": dt.datetime.now(), "data": mydat}
+    return rawdata_to_qaidct(mydat)
 
 
 STATE_DIR_ENV_NAME = serverconfig.STATE_DIR_ENV_NAME
@@ -58,14 +66,69 @@ class BaseQAIdata:
         directory with a time stamp."""
         self._qaiurl = qaiurl
         self._locQAIfname = locQAIfname
-        self.cur_data: QAI_dict = self.loadQAIdata()
+        self._set_cur_data(self.loadfileQAIdata())
 
-    def loadQAIdata(self) -> QAI_dict:
+    def _set_cur_data(self, qai_dct: QAI_dct) -> bool:
+        self.cur_data = qai_dct
+        self._locdct = self._check_massaga_data()
+        return self.cur_data is not None and self._locdct is not None
+
+    def _check_massaga_data(self) -> Location_dct:
+        """Verify and convert the raw json data read from QAI via the API
+        into something that the stocky webclient can digest easily.
+        Return the successfully converted location_dict or None.
+        """
+        if not self.has_qai_data():
+            return None
+        dlst = self.cur_data.get('data', None)
+        if dlst is None:
+            return None
+        locdct: Location_dct = {}
+        LOC_KEY = 'location'
+        for item_dct in dlst:
+            if not isinstance(item_dct, dict):
+                print("item_dct is not a dict")
+                return None
+            # We need to know whether the key is present (it must be).
+            # The value of the key may be None, in which case we set it to Unknown
+            if LOC_KEY in item_dct:
+                for loc in BaseQAIdata.splitlocstring(item_dct[LOC_KEY]):
+                    locdct.setdefault(loc, []).append(item_dct)
+            else:
+                print("location is missing in {}".format(item_dct))
+                return None
+        # if we get this far, we have succeeded
+        return locdct
+
+    @staticmethod
+    def splitlocstring(locstr: str) -> typing.List[str]:
+        """Split a location string into a number of locations"""
+        if locstr is None:
+            return ['Unknown']
+        # try to split according to '/'
+        ll = [s.strip() for s in locstr.split('/')]
+        if len(ll) > 1:
+            return ll
+        # try ';'
+        ll = [s.strip() for s in locstr.split(';')]
+        if len(ll) > 1:
+            return ll
+        # give up and return the location as is
+        return [locstr.strip()]
+
+    def loadfileQAIdata(self) -> QAI_dct:
+        """Attempt to load previously saved QAI data from file.
+        Return the data read, or None if this fails."""
         try:
             retval = yamlutil.readyamlfile(self._locQAIfname, STATE_DIR_ENV_NAME)
         except RuntimeError as e:
-            return None
+            retval = None
         return retval
+
+    def dumpfileQAIdata(self) -> None:
+        """Save the current QAI data to file for later retrieval."""
+        if self.cur_data is not None:
+            yamlutil.writeyamlfile(self.cur_data, self._locQAIfname, STATE_DIR_ENV_NAME)
 
     def qai_is_online(self) -> bool:
         """Return := 'the QAI url can be accessed'
@@ -77,7 +140,15 @@ class BaseQAIdata:
     def has_qai_data(self) -> bool:
         """Return true iff we have QAI data available.
         """
-        raise NotImplementedError('not implemented')
+        return self.cur_data is not None
+
+    def get_qai_downloadtimeUTC(self) -> dt.datetime:
+        """Return the UTC datetime record of the time the QAI data was downloaded.
+        Return None iff no data is available.
+        """
+        if self.cur_data is None:
+            return None
+        return self.cur_data.get('utc_time', None)
 
     def pull_qai_data(self) -> bool:
         """Perform a http request to the QAI server and download the newest version
@@ -85,6 +156,24 @@ class BaseQAIdata:
         Return := 'the data pull was successful'
         """
         raise NotImplementedError('not implemented')
+
+    def _loadrawdata(self, fname: str) -> bool:
+        """Load raw QAI data from a file into this class structure.
+        The load time data is set to the current time."""
+        try:
+            rawdat = yamlutil.readyamlfile(fname, STATE_DIR_ENV_NAME)
+        except RuntimeError as e:
+            return False
+        return self._set_cur_data(rawdata_to_qaidct(rawdat))
+
+    def _location_summary(self) -> typing.List[typing.Tuple[str, int]]:
+        """Produce a summary of the stock by location.
+        """
+        if self._locdct is None:
+            return None
+        retlst = [(loc_name, len(loc_lst)) for loc_name, loc_lst in self._locdct.items()]
+        retlst.sort(key=lambda t: t[0])
+        return retlst
 
 
 class QAIdata(BaseQAIdata):
@@ -96,11 +185,6 @@ class QAIdata(BaseQAIdata):
     def pull_qai_data(self) -> bool:
         """Perform a http request to the QAI server and download the newest version
         from it.
+        Return := 'the data pull was successful'
         """
-        cur_data = get_json_data_with_time(self._qaiurl)
-        if cur_data is None:
-            return False
-        self._cur_data = cur_data
-        yamlutil.writeyamlfile(cur_data, self._locQAIfname, STATE_DIR_ENV_NAME)
-        return True
-
+        return self._set_cur_data(get_json_data_with_time(self._qaiurl))

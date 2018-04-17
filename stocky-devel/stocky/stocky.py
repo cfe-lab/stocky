@@ -72,6 +72,15 @@ class serverclass:
         self.tls.set_date_time(loc_t.year, loc_t.month, loc_t.day,
                                loc_t.hour, loc_t.minute, loc_t.second)
 
+    def server_handle_msg(self, msg: CommonMSG) -> None:
+        """Handle this message to me..."""
+        if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
+            # the server is sending a list of all stock locations
+            # in response to a MSG_WC_STOCK_CHECK
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_STOCK_LOCATIONS, ['bla', 'blu']))
+        else:
+            print("server not handling message {}".format(msg))
+
     def mainloop(self, ws: websocket):
         # the set of messages we simply pass on to the web client.
         MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_SV_RAND_NUM,
@@ -82,6 +91,10 @@ class serverclass:
         # the set of messages to send to the TLS class (the RFID reader)
         MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
                                       CommonMSG.MSG_WC_RADAR_MODE])
+
+        # the set of messages the server should handle itself.
+        MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
+                                    CommonMSG.MSG_WC_RADAR_MODE])
 
         self.ws = ws
         # start a random generator thread
@@ -105,6 +118,9 @@ class serverclass:
             if msg.msg in MSG_FOR_RFID_SET:
                 is_handled = True
                 self.tls.send_RFID_msg(msg)
+            if msg.msg in MSG_FOR_ME_SET:
+                is_handled = True
+                self.server_handle_msg(msg)
             if not is_handled:
                 self.logger.debug("server NOT handling msgtype '{}'".format(msg.msg))
 

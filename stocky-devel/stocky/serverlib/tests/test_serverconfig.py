@@ -9,7 +9,7 @@ import serverlib.serverconfig as serverconfig
 
 def get_testfilename(fn: str) -> str:
     abspath = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(abspath, 'serverlib-testfiles', fn)
+    return os.path.join(abspath, 'serverconfig-testfiles', fn)
 
 
 class Test_serverlib:
