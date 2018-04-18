@@ -51,27 +51,6 @@ menulst = [
     ]
 
 
-# location, itm_str, tagnum
-stocklist = [('room99', 'item1', '001'),
-             ('room99', 'item2', '002'),
-             ('room99', 'item3', '003'),
-             ('room99', 'item4', '004'),
-             ('room99', 'item5', '005'),
-             ('room99', 'item6', '006'),
-             ('room99', 'item7', '007'),
-             ('room99', 'item8', '008'),
-             ('room99', 'item9', '009'),
-             ('room01', 'item101', '101'),
-             ('room01', 'item102', '102'),
-             ('room01', 'item103', '103'),
-             ('room01', 'item104', '104'),
-             ('room01', 'item105', '105'),
-             ('room01', 'item106', '106'),
-             ('room01', 'item107', '107'),
-             ('room01', 'item108', '108'),
-             ('room01', 'item109', '109')]
-
-
 class stocky_mainprog(widgets.base_controller):
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
         super().__init__(myname)
@@ -136,56 +115,57 @@ class stocky_mainprog(widgets.base_controller):
             # menu_button click events should go to the switchview
             menu_button.addObserver(switch, base.MSGD_BUTTON_CLICK)
         switch.switchTo(0)
+        self._curloc = None
 
+    def setstockdata(self, stockdct: dict) -> None:
         # now, prepare the individual views if required
-        self.showchecklist(None)
+        self._stockloc_lst = stockdct['loclist']
+        self._stockitm_lst = stockdct['itemlist']
+        self.showchecklist(self._stockloc_lst[0])
 
     def showchecklist(self, my_loc: str):
-        raw_loc_lst: typing.List[str] = []
-        for loc, itm_str, tagnum in stocklist:
-            if loc not in raw_loc_lst:
-                raw_loc_lst.append(loc)
-        print("LOC LEN {}".format(len(raw_loc_lst)))
-        if my_loc is None:
-            my_loc = raw_loc_lst[0]
-        loc_lst = []
-        for loc in raw_loc_lst:
-            dd = {'name': loc, 'isselected': loc == my_loc}
-            loc_lst.append(dd)
+        """Show the list of stock items that are located at my_loc.
+        """
+        print("setting loc '{}', len: {}".format(my_loc, len(self._stockloc_lst)))
+        if self._curloc == my_loc:
+            return
+        self._curloc = my_loc
+        # determine the list of locations to display
+        display_loc_lst = [{'name': loc, 'isselected': loc == my_loc} for loc in self._stockloc_lst]
+        # select the items at this location from the stock_list
         scan_lst, ii = [], 0
         stattab = ['FOUND', 'ABSENT', 'UNEXPECTED']
-        for loc, itm_str, tagnum in stocklist:
+        for loc, itm_str, tagnum in self._stockitm_lst:
             if loc == my_loc:
                 scan_lst.append({'name': itm_str, 'id': tagnum, 'status': stattab[ii % 3]})
                 ii += 1
-        print("LOCLST {}".format(loc_lst))
-        strval = handlebars.evalTemplate("checkstock-template", {"loclist": loc_lst,
+        strval = handlebars.evalTemplate("checkstock-template", {"loclist": display_loc_lst,
                                                                  "scanlist": scan_lst})
         if strval is None:
             log('TEMPLATE FAILED')
-        else:
-            # log("TEMPLATE {}".format(strval))
-            self.switch.getView(CHECK_STOCK_VIEW_NAME).setInnerHTML(strval)
-            selattdct = {'title': 'Select location to scan',
-                         '*buttonpressmsg': {'cmd': 'roomswitch'},
-                         "class": "w3-select"
-                         }
+            return
 
-            self.lb = lb = html.getPyElementByIdClass('locky-button', html.select, selattdct)
-            lb.addObserver(self, base.MSGD_BUTTON_CLICK)
-            # lb = html.select(None, 'locky-button', None, lbjs)
-            print('got LOCKY {}'.format(lb))
-            # sel_opt = lb._el.options[lb._el.selectedIndex]
-            se_val, se_txt = lb.get_selected()
-            print('got LOCKY VBAL {}  {}'.format(se_val, se_txt))
-            tabby = html.getPyElementByIdClass('scantable', html.table, None)
-            print('got TABBY {}'.format(tabby))
-            # rowlst = tabby.getrows()
-            # print('got tabby rows len {}'.format(len(rowlst)))
-            # print('got tabby rows {}'.format(rowlst))
-            tabby.columnsort(2)
-            tabby.columnsort(2)
-            # tabvals = [row.getcells() for row in rowlst[1:]]
+        # log("TEMPLATE {}".format(strval))
+        self.switch.getView(CHECK_STOCK_VIEW_NAME).setInnerHTML(strval)
+        selattdct = {'title': 'Select location to scan',
+                     '*buttonpressmsg': {'cmd': 'roomswitch'},
+                     "class": "w3-select"
+                     }
+        self.lb = lb = html.getPyElementByIdClass('locky-button', html.select, selattdct)
+        lb.addObserver(self, base.MSGD_BUTTON_CLICK)
+        # lb = html.select(None, 'locky-button', None, lbjs)
+        print('got LOCKY {}'.format(lb))
+        # sel_opt = lb._el.options[lb._el.selectedIndex]
+        se_val, se_txt = lb.get_selected()
+        print('got LOCKY VBAL {}  {}'.format(se_val, se_txt))
+        tabby = html.getPyElementByIdClass('scantable', html.table, None)
+        print('got TABBY {}'.format(tabby))
+        # rowlst = tabby.getrows()
+        # print('got tabby rows len {}'.format(len(rowlst)))
+        # print('got tabby rows {}'.format(rowlst))
+        tabby.columnsort(2)
+        tabby.columnsort(2)
+        # tabvals = [row.getcells() for row in rowlst[1:]]
 
     def showlist(self):
         strval = handlebars.evalTemplate("scolist-template", {"numlist": self.numlst})
@@ -225,6 +205,9 @@ class stocky_mainprog(widgets.base_controller):
                 numlst.append(newnum)
                 # print("LEN {}".format(len(self.numlst)))
                 self.showlist()
+            elif cmd == CommonMSG.MSG_SV_NEW_STOCK_LIST:
+                # the server has sent us a list of all stock items
+                self.setstockdata(val)
             else:
                 print("unrecognised command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:
@@ -249,9 +232,11 @@ class stocky_mainprog(widgets.base_controller):
                 else:
                     print('unknown view target {}'.format(target_view))
             elif cmd == 'roomswitch':
+                html.setCursorBusy(True)
                 se_val, se_txt = self.lb.get_selected()
-                print('showchecklist: got LOCKY VBAL {}  {}'.format(se_val, se_txt))
+                print("showchecklist: got LOCKY VBAL '{}'  '{}'".format(se_val, se_txt))
                 self.showchecklist(se_txt)
+                html.setCursorBusy(False)
             else:
                 print('webclient: unrecognised cmd')
                 return

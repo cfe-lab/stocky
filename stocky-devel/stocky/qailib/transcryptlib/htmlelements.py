@@ -29,6 +29,13 @@ class selfmapper:
 _mm = selfmapper()
 
 
+def setCursorBusy(on: bool) -> None:
+    """Set the cursor to busy (wait) on or off"""
+    if on:
+        document.body.style.cursor = 'wait'
+    else:
+        document.body.style.cursor = 'default'
+        
 def getJsElementById(idstr: str):
     return document.getElementById(idstr)
 

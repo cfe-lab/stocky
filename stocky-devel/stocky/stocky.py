@@ -54,6 +54,20 @@ class serverclass:
         self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl)
         self.BT_init_reader()
 
+        # now: get our current stock list from QAI
+        qai_url = self.cfg_dct['STOCK_LIST_URL']
+        qai_file = self.cfg_dct['STOCK_LIST_FILE']
+        self.logger.info("QAI info URL: '{}', file: '{}'".format(qai_url, qai_file))
+        self.qaidata = QAILib.QAIdata(qai_url, qai_file)
+        qai_has_data = self.qaidata.has_qai_data()
+        self.logger.info("Before pull: QAI has data: {}".format(qai_has_data))
+        if not qai_has_data:
+            if not self.qaidata.pull_qai_data():
+                raise RuntimeError("Failed to pull stock list from QAI")
+            # we have the data from QAI, dump it for later use
+            self.qaidata.dumpfileQAIdata()
+        self.logger.info("After pull: QAI has data: {}".format(qai_has_data))
+
     def send_WS_msg(self, msg: CommonMSG) -> None:
         """Send a command to the web client over websocket in a standard JSON format."""
         self.ws.send(QAILib.tojson(msg.as_dict()))
@@ -77,7 +91,8 @@ class serverclass:
         if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
             # the server is sending a list of all stock locations
             # in response to a MSG_WC_STOCK_CHECK
-            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_STOCK_LOCATIONS, ['bla', 'blu']))
+            wc_stock_dct = self.qaidata.generate_webclient_stocklist()
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_NEW_STOCK_LIST, wc_stock_dct))
         else:
             print("server not handling message {}".format(msg))
 
@@ -98,8 +113,8 @@ class serverclass:
 
         self.ws = ws
         # start a random generator thread
-        self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
-        self.randTM.start_job()
+        # self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
+        # self.randTM.start_job()
 
         # start a websocket reader thread
         self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, ws)

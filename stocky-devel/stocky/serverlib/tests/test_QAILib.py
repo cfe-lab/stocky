@@ -61,6 +61,9 @@ class Test_qailib:
         # should not have data at this point
         if has_data or dt is not None:
             raise RuntimeError("hasdata and datetime should be None!")
+        # trying to dump data to file should raise an error
+        with pytest.raises(RuntimeError):
+            qai.dumpfileQAIdata()
 
     def test_qai_02(self, tmpdir: py.path.local) -> None:
         """A QAIdata struct with data should be able to dump data and read it back"""
@@ -88,5 +91,9 @@ class Test_qailib:
         retval = yamlutil.readyamlfile(locfname)
         assert retval is not None, "failed to read dumped file"
         assert retval == qai.cur_data, "dumped data is not equal"
-        # assert False, "force fail"
 
+        # now call generate_webclient_stocklist(self)
+        ret_dct = qai.generate_webclient_stocklist()
+        assert isinstance(ret_dct, dict), "expected dict"
+
+        # assert False, "force fail"

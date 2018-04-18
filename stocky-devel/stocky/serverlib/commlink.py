@@ -1,3 +1,4 @@
+
 # define a bluetooth communication link class for the TLS ASCII protocol
 
 import typing
@@ -18,8 +19,6 @@ resp_code_lst = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'DA
                  ME_VAL, CS_VAL]
 
 resp_code_set = frozenset(resp_code_lst)
-
-DEFAULT_TIMEOUT_SECS = 20
 
 ResponseTuple = typing.Tuple[str, str]
 ResponseList = typing.List[ResponseTuple]
@@ -246,8 +245,7 @@ class SerialCommLink(BaseCommLink):
         try:
             myser = serial.Serial(devname,
                                   baudrate=19200,
-                                  parity='N',
-                                  timeout=DEFAULT_TIMEOUT_SECS)
+                                  parity='N')
             self.logger.debug('SerialCommlink: opening serial device.')
         except IOError as e:
             self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname, e))
@@ -291,7 +289,11 @@ class SerialCommLink(BaseCommLink):
                     self.logger.error("rd: internal error 1")
                     raise RuntimeError('protocol error')
                 doread = False
-        return str(retbytes, 'utf-8')
+        try:
+            retstr = str(retbytes, 'utf-8')
+        except UnicodeDecodeError as e:
+            raise RuntimeError("bytes '{}': {}".format(retbytes, e))
+        return retstr
 
     def raw_read_response(self) -> CLResponse:
         """Read a sequence of response tuples from the device.

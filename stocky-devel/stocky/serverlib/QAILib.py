@@ -116,6 +116,20 @@ class BaseQAIdata:
         # give up and return the location as is
         return [locstr.strip()]
 
+    def generate_webclient_stocklist(self) -> dict:
+        """Generate the stock list in a form required by the web client."""
+        # list of all locations
+        loc_lst = list(self._locdct.keys())
+        loc_lst.sort(key=lambda t: t[0])
+        # stock item list:
+        # location, itm_str, tagnum
+        stock_itmlst = []
+        klst = ('location', 'name', 'id')
+        for item_dct in self.cur_data['data']:
+            dtup = tuple([item_dct.get(k, "Unknown") for k in klst])
+            stock_itmlst.append(dtup)
+        return {'loclist': loc_lst, 'itemlist': stock_itmlst}
+
     def loadfileQAIdata(self) -> QAI_dct:
         """Attempt to load previously saved QAI data from file.
         Return the data read, or None if this fails."""
@@ -127,8 +141,9 @@ class BaseQAIdata:
 
     def dumpfileQAIdata(self) -> None:
         """Save the current QAI data to file for later retrieval."""
-        if self.cur_data is not None:
-            yamlutil.writeyamlfile(self.cur_data, self._locQAIfname, STATE_DIR_ENV_NAME)
+        if self.cur_data is None:
+            raise RuntimeError("Attempting to dump empty QAI data")
+        yamlutil.writeyamlfile(self.cur_data, self._locQAIfname, STATE_DIR_ENV_NAME)
 
     def qai_is_online(self) -> bool:
         """Return := 'the QAI url can be accessed'

@@ -20,18 +20,13 @@ class CommonMSG:
 
     # the server is sending a list of all stock locations
     # in response to a MSG_WC_STOCK_CHECK
-    MSG_SV_STOCK_LOCATIONS = 'STOCK_LOCATIONS'
-
-    # the server is sending a list of expected stock items for the currently, specific location
-    # in response to a MSG_WC_SET_STOCK_LOCATION
-    MSG_SV_STOCK_LOCITEMS = 'STOCK_LOCITEMS'
+    MSG_SV_NEW_STOCK_LIST = 'NEW_STOCK_LIST'
 
     # the web client is performing a stock check
     # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
     MSG_WC_STOCK_CHECK = 'STOCK_MODE'
 
     # the web client has set a stock checking location
-    # -- the server should send a list of all expected stock items for this location
     MSG_WC_SET_STOCK_LOCATION = 'STOCK_SET_LOC'
 
     # the web client is searching for a specific item ('radar mode')
