@@ -34,8 +34,9 @@ def setCursorBusy(on: bool) -> None:
     if on:
         document.body.style.cursor = 'wait'
     else:
-        document.body.style.cursor = 'default'
-        
+        document.body.style.cursor = 'auto'
+
+
 def getJsElementById(idstr: str):
     return document.getElementById(idstr)
 
@@ -121,6 +122,10 @@ class base_element(base.base_obj):
     def setInnerHTML(self, newhtml: str) -> None:
         """Set this element's innerHTML contents to the provided HTML string"""
         self._el.innerHTML = newhtml
+
+    def getInnerHTML(self) -> str:
+        """Return this element's innerHTML contents as a string"""
+        return self._el.innerHTML
 
     # manipulate class attributes
     # see https://developer.mozilla.org/en-US/docs/Web/API/Element/classList for
@@ -526,7 +531,7 @@ class select(element):
         """Return the currently selected index and value string """
         sel_ndx = self._el.selectedIndex
         val = self._el.options[sel_ndx].value
-        return (sel_ndx, val)
+        return (int(sel_ndx), val)
 
 
 class input(element):

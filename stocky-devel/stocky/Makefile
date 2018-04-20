@@ -19,7 +19,8 @@ help: ## Test the stocky server code
         width=$$(grep -o '^[a-zA-Z_0-9]\+:' $(MAKEFILE_LIST) | wc -L)  \
 	$(MAKEFILE_LIST)
 
-
+web: ## compile the webclient
+	$(MAKE) -C webclient webclient to javascript
 test-all: ## run all unit tests of the server code using pytest
 	pytest
 mypy: ## analyse the server code using mypy

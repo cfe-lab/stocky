@@ -121,13 +121,34 @@ class BaseQAIdata:
         # list of all locations
         loc_lst = list(self._locdct.keys())
         loc_lst.sort(key=lambda t: t[0])
-        # stock item list:
-        # location, itm_str, tagnum
+        UNKNOWNSTR = 'Unknown'
+        if UNKNOWNSTR not in loc_lst:
+            loc_lst.append(UNKNOWNSTR)
+        # need a dict: locname -> locndx
+        ndx_dct = dict([(locname, locndx) for locndx, locname in enumerate(loc_lst)])
+        unknown_ndx = ndx_dct[UNKNOWNSTR]
+        # make sure locnames are unique
+        if len(ndx_dct) != len(loc_lst):
+            raise RuntimeError("location names are not unique!")
+        help_txt_keys = ["name", "id", "category",
+                         "hazards", "scope", "tags", "expiry_time",
+                         "storage", "lot_id", "lot_num", "supplier", "catalog_number",
+                         "prepared_by", "expected_status",
+                         "date_made", "date_in_use", "date_expires", "date_used_up"]
+        # stock item list: locndx, itm_str, tagnum, helptext
         stock_itmlst = []
-        klst = ('location', 'name', 'id')
+        klst = ('name', 'id')
         for item_dct in self.cur_data['data']:
-            dtup = tuple([item_dct.get(k, "Unknown") for k in klst])
+            datatup = tuple([item_dct.get(k, "Unknown") for k in klst])
+            # prepend location ndx
+            locndx = ndx_dct.get(item_dct.get('location', UNKNOWNSTR), unknown_ndx)
+            # append helptext that appears when the user hovers the mouse over a specific stock item
+            # line in a table
+            helptext = "\n ".join(["{}: {}".format(k, item_dct.get(k, "no information")) for k in help_txt_keys])
+            dtup = (locndx, ) + datatup + (helptext, )
             stock_itmlst.append(dtup)
+        # modify loc_lst strings to include number of items at each location
+        loc_lst = ["{}: ({})".format(locstr, len(self._locdct[locstr])) for locstr in loc_lst]
         return {'loclist': loc_lst, 'itemlist': stock_itmlst}
 
     def loadfileQAIdata(self) -> QAI_dct:

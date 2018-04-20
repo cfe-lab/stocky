@@ -115,57 +115,82 @@ class stocky_mainprog(widgets.base_controller):
             # menu_button click events should go to the switchview
             menu_button.addObserver(switch, base.MSGD_BUTTON_CLICK)
         switch.switchTo(0)
-        self._curloc = None
+        self._curlocndx = None
 
     def setstockdata(self, stockdct: dict) -> None:
         # now, prepare the individual views if required
         self._stockloc_lst = stockdct['loclist']
         self._stockitm_lst = stockdct['itemlist']
-        self.showchecklist(self._stockloc_lst[0])
+        self.preparechecklists()
+        self.showchecklist(0)
 
-    def showchecklist(self, my_loc: str):
-        """Show the list of stock items that are located at my_loc.
-        """
-        print("setting loc '{}', len: {}".format(my_loc, len(self._stockloc_lst)))
-        if self._curloc == my_loc:
-            return
-        self._curloc = my_loc
+    def _calctab(self, sel_ndx: int) -> str:
+        """Generate the html string for location index sel_ndx"""
         # determine the list of locations to display
-        display_loc_lst = [{'name': loc, 'isselected': loc == my_loc} for loc in self._stockloc_lst]
+        display_loc_lst = [{'name': loc,
+                            'key': '{}'.format(ndx),
+                            'isselected': ndx == sel_ndx} for ndx, loc in enumerate(self._stockloc_lst)]
         # select the items at this location from the stock_list
         scan_lst, ii = [], 0
         stattab = ['FOUND', 'ABSENT', 'UNEXPECTED']
-        for loc, itm_str, tagnum in self._stockitm_lst:
-            if loc == my_loc:
-                scan_lst.append({'name': itm_str, 'id': tagnum, 'status': stattab[ii % 3]})
+        for locndx, itm_str, tagnum, helptext in self._stockitm_lst:
+            if locndx == sel_ndx:
+                scan_lst.append({'name': itm_str,
+                                 'id': tagnum,
+                                 'helptext': helptext,
+                                 'status': stattab[ii % 3]})
                 ii += 1
         strval = handlebars.evalTemplate("checkstock-template", {"loclist": display_loc_lst,
                                                                  "scanlist": scan_lst})
-        if strval is None:
+        return strval
+
+    def preparechecklists(self):
+        self.tabdct = {}
+        for ndx, stri in [(ndx, self._calctab(ndx)) for ndx in range(len(self._stockloc_lst))]:
+            self.tabdct[ndx] = stri
+
+    def showchecklist(self, sel_ndx: int):
+        """Show the list of stock items that are located at sel_ndx.
+        """
+        maxlen = len(self._stockloc_lst)
+        print("setting loc '{}', len: {}".format(sel_ndx, maxlen))
+        if sel_ndx < 0 or sel_ndx >= maxlen or self._curlocndx == sel_ndx:
+            return
+        # strval = self._calctab(sel_ndx)
+        newstrval = self.tabdct.get(sel_ndx, None)
+        if newstrval is None:
             log('TEMPLATE FAILED')
             return
-
-        # log("TEMPLATE {}".format(strval))
-        self.switch.getView(CHECK_STOCK_VIEW_NAME).setInnerHTML(strval)
-        selattdct = {'title': 'Select location to scan',
+        # if we have reached this point, we are going to make the switch
+        html.setCursorBusy(True)
+        check_view = self.switch.getView(CHECK_STOCK_VIEW_NAME)
+        # switch out the innerHTML elements. Save the current innerHTML for later use
+        # NOTE: this does not work -- the table references become all mixed up...
+        # if self._curlocndx is not None:
+        #    oldstr = check_view.getInnerHTML()
+        #    log("OLD TEMPLATE {} {}".format(self._curlocndx, oldstr))
+        #    self.tabdct[self._curlocndx] = oldstr
+        self._curlocndx = sel_ndx
+        check_view.setInnerHTML(newstrval)
+        selattdct = {'title': 'Select the stock location you want to verify',
                      '*buttonpressmsg': {'cmd': 'roomswitch'},
-                     "class": "w3-select"
+                     "class": "w3-select locbutton-cls"
                      }
         self.lb = lb = html.getPyElementByIdClass('locky-button', html.select, selattdct)
         lb.addObserver(self, base.MSGD_BUTTON_CLICK)
         # lb = html.select(None, 'locky-button', None, lbjs)
         print('got LOCKY {}'.format(lb))
-        # sel_opt = lb._el.options[lb._el.selectedIndex]
-        se_val, se_txt = lb.get_selected()
-        print('got LOCKY VBAL {}  {}'.format(se_val, se_txt))
-        tabby = html.getPyElementByIdClass('scantable', html.table, None)
-        print('got TABBY {}'.format(tabby))
+        se_ndx, se_val = lb.get_selected()
+        print('got LOCKY VBAL {}  {}'.format(se_ndx, se_val))
+        # we do not sort the table after all...
+        # tabby = html.getPyElementByIdClass('scantable', html.table, None)
+        # print('got TABBY {}'.format(tabby))
         # rowlst = tabby.getrows()
         # print('got tabby rows len {}'.format(len(rowlst)))
         # print('got tabby rows {}'.format(rowlst))
-        tabby.columnsort(2)
-        tabby.columnsort(2)
+        # tabby.columnsort(2)
         # tabvals = [row.getcells() for row in rowlst[1:]]
+        html.setCursorBusy(False)
 
     def showlist(self):
         strval = handlebars.evalTemplate("scolist-template", {"numlist": self.numlst})
@@ -232,11 +257,9 @@ class stocky_mainprog(widgets.base_controller):
                 else:
                     print('unknown view target {}'.format(target_view))
             elif cmd == 'roomswitch':
-                html.setCursorBusy(True)
-                se_val, se_txt = self.lb.get_selected()
-                print("showchecklist: got LOCKY VBAL '{}'  '{}'".format(se_val, se_txt))
-                self.showchecklist(se_txt)
-                html.setCursorBusy(False)
+                se_ndx, se_val = self.lb.get_selected()
+                print("showchecklist: got LOCKY VBAL '{}'  '{}'".format(se_ndx, se_val))
+                self.showchecklist(se_ndx)
             else:
                 print('webclient: unrecognised cmd')
                 return

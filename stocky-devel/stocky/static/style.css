@@ -26,6 +26,7 @@ html, body {
    padding:10px;
    padding-bottom:60px;   /* Height of the footer */
    min-height:100%;
+    box-shadow: 1px 1px 11px #330033;
 }
 
 #pagefoot {
@@ -40,10 +41,9 @@ html, body {
 
 #page-wrapper {
     height: 100%; /* 100% Full-height */
-    width: 90%; /* 0 width - change this with JavaScript */
+    width: 80%; /* 0 width - change this with JavaScript */
     left: 25%;
-    position: relative; /* Stay in place */
-    
+    position: relative; /* Stay in place */    
 }
 
 
@@ -56,8 +56,43 @@ font-size: 30px;
 font-weight: 700;  */
 }
 
+/* style for the stock location button  */
+.locbutton-cls {
+    width: 90%;
+    padding: 16px 20px;
+    border: 5px;
+    /* border-radius: 10px; */
+    background-color: #f1f1f1;
+    /* background-color: #ffffff; */
+    box-shadow: 1px 1px 11px #330033;
+    margin-bottom: 10px;
+    text-align: center;
+  /*  font-size: 30px;
+    font-weight: 700;  */
+}
 
+.menubar-cls {
+    box-shadow: 1px 1px 11px #330033;
+}
 
+.sort-table {
+    width: 90%;
+    box-shadow: 1px 1px 11px #330033;
+}
+
+.scostockitem-cls[tooltip]:hover:after  {
+    content: attr(tooltip);
+    z-index: 9999;
+    box-shadow: 1px 1px 11px #330033;
+    position: absolute;
+    left: 20%;
+    width: 40%;
+    padding: 2em;
+    font-size: smaller;
+    border: 1px solid;
+    color: red;
+    background: black;
+}
 /* display up/down arrows on sortable table headings.
   Modified from 
   https://stackoverflow.com/questions/17639562/add-sorting-arrows-to-th-like-table-sorter

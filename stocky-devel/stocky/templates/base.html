@@ -18,13 +18,12 @@
     </div>
 {% raw %}
     <script id="checkstock-template" type="text/x-handlebars-template">
-      Choose a Location:<br>
     <select id="locky-button" name="loc-selector">
       {{#each loclist}}
       {{#if_eq this.isselected true}}
-      <option value={{this.name}} selected="selected">{{this.name}}</option>
+      <option value={{this.key}} selected="selected">{{this.name}}</option>
       {{else}}
-      <option value={{this.name}}>{{this.name}}</option>
+      <option value={{this.key}}>{{this.name}}</option>
       {{/if_eq}}
       {{/each}}
     </select>
@@ -35,7 +34,7 @@
 	<th class="headerSortUpDown" onclick="w3.sortHTML('#scantable','.item', 'td:nth-child(3)')"> Scan Status </th>
       </tr>
       {{#each scanlist}}
-      <tr class="item">
+      <tr class="item scostockitem-cls" tooltip="{{this.helptext}}">
 	<td> {{this.name}} </td>
 	<td> {{this.id}} </td>
 	<td class="scan{{this.status}}class"> {{this.status}} </td>
