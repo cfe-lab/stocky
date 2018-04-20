@@ -191,11 +191,19 @@ class RFIDParams:
         return retstr
 
 
+class tls_mode(Enum):
+    """TLS data mode"""
+    stock = 'sto'
+    radar = 'rad'
+    undef = 'ude'
+
+
 class TLSReader(Taskmeister.BaseTaskMeister):
     def __init__(self, msgQ: gevent.queue.Queue, logger, cl: commlink.BaseCommLink) -> None:
         """Create a class that can talk to the RFID reader via the provided commlink class."""
         super().__init__(msgQ, logger)
         self._cl = cl
+        self.mode = tls_mode(tls_mode.undef)
 
     def _sendcmd(self, cmdstr: str, comment: str=None) -> None:
         cl = self._cl
@@ -210,10 +218,32 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         we will send a message with the scanned data back.
         NOTE: this method is overrulling the BaseTaskMeister method
         """
-        clresp = self._cl.raw_read_response()
-        self.logger.debug("YEEEEE got {}".format(clresp))
+        doskip = True
+        msg_type = None
+        while doskip:
+            # assume that we are going to return this message...
+            doskip = False
+            clresp: commlink.CLResponse = self._cl.raw_read_response()
+            ret_code: commlink.TLSRetCode = clresp.return_code()
+            ret_is_ok = (ret_code == commlink.BaseCommLink.RC_OK)
+            comm_dct = clresp.get_comment_dct()
+            if comm_dct is None:
+                comment_str = None
+            else:
+                comment_str = comm_dct.get(commlink.BaseCommLink.COMMENT_ID, None)
+                self.logger.debug("YEEEEE got {}, Comment: {}".format(clresp, comment_str))
+            if comment_str is None:
+                # we have a message because the user pressed the trigger --
+                # try to determine what kind of message to send back
+                # based on our current mode
+                if self.mode == tls_mode.radar:
+                    msg_type = CommonMSG.MSG_RF_RADAR_DATA
+            elif comment_str == 'radarsetup':
+                if ret_is_ok:
+                    doskip = True
         # do something with resp_lst here and return a CommonMSG
-        return CommonMSG(CommonMSG.MSG_RF_CMD_RESP, clresp)
+        msg_type = msg_type or CommonMSG.MSG_RF_CMD_RESP
+        return CommonMSG(msg_type, clresp)
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.
@@ -250,7 +280,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     def set_readbarcode_params(self, p: BarcodeParams) -> None:
         cmdstr = ".bc " + p.tostr() + " -n\n"
-        self._sendcmd(cmdstr)
+        self._sendcmd(cmdstr, "bcparams")
 
     def get_readbarcode_params(self) -> BarcodeParams:
         pass
@@ -263,7 +293,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         if p is not None:
             cmdstr += p.tostr()
         cmdstr += " -n\n"
-        self._sendcmd(cmdstr)
+        self._sendcmd(cmdstr, "bcdata")
 
     def set_bluetooth(self,
                       bt_on: bool,
@@ -283,7 +313,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
                                                                       bt_pairing_code,
                                                                       bundle_id, bundle_seed_id,
                                                                       protoname)
-        self._sendcmd(cmdstr)
+        self._sendcmd(cmdstr, "setbt")
 
     def set_date_time(self, yy: int, mm: int, dd: int,
                       hrs: int, mins: int, secs: int) -> None:
@@ -298,7 +328,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         if not (0 <= secs < 60):
             raise RuntimeError("second is out of range")
         cmdstr = ".tm -s {:02d}{:02d}{:02d}".format(hrs, mins, secs)
-        self._sendcmd(cmdstr)
+        self._sendcmd(cmdstr, "settime")
 
         if yy < 2000:
             raise RuntimeError("year is out of range")
@@ -307,7 +337,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         if not (1 <= dd <= 31):
             raise RuntimeError("day is out of range")
         cmdstr = ".da -s {:02d}{:02d}{:02d}".format(yy-2000, mm, dd)
-        self._sendcmd(cmdstr)
+        self._sendcmd(cmdstr, "setdate")
 
     def readRFID(self, p: RFIDParams) -> None:
         pass
@@ -321,7 +351,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
         """
         cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(EPCcode)
-        self._sendcmd(cmdstr)
+        self._sendcmd(cmdstr, "radarsetup")
 
     def RadarGet(self) -> None:
         """Issue a command to get the RSSI value of the tag previously selected
@@ -340,4 +370,11 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         """The stocky server uses this routine to send messages (commands) to the
         RFID reader device."""
         if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
+            self.mode = tls_mode.stock
             self.BT_set_stock_check_mode()
+        elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
+            self.mode = tls_mode.radar
+            self.RadarSetup('000000000000000000001237')
+        else:
+            self.mode = tls_mode.undef
+            self.logger.debug("TLS skipping msg {}".format(msg))

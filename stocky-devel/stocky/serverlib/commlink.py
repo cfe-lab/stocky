@@ -11,12 +11,13 @@ ER_RESP = 'ER'
 RI_VAL = 'RI'
 ME_VAL = 'ME'
 CS_VAL = 'CS'
+EP_VAL = 'EP'
 
 resp_code_lst = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'DA', 'DP',
                  'DT', 'EA', 'EB', 'FN', 'IA', 'IX', 'KS', 'LB', 'LE', 'LL', 'LK', 'LS',
                  'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP', 'BV',
                  'SR', 'SW', 'TD', 'TM', 'UB', 'UF', 'US', 'WW', OK_RESP, ER_RESP, RI_VAL,
-                 ME_VAL, CS_VAL]
+                 ME_VAL, CS_VAL, EP_VAL]
 
 resp_code_set = frozenset(resp_code_lst)
 
@@ -137,7 +138,7 @@ class CLResponse:
         return self._cdict
 
     def __str__(self):
-        return "CLResponse: '{}'".format(self.rl)
+        return "CLResponse: '{}' comment: {}".format(self.rl, self._cdict)
 
 
 class BaseCommLink:
@@ -145,6 +146,9 @@ class BaseCommLink:
 
     DCT_START_CHAR = 'A'
     DCT_STOP_CHAR = 'B'
+
+    COMMENT_ID = 'CMT'
+    MSGNUM_ID = 'MSG'
 
     def __init__(self, cfgdct: dict) -> None:
         """Open a communication channel defined by its id.
@@ -203,7 +207,7 @@ class BaseCommLink:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         """
-        commdct = {'MSG': str(self._cmdnum), 'CMT': comment}
+        commdct = {BaseCommLink.MSGNUM_ID: str(self._cmdnum), BaseCommLink.COMMENT_ID: comment}
         cmdstr += BaseCommLink.encode_comment_dict(commdct)
         self.raw_send_cmd(cmdstr)
         self._cmdnum += 1
@@ -274,17 +278,29 @@ class SerialCommLink(BaseCommLink):
             self.logger.error("write failed '{}'".format(e))
             raise
 
+    def filterbyte(self) -> bytes:
+        """Every now and again, the RFID reader sends us bytes 0x00 and 0xff which cannot
+        be translated into ASCII.
+        As far as I know, we don't need these, so just filter them out here.
+        """
+        mydev = self.mydev
+        doread = True
+        skipset = frozenset([b'\xff', b'\x00'])
+        while doread:
+            b = mydev.read(size=1)
+            doread = (b in skipset)
+        return b
+
     def _str_readline(self) -> str:
         """Read bytes (not strings) from the serial device until we hit
         a (CR, LF) then collect together into a line and return as a string"""
-        mydev = self.mydev
         retbytes, doread = b'', True
         while doread:
-            newbytes = mydev.read(size=1)
+            newbytes = self.filterbyte()
             if newbytes != byteCR:
                 retbytes += newbytes
             else:
-                newbytes = mydev.read(size=1)
+                newbytes = self.filterbyte()
                 if newbytes != byteLF:
                     self.logger.error("rd: internal error 1")
                     raise RuntimeError('protocol error')

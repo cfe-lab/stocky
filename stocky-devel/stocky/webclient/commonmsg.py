@@ -41,10 +41,12 @@ class CommonMSG:
     # the RFID reader has produced a command response
     MSG_RF_CMD_RESP = 'RF_CMD_RESP'
 
-    # the RFID 
     def __init__(self, msg: str, data: typing.Any) -> None:
         self.msg = msg
         self.data = data
 
     def as_dict(self) -> dict:
         return dict(msg=self.msg, data=self.data)
+
+    def __str__(self) -> str:
+        return "CommonMSG({}, {})".format(self.msg, self.data)

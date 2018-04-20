@@ -16,7 +16,12 @@ def tojson(data) -> str:
     """Convert the data structure to json.
     see https://docs.python.org/3.4/library/json.html
     """
-    return json.dumps(data, separators=(',', ':'))
+    try:
+        retstr = json.dumps(data, separators=(',', ':'))
+    except TypeError as e:
+        print("problem converting to json '{}'".format(data))
+        raise e
+    return retstr
 
 
 def fromjson(data_bytes: bytes) -> typing.Any:

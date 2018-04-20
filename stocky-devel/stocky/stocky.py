@@ -93,6 +93,8 @@ class serverclass:
             # in response to a MSG_WC_STOCK_CHECK
             wc_stock_dct = self.qaidata.generate_webclient_stocklist()
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_NEW_STOCK_LIST, wc_stock_dct))
+        elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
+            print("server in RADAR mode...")
         else:
             print("server not handling message {}".format(msg))
 
@@ -137,7 +139,7 @@ class serverclass:
                 is_handled = True
                 self.server_handle_msg(msg)
             if not is_handled:
-                self.logger.debug("server NOT handling msgtype '{}'".format(msg.msg))
+                self.logger.error("mainloop NOT handling msgtype '{}'".format(msg.msg))
 
 
 def test_logging(l):

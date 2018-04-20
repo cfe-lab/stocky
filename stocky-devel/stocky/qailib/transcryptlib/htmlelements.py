@@ -127,6 +127,11 @@ class base_element(base.base_obj):
         """Return this element's innerHTML contents as a string"""
         return self._el.innerHTML
 
+    def get_WH(self) -> typing.Tuple[int, int]:
+        """Return the width and height of the element in pixels."""
+        rc = self._el.getBoundingClientRect()
+        return (rc.width, rc.height)
+
     # manipulate class attributes
     # see https://developer.mozilla.org/en-US/docs/Web/API/Element/classList for
     # how these work.

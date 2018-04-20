@@ -12,10 +12,25 @@ html, body {
    height:100%;
 }
 
+/*   
+pagecontainer
+  pagehead
+  pagecontent
+     main-menu-div
+     page-wrapper
+        stockyframe
+           switchview
+  pagefoot
+*/
+
+
+
 #pagecontainer {
    min-height:100%;
    position:relative;
 }
+
+/* heights of : pagehead + pagecontent + pagefoot must be 100% */
 
 #pagehead {
    background:#ff0;
@@ -23,10 +38,12 @@ html, body {
 }
 
 #pagecontent {
-   padding:10px;
-   padding-bottom:60px;   /* Height of the footer */
+   padding: 10px;
+   padding-bottom: 60px;   /* Height of the footer */
    min-height:100%;
-    box-shadow: 1px 1px 11px #330033;
+   width:100%;
+   height: calc(100% - 60px);
+   display: block;
 }
 
 #pagefoot {
@@ -36,16 +53,32 @@ html, body {
    height:60px;   /* Height of the footer */
    background:#6cf;
    z-index: 2; /* Stay on top */
+   box-shadow: 1px 1px 11px #330033;
 }
 
 
 #page-wrapper {
-    height: 100%; /* 100% Full-height */
-    width: 80%; /* 0 width - change this with JavaScript */
-    left: 25%;
-    position: relative; /* Stay in place */    
+    height: 100%;
+    width: 80%;
+    left: 20%;
+    position: relative;
+   box-shadow: 1px 1px 11px #330033;
 }
 
+#stockyframe {
+    height: 100%;
+    width: 100%;
+    left: 0%;
+    position: relative;
+}
+
+
+.switchview-cls {
+    height: 100%;
+    width: 100%;
+    left: 0%;
+    position: relative;
+}
 
 .scologopic-cls {
     color: #fff;
@@ -56,9 +89,10 @@ font-size: 30px;
 font-weight: 700;  */
 }
 
+
 /* style for the stock location button  */
 .locbutton-cls {
-    width: 90%;
+    width: 100%;
     padding: 16px 20px;
     border: 5px;
     /* border-radius: 10px; */
@@ -76,7 +110,7 @@ font-weight: 700;  */
 }
 
 .sort-table {
-    width: 90%;
+    width: 100%;
     box-shadow: 1px 1px 11px #330033;
 }
 

@@ -362,7 +362,6 @@ class FormWidget(base_widget):
             print("menulst: relaying message {}, {}".format(msgdesc, msgdat))
             self.relayMsg(whofrom, msgdesc, msgdat)
 
-
     def OLDgetFormData(self) -> dict:
         """Return a dict containing the current values of the form elements.
         This method reaches into the nether regions of javascript and uses
@@ -423,8 +422,8 @@ class SwitchView(base_widget):
             on_view = self.view_dct.get(numorname, None)
         if on_view is None:
             log("getView error: no element '{}' found (len={}, names={})".format(numorname,
-                                                                                    len(self.view_lst),
-                                                                                    " ,".join(self.view_dct.keys())))
+                                                                                 len(self.view_lst),
+                                                                                 " ,".join(self.view_dct.keys())))
         return on_view
 
     def switchTo(self, numorname) -> None:

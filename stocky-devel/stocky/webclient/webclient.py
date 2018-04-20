@@ -9,10 +9,11 @@ import qailib.common.serversocketbase as serversocketbase
 import qailib.transcryptlib.serversocket as serversock
 import qailib.transcryptlib.htmlelements as html
 import qailib.transcryptlib.widgets as widgets
+import qailib.transcryptlib.handlebars as handlebars
+
 
 from commonmsg import CommonMSG
-
-import handlebars
+import wcviews
 
 log = genutils.log
 
@@ -39,6 +40,7 @@ menulst = [
                 'id': 'BV3'}
      },
     {'name': RADAR_VIEW_NAME,
+     'viewclass': wcviews.RadarView,
      'button': {'label': 'Locate a Specific Item',
                 'title': "Search for an item with a given EPC",
                 'id': 'BV4'}
@@ -78,7 +80,8 @@ class stocky_mainprog(widgets.base_controller):
         else:
             log("MENU DIV OK")
         self.menudiv = menudiv
-        self.switch = switch = widgets.SwitchView(self, topdoc, "switchview", None, None)
+        switchattrdct = {"class": "switchview-cls"}
+        self.switch = switch = widgets.SwitchView(self, topdoc, "switchview", switchattrdct, None)
 
         statediv = html.getPyElementById("state-div")
         if statediv is None:
@@ -96,7 +99,8 @@ class stocky_mainprog(widgets.base_controller):
         for mvdct in menulst:
             # add the view
             viewname = mvdct['name']
-            view = widgets.BasicView(self, switch, viewname, None, None)
+            viewclassname = mvdct.get('viewclass', widgets.BasicView)
+            view = viewclassname(self, switch, viewname, None, None)
             switch.addView(view, viewname)
             # add some identifying text...
             h1 = html.h1(view, '{}-h1'.format(viewname), None, None)
@@ -114,6 +118,8 @@ class stocky_mainprog(widgets.base_controller):
             menu_button = widgets.text_button(self, menudiv, idstr, butattdct, None, button_text)
             # menu_button click events should go to the switchview
             menu_button.addObserver(switch, base.MSGD_BUTTON_CLICK)
+        # initialise the individual Views here...
+        
         switch.switchTo(0)
         self._curlocndx = None
 
