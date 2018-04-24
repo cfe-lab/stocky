@@ -119,7 +119,6 @@ class stocky_mainprog(widgets.base_controller):
             # menu_button click events should go to the switchview
             menu_button.addObserver(switch, base.MSGD_BUTTON_CLICK)
         # initialise the individual Views here...
-        
         switch.switchTo(0)
         self._curlocndx = None
 
@@ -198,6 +197,11 @@ class stocky_mainprog(widgets.base_controller):
         # tabvals = [row.getcells() for row in rowlst[1:]]
         html.setCursorBusy(False)
 
+    def setradardata(self, radarinfo: typing.List[typing.Tuple[str, int]]):
+        """This is a list of string tuples.  (epc code, RI) """
+        radar_view = self.switch.getView(RADAR_VIEW_NAME)
+        radar_view.set_radardata(radarinfo)
+
     def showlist(self):
         strval = handlebars.evalTemplate("scolist-template", {"numlist": self.numlst})
         if strval is None:
@@ -239,6 +243,8 @@ class stocky_mainprog(widgets.base_controller):
             elif cmd == CommonMSG.MSG_SV_NEW_STOCK_LIST:
                 # the server has sent us a list of all stock items
                 self.setstockdata(val)
+            elif cmd == CommonMSG.MSG_RF_RADAR_DATA:
+                self.setradardata(val)
             else:
                 print("unrecognised command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:

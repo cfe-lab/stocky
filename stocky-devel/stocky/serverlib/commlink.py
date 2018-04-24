@@ -259,7 +259,7 @@ class SerialCommLink(BaseCommLink):
             myser = None
         self.mydev = myser
         self.logger.debug("serial commlink '{}' OK".format(devname))
-        self._idstr = None
+        self._idstr: str = None
 
     def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.

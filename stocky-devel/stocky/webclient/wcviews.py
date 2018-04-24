@@ -2,8 +2,7 @@
 
 # define specific view for the webcloient here
 
-
-# import typing
+import typing
 # import qailib.common.base as base
 
 # import qailib.transcryptlib.htmlelements as html
@@ -24,3 +23,7 @@ class RadarView(widgets.BasicView):
         # size_tup = ('100%', '100%')
         size_tup = None
         self.svg = SVGlib.svg(self, 'scosvg', attrdct, None, size_tup)
+
+    def set_radardata(self, radarinfo: typing.List[typing.Tuple[str, int]]):
+        """Display the radar data on the screen"""
+        pass

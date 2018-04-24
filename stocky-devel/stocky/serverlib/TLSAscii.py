@@ -219,7 +219,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         NOTE: this method is overrulling the BaseTaskMeister method
         """
         doskip = True
-        msg_type = None
+        msg_type, ret_data = None, None
         while doskip:
             # assume that we are going to return this message...
             doskip = False
@@ -238,12 +238,24 @@ class TLSReader(Taskmeister.BaseTaskMeister):
                 # based on our current mode
                 if self.mode == tls_mode.radar:
                     msg_type = CommonMSG.MSG_RF_RADAR_DATA
+                    eplst = clresp[commlink.EP_VAL]
+                    try:
+                        rilst = [int(sri) for sri in clresp[commlink.RI_VAL]]
+                    except ValueError as e:
+                        self.logger.error("radar mode: failed to retrieve RI values")
+                        rilst = None
+                    if rilst is None or len(eplst) != len(rilst):
+                        self.logger.error("radar mode: unequal EP and RI list lengths: {} {}".format(eplst, rilst))
+                        doskip = True
+                    ret_data = list(zip(eplst, rilst))
+                    self.logger.debug("Returning radar data {}".format(ret_data))
             elif comment_str == 'radarsetup':
                 if ret_is_ok:
                     doskip = True
         # do something with resp_lst here and return a CommonMSG
         msg_type = msg_type or CommonMSG.MSG_RF_CMD_RESP
-        return CommonMSG(msg_type, clresp)
+        ret_data = ret_data or clresp
+        return CommonMSG(msg_type, ret_data)
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.

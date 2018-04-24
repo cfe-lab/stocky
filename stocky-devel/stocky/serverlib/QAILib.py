@@ -44,7 +44,7 @@ QAI_dct = typing.Dict[str, typing.Any]
 
 StockItem_dct = typing.Dict[str, typing.Any]
 
-Location_dct = typing.Dict[str, StockItem_dct]
+Location_dct = typing.Dict[str, typing.List[StockItem_dct]]
 
 
 def rawdata_to_qaidct(mydat: typing.Any) -> QAI_dct:
@@ -150,7 +150,7 @@ class BaseQAIdata:
             # append helptext that appears when the user hovers the mouse over a specific stock item
             # line in a table
             helptext = "\n ".join(["{}: {}".format(k, item_dct.get(k, "no information")) for k in help_txt_keys])
-            dtup = (locndx, ) + datatup + (helptext, )
+            dtup = (locndx, *datatup, helptext)
             stock_itmlst.append(dtup)
         # modify loc_lst strings to include number of items at each location
         loc_lst = ["{}: ({})".format(locstr, len(self._locdct[locstr])) for locstr in loc_lst]
