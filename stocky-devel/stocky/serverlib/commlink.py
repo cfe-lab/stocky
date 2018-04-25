@@ -52,27 +52,6 @@ TLSRetCode = int
 # (a negative value, bigger is closer. E.g. -40 is nearer than -75)
 RSSI = int
 
-_tlsretcode_dct = {0: 'No Error',
-                   1: 'Syntax Error',
-                   2: 'Parameter not supported',
-                   3: 'Action not enabled',
-                   4: 'Command not supported by hardware',
-                   5: 'No transponder found',
-                   6: 'No Barcode found',
-                   7: 'Parameter configuration invalid',
-                   8: 'Antenna/Radio Error (Wrong region of Antenna/Radio not fitted)',
-                   9: 'Battery level too low',
-                   10: 'Scanner not ready',
-                   11: 'Command not supported on interface',
-                   12: 'Command not supported from Autorun file',
-                   13: 'Write Failure',
-                   14: 'Switch already in use',
-                   15: 'Command Aborted',
-                   16: 'Lock Failure',
-                   17: 'Bluetooth Error',
-                   18: 'Licence Key is not Blank',
-                   255: 'System Error'}
-
 
 class CLResponse:
     def __init__(self, rl: ResponseList) -> None:
@@ -142,7 +121,11 @@ class CLResponse:
 
 
 class BaseCommLink:
+    # Return codes of the RFID reader, see _tlsretcode_dct
     RC_OK = 0
+
+    RC_NO_TAGS = 5
+    RC_NO_BARCODE = 6
 
     DCT_START_CHAR = 'A'
     DCT_STOP_CHAR = 'B'
@@ -237,6 +220,28 @@ class BaseCommLink:
         """Send a command string to the reader, returning its list of response strings."""
         self.send_cmd(cmdstr, comment)
         return self.raw_read_response()
+
+
+_tlsretcode_dct = {0: 'No Error',
+                   1: 'Syntax Error',
+                   2: 'Parameter not supported',
+                   3: 'Action not enabled',
+                   4: 'Command not supported by hardware',
+                   BaseCommLink.RC_NO_TAGS: 'No transponder found',
+                   BaseCommLink.RC_NO_BARCODE: 'No Barcode found',
+                   7: 'Parameter configuration invalid',
+                   8: 'Antenna/Radio Error (Wrong region of Antenna/Radio not fitted)',
+                   9: 'Battery level too low',
+                   10: 'Scanner not ready',
+                   11: 'Command not supported on interface',
+                   12: 'Command not supported from Autorun file',
+                   13: 'Write Failure',
+                   14: 'Switch already in use',
+                   15: 'Command Aborted',
+                   16: 'Lock Failure',
+                   17: 'Bluetooth Error',
+                   18: 'Licence Key is not Blank',
+                   255: 'System Error'}
 
 
 class SerialCommLink(BaseCommLink):

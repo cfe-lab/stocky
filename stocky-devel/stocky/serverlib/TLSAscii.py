@@ -1,6 +1,7 @@
 
 import typing
 from enum import Enum
+import math
 
 import gevent.queue
 
@@ -198,18 +199,117 @@ class tls_mode(Enum):
     undef = 'ude'
 
 
+def RI2dist(ri: int) -> float:
+    """Use an approximate formula to convert an RI into a distance in metres.
+    The formula for this is taken from here:
+    https://electronics.stackexchange.com/questions/83354/calculate-distance-from-rssi
+    The parameters for A_OFFSET were determined experimentally, and that for
+    N_PROP_TEN was guessed. This is a value between 2.7 and 4.3 , with 2.0 for free space.
+    """
+    A_OFFSET = -65
+    N_PROP_TEN = 3.0*10.0
+    return math.pow(10.0, (ri - A_OFFSET)/-N_PROP_TEN)
+
+
 class TLSReader(Taskmeister.BaseTaskMeister):
     def __init__(self, msgQ: gevent.queue.Queue, logger, cl: commlink.BaseCommLink) -> None:
         """Create a class that can talk to the RFID reader via the provided commlink class."""
         super().__init__(msgQ, logger)
         self._cl = cl
         self.mode = tls_mode(tls_mode.undef)
+        self.radarave = 5
 
     def _sendcmd(self, cmdstr: str, comment: str=None) -> None:
         cl = self._cl
         if not cl.is_alive():
             raise RuntimeError("commlink is not alive")
         cl.send_cmd(cmdstr, comment)
+
+    def is_in_radarmode(self) -> bool:
+        return self.mode == tls_mode.radar
+
+    @staticmethod
+    def _radar_data(logger, clresp: commlink.CLResponse) -> list:
+        ret_code: commlink.TLSRetCode = clresp.return_code()
+        if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
+           ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
+            # the scan event failed to return any EPC or barcode data
+            # ->we return an empty list
+            ret_data = []
+        else:
+            eplst = clresp[commlink.EP_VAL]
+            try:
+                rilst = [int(sri) for sri in clresp[commlink.RI_VAL]]
+            except (ValueError, TypeError) as e:
+                logger.error("radar mode: failed to retrieve RI values {}".format(e))
+                rilst = None
+            if rilst is None or len(eplst) != len(rilst):
+                logger.error("radar mode: unequal EP and RI list lengths: {} {}".format(eplst, rilst))
+                ret_data = None
+            else:
+                ret_data = list(zip(eplst, rilst, [RI2dist(ri) for ri in rilst]))
+                ret_data.sort(key=lambda a: a[0])
+        return ret_data
+
+    def _convert_message(self, clresp: commlink.CLResponse) -> CommonMSG:
+        """Convert a RFID response into a common message.
+        Return None if this message should not be passed on.
+        """
+        # assume that we are going to return this message...
+        ret_code: commlink.TLSRetCode = clresp.return_code()
+        ret_is_ok = (ret_code == commlink.BaseCommLink.RC_OK)
+        # A: determine the kind of message to return based on the comment_dict
+        # or the current mode
+        # Our decision is stored into msg_type
+        msg_type, ret_data = None, None
+        comm_dct = clresp.get_comment_dct()
+        if comm_dct is None:
+            comment_str = None
+        else:
+            comment_str = comm_dct.get(commlink.BaseCommLink.COMMENT_ID, None)
+            self.logger.debug("clresp comment {}, Comment: {}".format(clresp, comment_str))
+        if comment_str is None:
+            # we have a message because the user pressed the trigger --
+            # try to determine what kind of message to send back
+            # based on our current mode
+            if self.mode == tls_mode.radar:
+                msg_type = CommonMSG.MSG_RF_RADAR_DATA
+            elif self.mode == tls_mode.stock:
+                msg_type = CommonMSG.MSG_RF_STOCK_DATA
+            elif self.mode == tls_mode.undef:
+                msg_type = CommonMSG.MSG_RF_CMD_RESP
+            else:
+                raise RuntimeError('unknown mode')
+        elif comment_str == 'radarsetup':
+            if not ret_is_ok:
+                msg_type = CommonMSG.MSG_RF_CMD_RESP
+        elif comment_str == 'RADAVE':
+            self.radlst.append(clresp)
+        elif comment_str == 'RAD':
+            msg_type = CommonMSG.MSG_RF_RADAR_DATA
+        else:
+            self.logger.error('unhandled comment string {}'.format(comment_str))
+        # B: now try to determine ret_data.
+        if msg_type is None:
+            return None
+        if msg_type == CommonMSG.MSG_RF_RADAR_DATA:
+            ret_data = TLSReader._radar_data(self.logger, clresp)
+            self.logger.debug("Returning radar data {}".format(ret_data))
+        elif msg_type == CommonMSG.MSG_RF_STOCK_DATA:
+            if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
+               ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
+                # the scan event failed to return any EPC or barcode data
+                # ->we return an empty list
+                ret_data = []
+            else:
+                ret_data = clresp[commlink.EP_VAL]
+        elif msg_type == CommonMSG.MSG_RF_CMD_RESP:
+            ret_data = clresp.rl
+        # do something with ret_data here and return a CommonMSG or None
+        if ret_data is None:
+            return None
+        assert msg_type is not None and ret_data is not None, "convert_message error 99"
+        return CommonMSG(msg_type, ret_data)
 
     # stocky main server messaging service....
     def generate_msg(self) -> CommonMSG:
@@ -219,43 +319,11 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         NOTE: this method is overrulling the BaseTaskMeister method
         """
         doskip = True
-        msg_type, ret_data = None, None
         while doskip:
-            # assume that we are going to return this message...
-            doskip = False
             clresp: commlink.CLResponse = self._cl.raw_read_response()
-            ret_code: commlink.TLSRetCode = clresp.return_code()
-            ret_is_ok = (ret_code == commlink.BaseCommLink.RC_OK)
-            comm_dct = clresp.get_comment_dct()
-            if comm_dct is None:
-                comment_str = None
-            else:
-                comment_str = comm_dct.get(commlink.BaseCommLink.COMMENT_ID, None)
-                self.logger.debug("YEEEEE got {}, Comment: {}".format(clresp, comment_str))
-            if comment_str is None:
-                # we have a message because the user pressed the trigger --
-                # try to determine what kind of message to send back
-                # based on our current mode
-                if self.mode == tls_mode.radar:
-                    msg_type = CommonMSG.MSG_RF_RADAR_DATA
-                    eplst = clresp[commlink.EP_VAL]
-                    try:
-                        rilst = [int(sri) for sri in clresp[commlink.RI_VAL]]
-                    except ValueError as e:
-                        self.logger.error("radar mode: failed to retrieve RI values")
-                        rilst = None
-                    if rilst is None or len(eplst) != len(rilst):
-                        self.logger.error("radar mode: unequal EP and RI list lengths: {} {}".format(eplst, rilst))
-                        doskip = True
-                    ret_data = list(zip(eplst, rilst))
-                    self.logger.debug("Returning radar data {}".format(ret_data))
-            elif comment_str == 'radarsetup':
-                if ret_is_ok:
-                    doskip = True
-        # do something with resp_lst here and return a CommonMSG
-        msg_type = msg_type or CommonMSG.MSG_RF_CMD_RESP
-        ret_data = ret_data or clresp
-        return CommonMSG(msg_type, ret_data)
+            ret_msg = self._convert_message(clresp)
+            doskip = (ret_msg is None)
+        return ret_msg
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.
@@ -280,10 +348,15 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     def set_alert_default(self, p: AlertParams) -> None:
         """Set the default alert parameters."""
-        pass
+        cmdstr = ".al -b{} -v{} -d{} -t{} -n\n".format(onoffdct[p.buzzeron],
+                                                       onoffdct[p.vibrateon],
+                                                       p.vblen.value,
+                                                       p.pitch.value)
+        self._sendcmd(cmdstr)
 
     def get_alert_default(self) -> AlertParams:
         """Return the current default alert parameters."""
+        raise NotImplementedError('not implemented')
 
     def abort(self) -> None:
         """Abort the current command."""
@@ -295,7 +368,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         self._sendcmd(cmdstr, "bcparams")
 
     def get_readbarcode_params(self) -> BarcodeParams:
-        pass
+        raise NotImplementedError('not implemented')
 
     def readbarcode(self, p: BarcodeParams) -> None:
         """Perform a read barcode operation. If p is None, use the
@@ -351,9 +424,6 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         cmdstr = ".da -s {:02d}{:02d}{:02d}".format(yy-2000, mm, dd)
         self._sendcmd(cmdstr, "setdate")
 
-    def readRFID(self, p: RFIDParams) -> None:
-        pass
-
     def RadarSetup(self, EPCcode: str) -> None:
         """Set up the reader to search for a tag with a specific Electronic Product Code (EPC).
         by later on issuing RadarGet() commands.
@@ -362,13 +432,17 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
         See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
         """
-        cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(EPCcode)
+        # cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(EPCcode)
+        cmdstr = ".iv -al off -x -n -fi on -ron -io off -qt b -qs s0 -sa 4 -st s0 -sl 30 -so 0020"
         self._sendcmd(cmdstr, "radarsetup")
 
     def RadarGet(self) -> None:
         """Issue a command to get the RSSI value of the tag previously selected
         by its EPC in RadarSetup.
         The response will be available on the response queue."""
+        self.radlst = []
+        for n in range(self.radarave-1):
+            self._sendcmd(".iv", comment='RADAVE')
         self._sendcmd(".iv", comment='RAD')
 
     def BT_set_stock_check_mode(self):

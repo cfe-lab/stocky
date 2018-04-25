@@ -15,6 +15,10 @@ import typing
 class CommonMSG:
     # the server has produced a random number
     MSG_SV_RAND_NUM = 'RND'
+    
+    # the server has produced a timer event
+    MSG_SV_TIMER_TICK = 'TIMER'
+
     # the USB device has changed state (presence/absence)
     MSG_SV_USB_STATE_CHANGE = 'USB_STATE'
 

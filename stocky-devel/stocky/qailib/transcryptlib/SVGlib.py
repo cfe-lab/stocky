@@ -6,6 +6,8 @@ from org.transcrypt.stubs.browser import SVG
 
 import qailib.transcryptlib.htmlelements as html
 
+SVGShape = typing.Any
+
 
 class svg(html.element):
     def __init__(self, parent: html.base_element,
@@ -21,6 +23,21 @@ class svg(html.element):
             w, h = sizetup
         self.drawing.size(w, h)
         w, h = self.get_WH()
-        print("YAHOOO {} {}".format(w, h))
-        self.rect = self.drawing.rect(w-10, h-10).attr({'fill': '#f06'})
+        self.curels = []
+        # print("YAHOOO {} {}".format(w, h))
+        # self.myrect = self.drawing.rect(w-10, h-10).attr({'fill': '#f06'})
 
+    def clear(self) -> None:
+        for dd in self.curels:
+            dd.remove()
+        self.curels = []
+
+    def rect(self, x: int, y: int, w: int, h: int, colorstr: str) -> SVGShape:
+        dd = self.drawing.rect(w, h).move(x, y).attr({'fill': colorstr})
+        self.curels.append(dd)
+        return dd
+
+    def text(self, x: int, y: int, colorstr: str, text_str: str) -> SVGShape:
+        dd = self.drawing.text(text_str).move(x, y).attr({'fill': colorstr})
+        self.curels.append(dd)
+        return dd

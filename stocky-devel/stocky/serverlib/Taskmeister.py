@@ -46,6 +46,29 @@ class RandomGenerator(BaseTaskMeister):
         return CommonMSG(CommonMSG.MSG_SV_RAND_NUM, number)
 
 
+class TickGenerator(BaseTaskMeister):
+    """Generate a timer message every X seconds.
+    The timer message contains the name of the timer event.
+    """
+    def __init__(self, msgQ: gevent.queue.Queue, logger,
+                 sec_interval: int, msgid: str) -> None:
+        super().__init__(msgQ, logger)
+        self.sec_interval = sec_interval
+        self.msgid = msgid
+        self._isactive = False
+
+    def set_active(self, is_active: bool) -> None:
+        """Enable/ disable the timer """
+        self._isactive = is_active
+
+    def generate_msg(self) -> CommonMSG:
+        gevent.sleep(self.sec_interval)
+        if self._isactive:
+            return CommonMSG(CommonMSG.MSG_SV_TIMER_TICK, self.msgid)
+        else:
+            return None
+
+
 class WebSocketReader(BaseTaskMeister):
     def __init__(self, msgQ: gevent.queue.Queue, logger, ws: websocket) -> None:
         super().__init__(msgQ, logger)

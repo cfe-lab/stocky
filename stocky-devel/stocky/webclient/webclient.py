@@ -197,7 +197,7 @@ class stocky_mainprog(widgets.base_controller):
         # tabvals = [row.getcells() for row in rowlst[1:]]
         html.setCursorBusy(False)
 
-    def setradardata(self, radarinfo: typing.List[typing.Tuple[str, int]]):
+    def setradardata(self, radarinfo: typing.List[typing.Tuple[str, int, float]]):
         """This is a list of string tuples.  (epc code, RI) """
         radar_view = self.switch.getView(RADAR_VIEW_NAME)
         radar_view.set_radardata(radarinfo)

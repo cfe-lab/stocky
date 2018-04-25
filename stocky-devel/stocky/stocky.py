@@ -91,10 +91,16 @@ class serverclass:
         if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
             # the server is sending a list of all stock locations
             # in response to a MSG_WC_STOCK_CHECK
+            self.timerTM.set_active(False)
             wc_stock_dct = self.qaidata.generate_webclient_stocklist()
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_NEW_STOCK_LIST, wc_stock_dct))
         elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
             print("server in RADAR mode...")
+            self.timerTM.set_active(True)
+        elif CommonMSG.MSG_SV_TIMER_TICK:
+            print("server received tick...")
+            if self.tls.is_in_radarmode():
+                self.tls.RadarGet()
         else:
             print("server not handling message {}".format(msg))
 
@@ -111,12 +117,17 @@ class serverclass:
 
         # the set of messages the server should handle itself.
         MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
-                                    CommonMSG.MSG_WC_RADAR_MODE])
+                                    CommonMSG.MSG_WC_RADAR_MODE,
+                                    CommonMSG.MSG_SV_TIMER_TICK])
 
         self.ws = ws
         # start a random generator thread
         # self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
         # self.randTM.start_job()
+
+        # start a timer tick
+        self.timerTM = Taskmeister.TickGenerator(self.msgQ, self.logger, 1, 'radartick')
+        self.timerTM.start_job()
 
         # start a websocket reader thread
         self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, ws)
