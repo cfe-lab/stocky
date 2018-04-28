@@ -25,6 +25,8 @@ from webclient.commonmsg import CommonMSG
 # random number thread -- BUT that was for flask socketIO, NOT flask sockets
 # https://github.com/shanealynn/async_flask/blob/master/application.py
 
+AVENUM = 5
+
 
 class serverclass:
     """The class that implements the web server. It is instantiated as a singleton."""
@@ -51,7 +53,7 @@ class serverclass:
         self.logger.debug("serverclass: getting id_string...")
         idstr = self.cl.id_string()
         self.logger.info("Commlink is alive and idents as '{}'".format(idstr))
-        self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl)
+        self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl, AVENUM)
         self.BT_init_reader()
 
         # now: get our current stock list from QAI

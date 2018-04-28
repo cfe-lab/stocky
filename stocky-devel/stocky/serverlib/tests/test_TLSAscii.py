@@ -1,4 +1,3 @@
-
 # import pytest
 
 import math
@@ -21,7 +20,8 @@ class Test_TLSAscii:
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
-        self.tls = TLSAscii.TLSReader(self.msgQ, logger, self.cl)
+        self.radar_ave_num = 1
+        self.tls = TLSAscii.TLSReader(self.msgQ, logger, self.cl, self.radar_ave_num)
 
     def test_radar01(self):
         EPCcode = "123456"
@@ -53,14 +53,16 @@ class Test_TLSAscii:
 
     def test_RI2dist01(self):
         rivals = [(-65, 1.0),
-                  (-70, 1.46),
-                  (-62, 0.79)]
+                  (-70, 1.53),
+                  (-62, 0.77)]
         EPS = 0.01
         for ri, exp_val in rivals:
-            got_val = TLSAscii.RI2dist(ri)
+            got_val = TLSAscii.RunningAve.RI2dist(ri)
             # print(" {} {}  {}".format(ri, exp_val, got_val))
             if math.fabs(got_val - exp_val) > EPS:
-                raise RuntimeError("unexpected distance {} {}  {}".format(ri, exp_val, got_val))
+                raise RuntimeError("unexpected distance RI: {}, exp: {}, got:  {}".format(ri,
+                                                                                          exp_val,
+                                                                                          got_val))
         # assert False, "force fail"
 
     def test_convert_msg(self):
@@ -122,14 +124,27 @@ class Test_TLSAscii:
                 assert isinstance(got_val, CommonMSG), "expected a CommonMSG instance"
             if exp_val is None:
                 if got_val is not None:
+                    print("inp: {}, mode: {}, exp_msg: {}, exp_val: {}".format(testlst,
+                                                                               test_mode,
+                                                                               expected_msg,
+                                                                               exp_val))
                     raise RuntimeError("expected None {} {}  {}".format(testin, exp_val, got_val))
             else:
                 # we do a relaxed test of correctnes
                 if got_val is None:
+                    print("inp: {}, mode: {}, exp_msg: {}, exp_val: {}".format(testlst,
+                                                                               test_mode,
+                                                                               expected_msg,
+                                                                               exp_val))
                     raise RuntimeError('got None, expected {}'.format(exp_val))
                 else:
                     dct = got_val.as_dict()
                     assert dct['msg'] == expected_msg, "unexpected msg type"
                     dat = dct['data']
-                    assert isinstance(dat, list), 'expected data as a list'
-                    assert len(dat) == exp_val, "unexpected length"
+                    if not isinstance(dat, list) or len(dat) != exp_val:
+                        print("expected data as a list of length exp_val = {}".format(exp_val))
+                        print("inp: {}, mode: {}, exp_msg: {}, exp_val: {}".format(testlst,
+                                                                                   test_mode,
+                                                                                   expected_msg,
+                                                                                   exp_val))
+                        raise RuntimeError("unexpected output")

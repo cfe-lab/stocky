@@ -199,25 +199,110 @@ class tls_mode(Enum):
     undef = 'ude'
 
 
-def RI2dist(ri: int) -> float:
-    """Use an approximate formula to convert an RI into a distance in metres.
-    The formula for this is taken from here:
-    https://electronics.stackexchange.com/questions/83354/calculate-distance-from-rssi
-    The parameters for A_OFFSET were determined experimentally, and that for
-    N_PROP_TEN was guessed. This is a value between 2.7 and 4.3 , with 2.0 for free space.
-    """
-    A_OFFSET = -65
-    N_PROP_TEN = 3.0*10.0
-    return math.pow(10.0, (ri - A_OFFSET)/-N_PROP_TEN)
+RItuple = typing.Tuple[str, int, float]
+
+RIList = typing.List[RItuple]
+
+
+RIdict = typing.Dict[str, int]
+
+RIDList = typing.List[RIdict]
+
+
+class RunningAve:
+    """Implement a running average of distance values"""
+    def __init__(self, logger, Nave: int) -> None:
+        self.logger = logger
+        if Nave <= 0:
+            raise RuntimeError("Runningave: Nave must be > 0")
+        self.Nave = Nave
+        self._dlst: RIDList = []
+
+    @staticmethod
+    def RI2dist(ri: int) -> float:
+        """Use an approximate formula to convert an RI into a distance in metres.
+        The formula for this is taken from here:
+        https://electronics.stackexchange.com/questions/83354/calculate-distance-from-rssi
+        The parameters for A_OFFSET were determined experimentally, and that for
+        N_PROP_TEN was guessed. This is a value between 2.7 and 4.3 , with 2.0 for free space.
+        """
+        A_OFFSET = -65
+        N_PROP_TEN = 2.7*10.0
+        return math.pow(10.0, (ri - A_OFFSET)/-N_PROP_TEN)
+
+    @staticmethod
+    def _radar_data(logger, clresp: commlink.CLResponse) -> RIdict:
+        """Extract epc, RI and distance in metres from a response from the
+        RFID reader.
+        This list can be empty if no RFID tags were in range.
+        Return None if we cannot extract distance information.
+        """
+        ret_lst = None
+        ret_code: commlink.TLSRetCode = clresp.return_code()
+        if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
+           ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
+            # the scan event failed to return any EPC or barcode data
+            # -> we return an empty list
+            ret_lst = []
+        else:
+            eplst = clresp[commlink.EP_VAL]
+            try:
+                rilst = [int(sri) for sri in clresp[commlink.RI_VAL]]
+            except (ValueError, TypeError) as e:
+                logger.error("radar mode: failed to retrieve RI values {}".format(e))
+                rilst = None
+            ret_lst = zip(eplst, rilst) if rilst is not None and len(eplst) == len(rilst) else None
+        return None if ret_lst is None else dict(ret_lst)
+
+    @staticmethod
+    def do_ave(numexp: int, tlst: typing.List[int]) -> int:
+        """Average the RI values in the list.
+        numexp: is the number of times the RFID tags were queried.
+
+        If a return did not happen in a particular instance, then we currently ignore
+        that now, i.e. just return the normal, average using the actual number of
+        elements in the list....
+        """
+        return sum(tlst)/len(tlst)
+
+    def add_clresp(self, clresp: commlink.CLResponse) -> None:
+        ridct = RunningAve._radar_data(self.logger, clresp)
+        self._dlst.append(ridct)
+        while len(self._dlst) > self.Nave:
+            self._dlst.pop(0)
+
+    def get_runningave(self) -> RIList:
+        """Return a running average of distances using the cached data.
+        Return None if we do not have sufficient data for a running average.
+        """
+        if len(self._dlst) < self.Nave:
+            return None
+        nonempty = [vdct for vdct in self._dlst if vdct is not None]
+        if len(nonempty) == 0:
+            return None
+        sumdct = {}
+        for vdct in nonempty:
+            for epc, ri in vdct.items():
+                assert isinstance(ri, int), "INT expected {}".format(ri)
+                sumdct.setdefault(epc, []).append(ri)
+        do_ave = RunningAve.do_ave
+        calc_dst = RunningAve.RI2dist
+        ret_lst = [(epc, ri_ave, calc_dst(ri_ave)) for epc, ri_ave in
+                   [(epc, do_ave(self.Nave, vlst)) for epc, vlst in sumdct.items()]]
+        ret_lst.sort(key=lambda a: a[0])
+        return ret_lst
 
 
 class TLSReader(Taskmeister.BaseTaskMeister):
-    def __init__(self, msgQ: gevent.queue.Queue, logger, cl: commlink.BaseCommLink) -> None:
+    def __init__(self, msgQ: gevent.queue.Queue,
+                 logger,
+                 cl: commlink.BaseCommLink,
+                 radar_ave_num: int) -> None:
         """Create a class that can talk to the RFID reader via the provided commlink class."""
         super().__init__(msgQ, logger)
         self._cl = cl
         self.mode = tls_mode(tls_mode.undef)
-        self.radarave = 5
+        self.runningave = RunningAve(logger, radar_ave_num)
 
     def _sendcmd(self, cmdstr: str, comment: str=None) -> None:
         cl = self._cl
@@ -227,29 +312,6 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     def is_in_radarmode(self) -> bool:
         return self.mode == tls_mode.radar
-
-    @staticmethod
-    def _radar_data(logger, clresp: commlink.CLResponse) -> list:
-        ret_code: commlink.TLSRetCode = clresp.return_code()
-        if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
-           ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
-            # the scan event failed to return any EPC or barcode data
-            # ->we return an empty list
-            ret_data = []
-        else:
-            eplst = clresp[commlink.EP_VAL]
-            try:
-                rilst = [int(sri) for sri in clresp[commlink.RI_VAL]]
-            except (ValueError, TypeError) as e:
-                logger.error("radar mode: failed to retrieve RI values {}".format(e))
-                rilst = None
-            if rilst is None or len(eplst) != len(rilst):
-                logger.error("radar mode: unequal EP and RI list lengths: {} {}".format(eplst, rilst))
-                ret_data = None
-            else:
-                ret_data = list(zip(eplst, rilst, [RI2dist(ri) for ri in rilst]))
-                ret_data.sort(key=lambda a: a[0])
-        return ret_data
 
     def _convert_message(self, clresp: commlink.CLResponse) -> CommonMSG:
         """Convert a RFID response into a common message.
@@ -283,8 +345,6 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         elif comment_str == 'radarsetup':
             if not ret_is_ok:
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
-        elif comment_str == 'RADAVE':
-            self.radlst.append(clresp)
         elif comment_str == 'RAD':
             msg_type = CommonMSG.MSG_RF_RADAR_DATA
         else:
@@ -293,7 +353,8 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         if msg_type is None:
             return None
         if msg_type == CommonMSG.MSG_RF_RADAR_DATA:
-            ret_data = TLSReader._radar_data(self.logger, clresp)
+            self.runningave.add_clresp(clresp)
+            ret_data = self.runningave.get_runningave()
             self.logger.debug("Returning radar data {}".format(ret_data))
         elif msg_type == CommonMSG.MSG_RF_STOCK_DATA:
             if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
@@ -440,9 +501,6 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         """Issue a command to get the RSSI value of the tag previously selected
         by its EPC in RadarSetup.
         The response will be available on the response queue."""
-        self.radlst = []
-        for n in range(self.radarave-1):
-            self._sendcmd(".iv", comment='RADAVE')
         self._sendcmd(".iv", comment='RAD')
 
     def BT_set_stock_check_mode(self):
