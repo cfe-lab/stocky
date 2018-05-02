@@ -237,13 +237,13 @@ class RunningAve:
         This list can be empty if no RFID tags were in range.
         Return None if we cannot extract distance information.
         """
-        ret_lst = None
+        ret_lst: typing.Iterator[typing.Tuple[str, int]] = None
         ret_code: commlink.TLSRetCode = clresp.return_code()
         if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
            ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
             # the scan event failed to return any EPC or barcode data
             # -> we return an empty list
-            ret_lst = []
+            ret_lst = iter([])
         else:
             eplst = clresp[commlink.EP_VAL]
             try:
@@ -263,7 +263,7 @@ class RunningAve:
         that now, i.e. just return the normal, average using the actual number of
         elements in the list....
         """
-        return sum(tlst)/len(tlst)
+        return sum(tlst)//len(tlst)
 
     def add_clresp(self, clresp: commlink.CLResponse) -> None:
         ridct = RunningAve._radar_data(self.logger, clresp)
@@ -280,7 +280,7 @@ class RunningAve:
         nonempty = [vdct for vdct in self._dlst if vdct is not None]
         if len(nonempty) == 0:
             return None
-        sumdct = {}
+        sumdct: typing.Dict[str, typing.List[int]] = {}
         for vdct in nonempty:
             for epc, ri in vdct.items():
                 assert isinstance(ri, int), "INT expected {}".format(ri)
@@ -293,7 +293,7 @@ class RunningAve:
         return ret_lst
 
 
-class TLSReader(Taskmeister.BaseTaskMeister):
+class TLSReader(Taskmeister.BaseReader):
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
                  cl: commlink.BaseCommLink,
@@ -323,7 +323,8 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         # A: determine the kind of message to return based on the comment_dict
         # or the current mode
         # Our decision is stored into msg_type
-        msg_type, ret_data = None, None
+        msg_type = None
+        ret_data: typing.List[typing.Any] = None
         comm_dct = clresp.get_comment_dct()
         if comm_dct is None:
             comment_str = None
@@ -377,14 +378,10 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         """Block and return a message to the web server
         Typically, when the user presses the trigger of the RFID reader,
         we will send a message with the scanned data back.
-        NOTE: this method is overrulling the BaseTaskMeister method
+        NOTE: this method is overrulling the method defined in BaseTaskMeister.
         """
-        doskip = True
-        while doskip:
-            clresp: commlink.CLResponse = self._cl.raw_read_response()
-            ret_msg = self._convert_message(clresp)
-            doskip = (ret_msg is None)
-        return ret_msg
+        clresp: commlink.CLResponse = self._cl.raw_read_response()
+        return self._convert_message(clresp)
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.

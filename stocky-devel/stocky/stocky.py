@@ -125,18 +125,14 @@ class serverclass:
         self.ws = ws
         # start a random generator thread
         # self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
-        # self.randTM.start_job()
+        # self.randTM.set_active(True)
 
-        # start a timer tick
+        # create a timer tick for use in radar mode
         self.timerTM = Taskmeister.TickGenerator(self.msgQ, self.logger, 1, 'radartick')
-        self.timerTM.start_job()
+        self.timerTM.set_active(False)
 
-        # start a websocket reader thread
+        # create a websocket reader thread
         self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, ws)
-        self.websocketTM.start_job()
-
-        # start the previously initialised  bluetooth reader thread
-        self.tls.start_job()
 
         while True:
             msg: CommonMSG = self.msgQ.get()

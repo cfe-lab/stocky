@@ -1,5 +1,4 @@
 
-import pytest
 import gevent
 import logging
 
@@ -25,24 +24,36 @@ class DummyQueue:
 class Test_Taskmeister:
 
     def setup_method(self) -> None:
+        self.sec_interval = 0.1
+        self.num_ticks = 3
+        self.test_sleep_time = self.sec_interval * self.num_ticks
         self.logger = logging.Logger("testing")
         self.msgq = DummyQueue()
 
-    @pytest.mark.skip(reason="Cannot test with gevent module..")
-    def test_tick01(self):
-        sec_interval = 1
-        testname = "blablahello"
-        ticker = Taskmeister.TickGenerator(self.msgq, self.logger,
-                                           sec_interval, testname)
-        gevent.sleep(3*sec_interval)
+    def perform_timetest(self, taskmeister: Taskmeister.BaseTaskMeister):
+        # with ticker disabled, should be no messages
+        gevent.sleep(self.test_sleep_time)
         tn = self.msgq.num_messages()
         if tn != 0:
             raise RuntimeError("unexpected tn = {}".format(tn))
         # now switch the ticker on
-        ticker.set_active(True)
-        gevent.sleep(3*sec_interval)
+        taskmeister.set_active(True)
+        gevent.sleep(self.test_sleep_time)
         tn = self.msgq.num_messages()
         print("after sleep {}".format(tn))
-        if tn == 0:
+        if tn != self.num_ticks:
             raise RuntimeError("unexpected tn = {}".format(tn))
-        assert False, "force fail"
+        # assert False, "force fail"
+
+    def test_tick01(self):
+        """TickGenerator must generate ticks when enabled"""
+        testname = "hello"
+        ticker = Taskmeister.TickGenerator(self.msgq, self.logger,
+                                           self.sec_interval, testname)
+        self.perform_timetest(ticker)
+
+    def test_random01(self):
+        """RandomGenerator must generate messages when enabled"""
+        rand = Taskmeister.RandomGenerator(self.msgq, self.logger,
+                                           self.sec_interval)
+        self.perform_timetest(rand)
