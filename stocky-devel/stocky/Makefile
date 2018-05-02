@@ -21,9 +21,10 @@ help: ## Test the stocky server code
 
 web: ## compile the webclient
 	$(MAKE) -C webclient webclient to javascript
-test-all: ## run all unit tests of the server code using pytest
+test-all: ## run the unit tests of the server code using pytest
 	pytest
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py
-test-coverage: ## Show the test coverage of the server code
-	pytest --cov
+test-coverage: ## run the unit tests of the server code, then show the test coverage 
+	coverage run -m py.test
+	coverage report

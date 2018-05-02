@@ -21,4 +21,5 @@ requests>=2.18
 # --- client side ---
 transcrypt>=3.6.27
 # for testing
-pytest-cov>=2.5.1
+pytest>=3.5.1
+coverage>=4.5.1
