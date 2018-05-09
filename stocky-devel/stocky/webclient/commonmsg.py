@@ -14,33 +14,33 @@ import typing
 
 class CommonMSG:
     # the server has produced a random number
-    MSG_SV_RAND_NUM = 'RND'
+    MSG_SV_RAND_NUM = 'SV_RND'
     
     # the server has produced a timer event
-    MSG_SV_TIMER_TICK = 'TIMER'
+    MSG_SV_TIMER_TICK = 'SV_TIMER'
 
     # the USB device has changed state (presence/absence)
-    MSG_SV_USB_STATE_CHANGE = 'USB_STATE'
+    MSG_SV_USB_STATE_CHANGE = 'SV_USB_STATE'
 
     # the server is sending a list of all stock locations
     # in response to a MSG_WC_STOCK_CHECK
-    MSG_SV_NEW_STOCK_LIST = 'NEW_STOCK_LIST'
+    MSG_SV_NEW_STOCK_LIST = 'SV_NEW_STOCK_LIST'
 
     # the web client is performing a stock check
     # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
-    MSG_WC_STOCK_CHECK = 'STOCK_MODE'
+    MSG_WC_STOCK_CHECK = 'WC_STOCK_MODE'
 
     # the web client has set a stock checking location
-    MSG_WC_SET_STOCK_LOCATION = 'STOCK_SET_LOC'
+    MSG_WC_SET_STOCK_LOCATION = 'WC_STOCK_SET_LOC'
 
     # the web client is searching for a specific item ('radar mode')
-    MSG_WC_RADAR_MODE = 'RADAR_MODE'
+    MSG_WC_RADAR_MODE = 'WC_RADAR_MODE'
 
     # the RFID reader has produced some stock taking data
-    MSG_RF_STOCK_DATA = 'STOCK_DATA'
+    MSG_RF_STOCK_DATA = 'RF_STOCK_DATA'
 
     # the RFID reader has produced some radar data
-    MSG_RF_RADAR_DATA = 'RADAR_DATA'
+    MSG_RF_RADAR_DATA = 'RF_RADAR_DATA'
 
     # the RFID reader has produced a command response
     MSG_RF_CMD_RESP = 'RF_CMD_RESP'
@@ -54,3 +54,12 @@ class CommonMSG:
 
     def __str__(self) -> str:
         return "CommonMSG({}, {})".format(self.msg, self.data)
+
+    def is_from_server(self) -> bool:
+        return self.msg.startswith('SV_')
+
+    def is_from_webclient(self) -> bool:
+        return self.msg.startswith('WC_')
+
+    def is_from_rfid_reader(self) -> bool:
+        return self.msg.startswith('RF_')

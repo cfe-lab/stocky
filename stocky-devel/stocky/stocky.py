@@ -97,14 +97,15 @@ class serverclass:
             wc_stock_dct = self.qaidata.generate_webclient_stocklist()
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_NEW_STOCK_LIST, wc_stock_dct))
         elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
-            print("server in RADAR mode...")
+            self.logger.debug("server in RADAR mode...")
             self.timerTM.set_active(True)
         elif CommonMSG.MSG_SV_TIMER_TICK:
-            print("server received tick...")
+            self.logger.debug("server received tick...")
+            # print("MY logger is called '{}'".format(get_logger_name(self.logger)))
             if self.tls.is_in_radarmode():
                 self.tls.RadarGet()
         else:
-            print("server not handling message {}".format(msg))
+            self.logger.debug("server not handling message {}".format(msg))
 
     def mainloop(self, ws: websocket):
         # the set of messages we simply pass on to the web client.
@@ -137,6 +138,8 @@ class serverclass:
         while True:
             msg: CommonMSG = self.msgQ.get()
             self.logger.debug("handling msgtype '{}'".format(msg.msg))
+            if msg.is_from_rfid_reader():
+                self.logger.debug("GOT RFID {}".format(msg.as_dict()))
             is_handled = False
             if msg.msg in MSG_FOR_WC_SET:
                 is_handled = True
@@ -151,15 +154,20 @@ class serverclass:
                 self.logger.error("mainloop NOT handling msgtype '{}'".format(msg.msg))
 
 
+def get_logger_name(mylogger) -> str:
+    ld = logging.Logger.manager.loggerDict
+    # print("loggernames {}".format(ld.keys()))
+    for k, v in ld.items():
+        if v == mylogger:
+            return k
+    return 'not found'
+
+
 def test_logging(l):
     """Ensure that the logging configuration is what we think it is.
     This routine is disabled during normal operations.
     """
-    ld = logging.Logger.manager.loggerDict
-    print("loggernames {}".format(ld.keys()))
-    for k, v in ld.items():
-        if v == app.logger:
-            print("app logger is called '{}'".format(k))
+    print("app logger is called '{}'".format(get_logger_name(app.logger)))
     print("EFF LEVEL {}".format(l.getEffectiveLevel()))
     print("LL is {}".format(l))
     l.debug("debug level")
@@ -185,11 +193,12 @@ def init_app(cfgname: str):
     """
     global the_main
     the_main = serverclass(app, commlink.SerialCommLink, cfgname)
-    logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
+    # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
     return app
 
 
-# this launches the server main program in response to webclient program starting in the browser
+# this launches the server main program in response to the webclient program starting
+# in the browser
 @socky.route('/goo')
 def goo(ws: websocket):
     the_main.mainloop(ws)

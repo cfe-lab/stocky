@@ -3,10 +3,7 @@
 # ****** Simply run 'make' in this directory to get a list of options *******
 
 BASE_IMAGE_NAME = stocky-base
-BASE_DOCKERFILE = stocky-base.dock
-
-# DEVEL_DOCKERFILE = stocky-devel.dock
-# DEVEL_IMAGE_NAME = stocky-devel
+BASE_DOCKERFILE = ${BASE_IMAGE_NAME}.dock
 
 STOCKY_TOP_DIR = ${CURDIR}
 
@@ -21,6 +18,7 @@ STOCKY_CONFIG_DIR =${STOCKY_TOP_DIR}/stocky-devel-config
 #ENV_OPTS = -ePYTHONPATH=/stockysrc/utils
 ENV_OPTS = 
 
+# the stocky server will listen on this port
 PORTNUM=5000
 
 #NOTE Must run the docker image with --privileged to give the container access to devices

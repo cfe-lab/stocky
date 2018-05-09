@@ -16,7 +16,14 @@ loggers:
   stocky:
     level: DEBUG
     handlers: [ stockylogfile ]
+  commlink:
+    level: DEBUG
+    handlers: [ stockylogfile ]
+  # flask.app is the logger used by the stocky.serverclass
+  flask.app:
+    level: DEBUG
+    handlers: [ stockylogfile ]
 root:
-  level: INFO
+  level: DEBUG
   # handlers: [ scoconsole, stockylogfile]
   handlers: [ stockylogfile]

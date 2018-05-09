@@ -6,7 +6,7 @@ MAINTAINER wscott@cfenet.ubc.ca
 # less tcsh and minicom are usefull, but not required
 RUN apt-get update ;\
     apt-get -y upgrade ;\
-    apt-get install -y less tcsh minicom host;\
+    apt-get install -y less tcsh minicom host sqlite3;\
     apt-get clean
 
 # usbutils currently not needed

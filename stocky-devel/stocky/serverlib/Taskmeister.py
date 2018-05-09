@@ -7,6 +7,7 @@ from random import random
 import gevent
 import gevent.queue
 from geventwebsocket import websocket
+import geventwebsocket.exceptions
 
 from webclient.commonmsg import CommonMSG
 
@@ -88,5 +89,14 @@ class WebSocketReader(BaseReader):
     def generate_msg(self) -> CommonMSG:
         """Block until a command is received from the webclient over websocket.
         Return the JSON string received as a CommonMSG instance."""
-        dct = QAILib.fromjson(self.ws.receive())
-        return CommonMSG(dct['msg'], dct['data'])
+        try:
+            msg = self.ws.receive()
+        except geventwebsocket.exceptions.WebSocketError as e:
+            self.logger.debug("server received a None: {}".format(e))
+            msg = None
+        if msg is None:
+            retmsg = None
+        else:
+            dct = QAILib.fromjson(msg)
+            retmsg = CommonMSG(dct['msg'], dct['data'])
+        return retmsg
