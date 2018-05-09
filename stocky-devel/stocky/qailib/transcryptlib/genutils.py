@@ -1,11 +1,11 @@
 
 # a collection of some very basic data structures and other useful utilities for transcrypt
 
+
 # Ignore all pragma's when running CPython, since we can't control CPython's
 # operation in a simple way
 def __BLApragma__(*args):
     pass
-
 
 
 # NOTE: we use conditional compilation here transcrypt/ CPython cases
@@ -32,14 +32,14 @@ else:
         print(*msg)
 
     # import datetime as dt
-    #def nowstring() -> str:
+    # def nowstring() -> str:
     #    dd = dt.datetime.now()
     #    return dd.__str__()
-        
+
 # __pragma__('endif')
 
 
-#class defaultdict(dict):
+# class defaultdict(dict):
 #    def __init__(self, genfunc):
 #        dict.__init__(self)
 #        self._genfunc = genfunc

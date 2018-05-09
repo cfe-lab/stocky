@@ -20,6 +20,8 @@ pyserial>=3.4
 requests>=2.18
 # --- client side ---
 transcrypt>=3.6.27
-# for testing
+#--everything below this line is for testing
+flake8>=3.5.0
 pytest>=3.5.1
 coverage>=4.5.1
+pytest-codestyle>=1.2.2

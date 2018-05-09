@@ -4,7 +4,7 @@
 default: help
 
 # NOTE: this code taken from https://gist.github.com/rcmachado/af3db315e31383502660
-help: ## Test the stocky server code
+help:
 	$(info Available targets:)
 	@awk '/^[a-zA-Z\-\_0-9]+:/ {                                   \
           nb = sub( /^## /, "", helpMsg );                             \
@@ -19,7 +19,7 @@ help: ## Test the stocky server code
         width=$$(grep -o '^[a-zA-Z_0-9]\+:' $(MAKEFILE_LIST) | wc -L)  \
 	$(MAKEFILE_LIST)
 
-web: ## compile the webclient
+web: ## compile the webclient using transcrypt
 	$(MAKE) -C webclient webclient to javascript
 test-all: ## run the unit tests of the server code using pytest
 	pytest
@@ -28,3 +28,5 @@ mypy: ## analyse the server code using mypy
 test-coverage: ## run the unit tests of the server code, then show the test coverage 
 	coverage run -m py.test
 	coverage report
+pep8: ## analyse the server code for compliance with pep8 using codestyle
+	pytest --codestyle

@@ -15,7 +15,7 @@ import typing
 class CommonMSG:
     # the server has produced a random number
     MSG_SV_RAND_NUM = 'SV_RND'
-    
+
     # the server has produced a timer event
     MSG_SV_TIMER_TICK = 'SV_TIMER'
 

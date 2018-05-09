@@ -40,7 +40,7 @@ class webapp_controller(widgets.socket_controller):
         html.create_elementstring(view, 'dashtitle', None,
                                   html.h1, "User Dashboard")
         # formmodelname = 'QLUser'
-        formmodelname= 'updateUserInputType'
+        formmodelname = 'updateUserInputType'
         formdefdct = self._dcache.getFormDefDict(formmodelname, 'all')
         print("BUILDY {}, id = {}".format(formdefdct is not None, uid))
         if formdefdct is None:
@@ -53,9 +53,9 @@ class webapp_controller(widgets.socket_controller):
         print("USERDAT '{}'".format(my_user_data))
         # formbuilder = guiforms.HtmlFormBuilder(formdefdct)
         # self.userformwidge = widgets.FormWidget(self, view, 'formwidge',
-         #                                       None,
-         #                                       formbuilder,
-         #                                       my_user_data)
+        #                                       None,
+        #                                       formbuilder,
+        #                                       my_user_data)
 
     def form_submit(self, whofrom: base.base_obj, data_in: base.MSGdata_Type) -> None:
         """This function is called when a form has verified its input fields

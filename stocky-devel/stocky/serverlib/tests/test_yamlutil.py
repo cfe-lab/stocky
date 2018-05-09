@@ -10,5 +10,3 @@ class Test_yamlutil:
         """Reading a nonexistent file should raise a RuntimeError"""
         with pytest.raises(RuntimeError):
             yamlutil.readyamlfile('bla.goo')
-
-
