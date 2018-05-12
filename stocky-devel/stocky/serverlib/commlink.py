@@ -70,8 +70,9 @@ class CLResponse:
             cdict = BaseCommLink.extract_comment_dict(cs_string)
         self._cdict = cdict
 
-    def __getitem__(self, respcode: str) -> StringList:
+    def __getitem__(self, respcode: str) -> typing.Optional[StringList]:
         """Return a list with only those response codes equal to respcode.
+        Return None if no entries of type respcode are found.
         NOTE: this routine overwrites the [] operator for this class.
         """
         assert respcode in resp_code_set, "illegal respcode"
@@ -104,7 +105,7 @@ class CLResponse:
         else:
             return CLResponse._check_get_int_val(last_tup, ER_RESP)
 
-    def _return_message(self) -> str:
+    def _return_message(self) -> typing.Optional[str]:
         """Return a message sent from the RFID reader in the ME: field of the
         ResponseList. Return None if there is no message."""
         rlst = self.__getitem__(ME_VAL)
@@ -113,7 +114,7 @@ class CLResponse:
         else:
             return rlst[0]
 
-    def get_comment_dct(self) -> dict:
+    def get_comment_dct(self) -> typing.Optional[dict]:
         return self._cdict
 
     def __str__(self):
@@ -144,7 +145,7 @@ class BaseCommLink:
         self._cmdnum = 0
 
     @staticmethod
-    def _line_2_resptup(l: str) -> ResponseTuple:
+    def _line_2_resptup(l: str) -> typing.Optional[ResponseTuple]:
         if len(l) < 3:
             return None
         ret_code = l[:2]
@@ -164,7 +165,7 @@ class BaseCommLink:
                                 BaseCommLink.DCT_STOP_CHAR)
 
     @staticmethod
-    def extract_comment_dict(s: str) -> dict:
+    def extract_comment_dict(s: str) -> typing.Optional[dict]:
         """Extract a previously encoded comment dict from a string.
         Return None if the string does not have the required delimiters '#' and '@'
         """
@@ -264,7 +265,7 @@ class SerialCommLink(BaseCommLink):
             myser = None
         self.mydev = myser
         self.logger.debug("serial commlink '{}' OK".format(devname))
-        self._idstr: str = None
+        self._idstr: typing.Optional[str] = None
 
     def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.
@@ -330,7 +331,11 @@ class SerialCommLink(BaseCommLink):
                 raise
             self.logger.debug("rr '{}' ({})".format(cur_line, len(cur_line)))
             if len(cur_line) > 0:
-                rlst.append(BaseCommLink._line_2_resptup(cur_line))
+                resp_tup = BaseCommLink._line_2_resptup(cur_line)
+                if resp_tup is not None:
+                    rlst.append(resp_tup)
+                else:
+                    self.logger.error("line_2_resptup failed '{}'".format(cur_line))
             else:
                 # we have reached a 'terminal' message (OK or ER)
                 done = True        # --
@@ -373,7 +378,7 @@ class DummyCommLink(BaseCommLink):
 
     @staticmethod
     def get_cmd_from_str(cmdstr: str) -> typing.Tuple[str, dict]:
-        # split off any comment dict it if exists...
+        # split off any comment dict if it exists...
         comm_ndx = cmdstr.find(BaseCommLink.DCT_START_CHAR)
         if comm_ndx != -1:
             cmdstr = cmdstr[:comm_ndx-1]
@@ -398,7 +403,7 @@ class DummyCommLink(BaseCommLink):
                     i += 1
                     optval = cmdargs[i]
                 else:
-                    optval = None
+                    optval = ''
                 optdct[optkey] = optval
             else:
                 raise RuntimeError('syntax error')
@@ -423,7 +428,11 @@ class DummyCommLink(BaseCommLink):
         while not done:
             cur_line = self.resplst.pop(0).strip()
             if len(cur_line) > 0:
-                rlst.append(BaseCommLink._line_2_resptup(cur_line))
+                resp_tup = BaseCommLink._line_2_resptup(cur_line)
+                if resp_tup is not None:
+                    rlst.append(resp_tup)
+                else:
+                    self.logger.error("line_2_resptup failed '{}'".format(cur_line))
             else:
                 # we have reached a 'terminal' message (OK or ER)
                 done = True

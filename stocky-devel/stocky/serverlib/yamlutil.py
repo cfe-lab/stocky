@@ -1,4 +1,3 @@
-
 import typing
 import os
 import os.path
@@ -11,10 +10,10 @@ def yamldump(data: typing.Any) -> str:
     return yaml.dump(data, Dumper=yaml.CDumper)  # type: ignore
 
 
-def _get_filename(yamlfilename: str, ENV_NAME: str) -> str:
+def _get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
     if yamlfilename.startswith('/'):
         return yamlfilename
-    if not yamlfilename.startswith('.') and ENV_NAME is not None:
+    if not (yamlfilename.startswith('.') or ENV_NAME is None):
         dirname = os.environ.get(ENV_NAME, None)
         if dirname is not None:
             yamlfilename = os.path.join(dirname, yamlfilename)

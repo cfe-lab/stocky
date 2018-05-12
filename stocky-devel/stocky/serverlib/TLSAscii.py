@@ -218,6 +218,9 @@ class RunningAve:
         self.Nave = Nave
         self._dlst: RIDList = []
 
+    def reset_average(self):
+        self._dlst = []
+
     @staticmethod
     def RI2dist(ri: int) -> float:
         """Use an approximate formula to convert an RI into a distance in metres.
@@ -231,13 +234,13 @@ class RunningAve:
         return math.pow(10.0, (ri - A_OFFSET)/-N_PROP_TEN)
 
     @staticmethod
-    def _radar_data(logger, clresp: commlink.CLResponse) -> RIdict:
+    def _radar_data(logger, clresp: commlink.CLResponse) -> typing.Optional[RIdict]:
         """Extract epc, RI and distance in metres from a response from the
         RFID reader.
         This list can be empty if no RFID tags were in range.
         Return None if we cannot extract distance information.
         """
-        ret_lst: typing.Iterator[typing.Tuple[str, int]] = None
+        ret_lst: typing.Optional[typing.Iterator[typing.Tuple[str, int]]] = None
         ret_code: commlink.TLSRetCode = clresp.return_code()
         if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
            ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
@@ -246,11 +249,14 @@ class RunningAve:
             ret_lst = iter([])
         else:
             eplst = clresp[commlink.EP_VAL]
+            rrlst = clresp[commlink.RI_VAL]
+            if eplst is None or rrlst is None:
+                return None
+            rilst: typing.Optional[typing.List[int]] = None
             try:
-                rilst = [int(sri) for sri in clresp[commlink.RI_VAL]]
+                rilst = [int(sri) for sri in rrlst]
             except (ValueError, TypeError) as e:
                 logger.error("radar mode: failed to retrieve RI values {}".format(e))
-                rilst = None
             ret_lst = zip(eplst, rilst) if rilst is not None and len(eplst) == len(rilst) else None
         return None if ret_lst is None else dict(ret_lst)
 
@@ -267,11 +273,12 @@ class RunningAve:
 
     def add_clresp(self, clresp: commlink.CLResponse) -> None:
         ridct = RunningAve._radar_data(self.logger, clresp)
-        self._dlst.append(ridct)
+        if ridct is not None:
+            self._dlst.append(ridct)
         while len(self._dlst) > self.Nave:
             self._dlst.pop(0)
 
-    def get_runningave(self) -> RIList:
+    def get_runningave(self) -> typing.Optional[RIList]:
         """Return a running average of distances using the cached data.
         Return None if we do not have sufficient data for a running average.
         """
@@ -288,7 +295,7 @@ class RunningAve:
         do_ave = RunningAve.do_ave
         calc_dst = RunningAve.RI2dist
         ret_lst = [(epc, ri_ave, calc_dst(ri_ave)) for epc, ri_ave in
-                   [(epc, do_ave(self.Nave, vlst)) for epc, vlst in sumdct.items()]]
+                   [(epc, do_ave(self.Nave, vlst)) for epc, vlst in sumdct.items() if len(vlst) > 0]]
         ret_lst.sort(key=lambda a: a[0])
         return ret_lst
 
@@ -313,7 +320,7 @@ class TLSReader(Taskmeister.BaseReader):
     def is_in_radarmode(self) -> bool:
         return self.mode == tls_mode.radar
 
-    def _convert_message(self, clresp: commlink.CLResponse) -> CommonMSG:
+    def _convert_message(self, clresp: commlink.CLResponse) -> typing.Optional[CommonMSG]:
         """Convert a RFID response into a common message.
         Return None if this message should not be passed on.
         """
@@ -324,7 +331,7 @@ class TLSReader(Taskmeister.BaseReader):
         # or the current mode
         # Our decision is stored into msg_type
         msg_type = None
-        ret_data: typing.List[typing.Any] = None
+        ret_data: typing.Optional[typing.List[typing.Any]] = None
         comm_dct = clresp.get_comment_dct()
         if comm_dct is None:
             comment_str = None
@@ -374,7 +381,7 @@ class TLSReader(Taskmeister.BaseReader):
         return CommonMSG(msg_type, ret_data)
 
     # stocky main server messaging service....
-    def generate_msg(self) -> CommonMSG:
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
         """Block and return a message to the web server
         Typically, when the user presses the trigger of the RFID reader,
         we will send a message with the scanned data back.

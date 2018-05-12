@@ -180,7 +180,7 @@ def test_logging(l):
 logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
 the_main = None
 app = flask.Flask(__name__.split('.')[0])
-# test_logging(app.logger)
+test_logging(app.logger)
 socky = Sockets(app)
 # app.logger.debug('hoity toity')
 
@@ -201,7 +201,10 @@ def init_app(cfgname: str):
 # in the browser
 @socky.route('/goo')
 def goo(ws: websocket):
-    the_main.mainloop(ws)
+    if the_main is not None:
+        the_main.mainloop(ws)
+    else:
+        print('the_main is None!')
 
 
 # this is required to serve the javascript code

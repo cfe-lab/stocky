@@ -1,7 +1,7 @@
 
 
 # a generic class that defines interfaces to job tasks
-
+import typing
 from random import random
 
 import gevent
@@ -39,7 +39,7 @@ class BaseTaskMeister:
             if self._sec_sleep > 0:
                 gevent.sleep(self._sec_sleep)
 
-    def generate_msg(self) -> CommonMSG:
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
         """Generate a message for this class.
         This routine may block or take as long as it likes.
         It may return None if a message is not meant to be passed back onto the queue.
@@ -60,7 +60,7 @@ class BaseReader(BaseTaskMeister):
 
 class RandomGenerator(BaseTaskMeister):
     """Generate a random message every second. This is used for testing."""
-    def generate_msg(self) -> CommonMSG:
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
         number = round(random()*10, 3)
         self.logger.debug("random: {}".format(number))
         return CommonMSG(CommonMSG.MSG_SV_RAND_NUM, number)
@@ -75,7 +75,7 @@ class TickGenerator(BaseTaskMeister):
         super().__init__(msgQ, logger, sec_interval)
         self.msgid = msgid
 
-    def generate_msg(self) -> CommonMSG:
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
         return CommonMSG(CommonMSG.MSG_SV_TIMER_TICK, self.msgid)
 
 
@@ -86,7 +86,7 @@ class WebSocketReader(BaseReader):
         super().__init__(msgQ, logger)
         self.ws = ws
 
-    def generate_msg(self) -> CommonMSG:
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
         """Block until a command is received from the webclient over websocket.
         Return the JSON string received as a CommonMSG instance."""
         try:

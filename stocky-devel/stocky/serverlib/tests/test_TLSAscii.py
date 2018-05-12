@@ -117,18 +117,23 @@ class Test_TLSAscii:
                     (rsix, stock_mode, stk_dat, None),
                     (rsix, undef_mode, cmd_dat, None)]
         for testlst, test_mode, expected_msg, exp_val in testvals:
+            print("\n\n-------------------------")
             testin = commlink.CLResponse(testlst)
             self.tls.mode = test_mode
+            # we must reset the running average in order to avoid side effects...
+            self.tls.runningave.reset_average()
             got_val = self.tls._convert_message(testin)
             if got_val is not None:
                 assert isinstance(got_val, CommonMSG), "expected a CommonMSG instance"
             if exp_val is None:
                 if got_val is not None:
-                    print("inp: {}, mode: {}, exp_msg: {}, exp_val: {}".format(testlst,
+                    print("got_val: inp: {}, mode: {}, exp_msg: {}, exp_val: {}".format(testlst,
                                                                                test_mode,
                                                                                expected_msg,
                                                                                exp_val))
-                    raise RuntimeError("expected None {} {}  {}".format(testin, exp_val, got_val))
+                    raise RuntimeError("expected None: testin {}, expected: {}, got: {}".format(testin,
+                                                                                                exp_val,
+                                                                                                got_val))
             else:
                 # we do a relaxed test of correctnes
                 if got_val is None:

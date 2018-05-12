@@ -51,7 +51,7 @@ def rawdata_to_qaidct(mydat: typing.Any) -> QAI_dct:
     return {"utc_time": dt.datetime.now(), "data": mydat}
 
 
-def get_json_data_with_time(url: str) -> QAI_dct:
+def get_json_data_with_time(url: str) -> typing.Optional[QAI_dct]:
     """Perform a http request to the provided url.
     Return a dict containing a time stamp in UTC and the requested data.
     """
@@ -73,19 +73,17 @@ class BaseQAIdata:
         self._locQAIfname = locQAIfname
         self._set_cur_data(self.loadfileQAIdata())
 
-    def _set_cur_data(self, qai_dct: QAI_dct) -> bool:
+    def _set_cur_data(self, qai_dct: typing.Optional[QAI_dct]) -> bool:
         self.cur_data = qai_dct
         self._locdct = self._check_massaga_data()
         return self.cur_data is not None and self._locdct is not None
 
-    def _check_massaga_data(self) -> Location_dct:
+    def _check_massaga_data(self) -> typing.Optional[Location_dct]:
         """Verify and convert the raw json data read from QAI via the API
         into something that the stocky webclient can digest easily.
         Return the successfully converted location_dict or None.
         """
-        if not self.has_qai_data():
-            return None
-        dlst = self.cur_data.get('data', None)
+        dlst = self.cur_data.get('data', None) if self.cur_data is not None else None
         if dlst is None:
             return None
         locdct: Location_dct = {}
@@ -124,7 +122,7 @@ class BaseQAIdata:
     def generate_webclient_stocklist(self) -> dict:
         """Generate the stock list in a form required by the web client."""
         # list of all locations
-        loc_lst = list(self._locdct.keys())
+        loc_lst = list(self._locdct.keys()) if self._locdct is not None else []
         loc_lst.sort(key=lambda t: t[0])
         UNKNOWNSTR = 'Unknown'
         if UNKNOWNSTR not in loc_lst:
@@ -143,7 +141,8 @@ class BaseQAIdata:
         # stock item list: locndx, itm_str, tagnum, helptext
         stock_itmlst = []
         klst = ('name', 'id')
-        for item_dct in self.cur_data['data']:
+        dlst = self.cur_data['data'] if self.cur_data is not None else []
+        for item_dct in dlst:
             datatup = tuple([item_dct.get(k, "Unknown") for k in klst])
             # prepend location ndx
             locndx = ndx_dct.get(item_dct.get('location', UNKNOWNSTR), unknown_ndx)
@@ -153,7 +152,8 @@ class BaseQAIdata:
             dtup = (locndx, *datatup, helptext)
             stock_itmlst.append(dtup)
         # modify loc_lst strings to include number of items at each location
-        loc_lst = ["{}: ({})".format(locstr, len(self._locdct[locstr])) for locstr in loc_lst]
+        if self._locdct is not None:
+            loc_lst = ["{}: ({})".format(locstr, len(self._locdct[locstr])) for locstr in loc_lst]
         return {'loclist': loc_lst, 'itemlist': stock_itmlst}
 
     def loadfileQAIdata(self) -> QAI_dct:
@@ -183,13 +183,11 @@ class BaseQAIdata:
         """
         return self.cur_data is not None
 
-    def get_qai_downloadtimeUTC(self) -> dt.datetime:
+    def get_qai_downloadtimeUTC(self) -> typing.Optional[dt.datetime]:
         """Return the UTC datetime record of the time the QAI data was downloaded.
         Return None iff no data is available.
         """
-        if self.cur_data is None:
-            return None
-        return self.cur_data.get('utc_time', None)
+        return self.cur_data.get('utc_time', None) if self.cur_data is not None else None
 
     def pull_qai_data(self) -> bool:
         """Perform a http request to the QAI server and download the newest version
@@ -207,7 +205,7 @@ class BaseQAIdata:
             return False
         return self._set_cur_data(rawdata_to_qaidct(rawdat))
 
-    def _location_summary(self) -> typing.List[typing.Tuple[str, int]]:
+    def _location_summary(self) -> typing.Optional[typing.List[typing.Tuple[str, int]]]:
         """Produce a summary of the stock by location.
         """
         if self._locdct is None:
