@@ -56,6 +56,11 @@ class Test_locchange:
         with pytest.raises(RuntimeError):
             self.lcl.add_location_change(self.faultychange01)
 
+    def test_get_missing01(self):
+        """Retreiving an non-existing locchange should return None"""
+        retval = self.lcl.get_location_change(self.change01a.itemid)
+        assert retval is None, "expected a retval of None"
+
     def test_mod_change02(self):
         """Modifying an existing change should result in a change."""
         # first, add change01a

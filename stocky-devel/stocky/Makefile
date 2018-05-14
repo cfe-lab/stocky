@@ -24,7 +24,7 @@ web: ## compile the webclient using transcrypt
 test-all: ## run the unit tests of the server code using pytest
 	pytest
 mypy: ## analyse the server code using mypy
-	mypy --ignore-missing-imports  stocky.py
+	mypy --ignore-missing-imports  stocky.py serverlib
 test-coverage: ## run the unit tests of the server code, then show the test coverage 
 	coverage run -m py.test
 	coverage report

@@ -1,4 +1,5 @@
 
+import typing
 import sqlite3
 import datetime
 
@@ -101,7 +102,7 @@ class LocChangeList:
         except sqlite3.IntegrityError as e:
             raise RuntimeError("add_loc failed: {}".format(e))
 
-    def get_location_change(self, itemId: itemidtype) -> LocChange:
+    def get_location_change(self, itemId: itemidtype) -> typing.Optional[LocChange]:
         """Retrieve a LocChange with the provided itemId.
         Return None if no record is found.
         """
