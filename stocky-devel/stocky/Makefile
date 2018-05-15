@@ -20,7 +20,7 @@ help:
 	$(MAKEFILE_LIST)
 
 web: ## compile the webclient using transcrypt
-	$(MAKE) -C webclient webclient to javascript
+	$(MAKE) -C webclient webclient
 test-all: ## run the unit tests of the server code using pytest
 	pytest
 mypy: ## analyse the server code using mypy
