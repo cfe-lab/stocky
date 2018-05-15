@@ -1,12 +1,11 @@
 
 import typing
 import sqlite3
-import datetime
+
+import serverlib.timelib as timelib
 
 # string of length 1
 opcodetype = str
-
-datetimetype = datetime.datetime
 
 locidtype = int
 itemidtype = int
@@ -20,10 +19,12 @@ class LocChange:
     valid_opcode_lst = [confirmLocation, markMissing, changeLocation]
     valid_opcode_set = frozenset(valid_opcode_lst)
 
-    def __init__(self, itemid: itemidtype, timestamp: datetimetype,
+    def __init__(self, itemid: itemidtype, timestamp: timelib.DateTimeType,
                  oldlocid: locidtype, newlocid: locidtype,
                  opcode: opcodetype) -> None:
         self.itemid = itemid
+        if not isinstance(timestamp, timelib.DateTimeType):
+            raise RuntimeError("timestamp must be a datetime")
         self.ts = timestamp
         self.oldlocid = oldlocid
         self.newlocid = newlocid
@@ -33,10 +34,12 @@ class LocChange:
         return "{} {} {} {} {}".format(self.itemid, self.ts, self.oldlocid,
                                        self.newlocid, self.opcode)
 
-    def __eq__(self, ot) -> bool:
-        """We have to imple,ment the == operator so that we can check for
+    def __eq__(self, ot: object) -> bool:
+        """We have to implement the == operator so that we can check for
         equivalence in the tests.
         """
+        if not isinstance(ot, LocChange):
+            return NotImplemented
         return self.itemid == ot.itemid and \
             self.ts == ot.ts and \
             self.oldlocid == ot.oldlocid and \
@@ -45,6 +48,29 @@ class LocChange:
 
     def has_valid_opcode(self) -> bool:
         return self.opcode in LocChange.valid_opcode_set
+
+    def as_dict(self):
+        """Return this instance in dict form.
+        NOTE: the timestamp value is returned unmodified.
+        """
+        return {'itemid': self.itemid,
+                'ts': self.ts,
+                'oldlocid': self.oldlocid,
+                'newlocid': self.newlocid,
+                'opcode': self.opcode}
+
+    @staticmethod
+    def from_dict(d: dict) -> "LocChange":
+        """Create a new LocChange instance from a serialised dictionary"""
+        assert isinstance(d, dict), "dict instance expected"
+        klst = ['itemid', 'ts', 'oldlocid', 'newlocid', 'opcode']
+        val_lst = [d[k] for k in klst]
+        # check for the datetime, entry...
+        dt = val_lst[1]
+        if isinstance(dt, str):
+            val_lst[1] = dt = timelib.str_to_datetime(dt)
+        tup = tuple(val_lst)
+        return LocChange(*tup)
 
 
 class LocChangeList:
@@ -115,6 +141,12 @@ class LocChangeList:
         else:
             rr = rows[0]
             return LocChange(*rr)
+
+    def get_all_location_changes(self) -> typing.List[LocChange]:
+        """Retrieve all location changes in the database as a list of items.
+        """
+        c = self.conn.cursor()
+        return [LocChange(*row) for row in c.execute("SELECT * FROM locmutation")]
 
     def add_location_change(self, l: LocChange) -> None:
         """Add a location change to the database.

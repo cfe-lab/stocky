@@ -5,6 +5,7 @@ gevent-websocket>=0.10.
 gunicorn>=19.7
 #--time zone information
 pytz
+python-dateutil>=2.7.3
 #--
 pyyaml>=3.12
 fuzzywuzzy>=0.16

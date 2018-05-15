@@ -3,9 +3,9 @@ import pytest
 import datetime
 
 import serverlib.LocChangeLib as LocChangeLib
+import serverlib.QAILib as QAILib
 
 
-# class Test_locchange(unittest.TestCase):
 class Test_locchange:
 
     def setup_method(self) -> None:
@@ -29,13 +29,32 @@ class Test_locchange:
 
         self.confirm01 = LocChangeLib.LocChange(120, ts, 99, None, CONFIRM_OP)
 
-        self.missing01 = LocChangeLib.LocChange(120, ts, 99, None, MISSING_OP)
+        self.missing01 = LocChangeLib.LocChange(125, ts, 99, None, MISSING_OP)
 
-    def test_comparison(self):
-        """The __eq__ method of LocChange must work"""
+        self.valid_changes = [self.change01a, self.change02,
+                              self.confirm01, self.missing01]
+
+    def test_eq01(self):
+        """The __eq__ method of LocChange must work with LocChange instances"""
         # self.assertEqual(self.change01, self.change02)
         assert self.change01a == self.change01b
         assert not self.change01a == self.change02
+
+    def test_eq02(self):
+        """The __eq__ method should hanlde comparisons gracefully"""
+        for val in ["now", 1.0, 99]:
+            res = self.change01a == "now"
+            # print("RES is {}".format(res))
+            assert not res, "expected False"
+        # assert False, "force fail"
+
+    def test_asdict01(self):
+        """Converting a LocChange to and from dict should produce an equivalent change record."""
+        trec = self.confirm01
+        tdct = trec.as_dict()
+        assert isinstance(tdct, dict), "dict expected"
+        newrec = LocChangeLib.LocChange.from_dict(tdct)
+        assert trec == newrec, "newrec is not same!"
 
     def test_add_change01(self):
         """Adding a new change should succeed. Reading it back should produce the same value."""
@@ -96,3 +115,42 @@ class Test_locchange:
         print("change: {}".format(change01))
         print("retval: {}".format(retval))
         assert retval == change01, "added item not the same"
+
+    def test_get_all01(self):
+        """Retrieving all changelogs should succeed."""
+        for ch in self.valid_changes:
+            self.lcl.add_location_change(ch)
+        inp_id_set = set([r.itemid for r in self.valid_changes])
+        retlst = self.lcl.get_all_location_changes()
+        assert isinstance(retlst, list), "list type expected"
+        if len(self.valid_changes) != len(retlst):
+            raise RuntimeError('unexpected number of items {} vs {}'.format(len(self.valid_changes),
+                                                                            len(retlst)))
+        for retrec in retlst:
+            assert isinstance(retrec, LocChangeLib.LocChange), "LocChange instance expected"
+        out_id_set = set([r.itemid for r in retlst])
+        assert inp_id_set == out_id_set, "unexpected ID set"
+
+    def test_get_all02(self):
+        """Retrieving all changelogs from an empty database should succeed."""
+        retlst = self.lcl.get_all_location_changes()
+        assert isinstance(retlst, list), "list type expected"
+        assert len(retlst) == 0, "expected an empty list"
+
+    def test_get_all03(self):
+        """Retrieving all changelogs should succeed."""
+        for ch in self.valid_changes:
+            self.lcl.add_location_change(ch)
+        inp_id_set = set([r.itemid for r in self.valid_changes])
+        retlst = self.lcl.get_all_location_changes()
+        dctlst = [r.as_dict() for r in retlst]
+        js_string = QAILib.tojson(dctlst)
+        ret2lst = QAILib.fromjson(js_string)
+        assert isinstance(ret2lst, list), "list type expected"
+        if len(self.valid_changes) != len(retlst):
+            raise RuntimeError('unexpected number of items {} vs {}'.format(len(self.valid_changes),
+                                                                            len(retlst)))
+        for retrec in retlst:
+            assert isinstance(retrec, LocChangeLib.LocChange), "LocChange instance expected"
+        out_id_set = set([r.itemid for r in retlst])
+        assert inp_id_set == out_id_set, "unexpected ID set"

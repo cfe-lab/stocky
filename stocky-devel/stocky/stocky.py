@@ -2,8 +2,6 @@
 # See the runserver.sh script in this directory for how to launch the program.
 
 
-import datetime as dt
-
 import logging.config
 import flask
 from flask_sockets import Sockets
@@ -13,6 +11,7 @@ from gevent.queue import Queue
 from geventwebsocket import websocket
 
 import serverlib.serverconfig as serverconfig
+import serverlib.timelib as timelib
 import serverlib.commlink as commlink
 import serverlib.TLSAscii as TLSAscii
 import serverlib.QAILib as QAILib
@@ -40,6 +39,7 @@ class serverclass:
         self.cfg_dct = serverconfig.read_server_config(cfgname)
         self.cfg_dct['logger'] = self.logger
         self.logger.debug("serverclass: config file read...{}".format(self.cfg_dct))
+        timelib.set_local_timezone(self.cfg_dct['TZINFO'])
         self.name = "Johnny"
         self.msgQ = Queue()
         self.logger.debug("serverclass: instantiating CommLinkClass...")
@@ -81,9 +81,7 @@ class serverclass:
         self.logger.debug("setting RFID region '{}'".format(reg_code))
         self.tls.set_region(reg_code)
         # set date and time to local time.
-        utc_t = dt.datetime.now()
-        tz_info = self.cfg_dct['TZINFO']
-        loc_t = utc_t.astimezone(tz_info)
+        loc_t = timelib.loc_nowtime()
         self.logger.debug("setting RFID date/time to '{}'".format(loc_t))
         self.tls.set_date_time(loc_t.year, loc_t.month, loc_t.day,
                                loc_t.hour, loc_t.minute, loc_t.second)

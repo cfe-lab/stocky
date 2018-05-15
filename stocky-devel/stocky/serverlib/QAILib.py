@@ -3,11 +3,10 @@
 
 import typing
 
-import datetime as dt
-
 import requests
 import requests.exceptions
 import json
+import serverlib.timelib as timelib
 import serverlib.serverconfig as serverconfig
 import serverlib.yamlutil as yamlutil
 
@@ -17,7 +16,7 @@ def tojson(data) -> str:
     see https://docs.python.org/3.4/library/json.html
     """
     try:
-        retstr = json.dumps(data, separators=(',', ':'))
+        retstr = json.dumps(data, separators=(',', ':'), default=str)
     except TypeError as e:
         print("problem converting to json '{}'".format(data))
         raise e
@@ -48,7 +47,7 @@ Location_dct = typing.Dict[str, typing.List[StockItem_dct]]
 
 
 def rawdata_to_qaidct(mydat: typing.Any) -> QAI_dct:
-    return {"utc_time": dt.datetime.now(), "data": mydat}
+    return {"utc_time": timelib.utc_nowtime(), "data": mydat}
 
 
 def get_json_data_with_time(url: str) -> typing.Optional[QAI_dct]:
@@ -183,7 +182,7 @@ class BaseQAIdata:
         """
         return self.cur_data is not None
 
-    def get_qai_downloadtimeUTC(self) -> typing.Optional[dt.datetime]:
+    def get_qai_downloadtimeUTC(self) -> typing.Optional[timelib.DateTimeType]:
         """Return the UTC datetime record of the time the QAI data was downloaded.
         Return None iff no data is available.
         """
