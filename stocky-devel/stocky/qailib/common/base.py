@@ -71,7 +71,10 @@ class base_obj:
             print("SNDMSG({}): sending msg '{}' to {}".format(idstr, msgdesc, whoto_id))
             obs.rcvMsg(self, msgdesc, msgdat)
 
-    def rcvMsg(self, whofrom: 'base_obj', msgdesc: MSGdesc_Type, msgdat: MSGdata_Type) -> None:
+    def rcvMsg(self,
+               whofrom: 'base_obj',
+               msgdesc: MSGdesc_Type,
+               msgdat: typing.Optional[MSGdata_Type]) -> None:
         """This method should be overridden in the sub-classes in order to respond
         to a change event from an object that is being observed.
         Here, we just log information to the console so that un-handled messages
@@ -80,7 +83,9 @@ class base_obj:
         fromid = whofrom._idstr or "empty_whofrom"
         print("EMPTY RCV MSG obj '{}' received msg '{}' from '{}'".format(idstr, msgdesc, fromid))
 
-    def relayMsg(self, whofrom: 'base_obj', msgdesc: MSGdesc_Type, msgdat: MSGdata_Type) -> None:
+    def relayMsg(self, whofrom: 'base_obj',
+                 msgdesc: MSGdesc_Type,
+                 msgdat: typing.Optional[MSGdata_Type]) -> None:
         """Pass on a message as if it came from whofrom, rather than from self..."""
         obslst = self._obsdct.get(msgdesc, [])
         for obs in obslst:

@@ -129,7 +129,7 @@ class stocky_mainprog(widgets.base_controller):
         self.preparechecklists()
         self.showchecklist(0)
 
-    def _calctab(self, sel_ndx: int) -> str:
+    def _calctab(self, sel_ndx: int) -> typing.Optional[str]:
         """Generate the html string for location index sel_ndx"""
         # determine the list of locations to display
         display_loc_lst = [{'name': loc,
@@ -181,12 +181,14 @@ class stocky_mainprog(widgets.base_controller):
                      '*buttonpressmsg': {'cmd': 'roomswitch'},
                      "class": "w3-select locbutton-cls"
                      }
-        self.lb = lb = html.getPyElementByIdClass('locky-button', html.select, selattdct)
-        lb.addObserver(self, base.MSGD_BUTTON_CLICK)
-        # lb = html.select(None, 'locky-button', None, lbjs)
-        print('got LOCKY {}'.format(lb))
-        se_ndx, se_val = lb.get_selected()
-        print('got LOCKY VBAL {}  {}'.format(se_ndx, se_val))
+        self.lb = lb = typing.cast(html.select,
+                                   html.getPyElementByIdClass('locky-button',
+                                                              html.select, selattdct))
+        if lb is not None:
+            lb.addObserver(self, base.MSGD_BUTTON_CLICK)
+            print('got LOCKY {}'.format(lb))
+            se_ndx, se_val = lb.get_selected()
+            print('got LOCKY VBAL {}  {}'.format(se_ndx, se_val))
         # we do not sort the table after all...
         # tabby = html.getPyElementByIdClass('scantable', html.table, None)
         # print('got TABBY {}'.format(tabby))
@@ -212,7 +214,7 @@ class stocky_mainprog(widgets.base_controller):
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         lverb = True
         if lverb:
             print("rcvMsg: {}: {}".format(msgdesc, msgdat))

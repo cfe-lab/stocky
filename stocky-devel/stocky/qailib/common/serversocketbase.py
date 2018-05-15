@@ -65,8 +65,8 @@ def createGQLResponse_from_server(query_mode: CRUDMode,
     """Create a response dictionary from a response that graphene.Schema.execute() has produced.
     This response dict can be sent to a client e.g. over a websocket.
     """
-    newmsg: typing.Dict[str, typing.Union[str, bool]] = {'type': 'graphql-resp',
-                                                         'qmode': query_mode}
+    newmsg: typing.Dict[str, typing.Optional[typing.Union[str, bool]]] = {'type': 'graphql-resp',
+                                                                          'qmode': query_mode}
     if query_res.errors is None:
         request_ok = True
         errmsg = None

@@ -41,13 +41,17 @@ def getJsElementById(idstr: str):
     return document.getElementById(idstr)
 
 
-def getPyElementByJsEl(idstr: str, jsel, classname, attrdct: dict) -> "base_element":
+def getPyElementByJsEl(idstr: str,
+                       jsel,
+                       classname,
+                       attrdct: typing.Optional[dict]) -> "base_element":
+    """Return a python instance of a designated class classname"""
     py_obj = _mm.get_self(jsel.getAttribute('scoself'))
     py_obj = py_obj or classname(None, idstr, attrdct, jsel)
     return py_obj
 
 
-def getPyElementById(idstr: str) -> "base_element":
+def getPyElementById(idstr: str) -> typing.Optional["base_element"]:
     """Return a python element of the document element... Return None iff none found
     """
     jsel_found = document.getElementById(idstr)
@@ -59,7 +63,7 @@ def getPyElementById(idstr: str) -> "base_element":
     return py_obj
 
 
-def getPyElementByIdClass(idstr: str, classname, attrdct: dict) -> "base_element":
+def getPyElementByIdClass(idstr: str, classname, attrdct: dict) -> typing.Optional["base_element"]:
     """Return a python element given the id string of an HTML element.
     Return a new python class of class classname that wraps the HTML element.
     Return None if no existing js element with the idsr is found.
@@ -163,7 +167,7 @@ class generic_element(base_element):
                  tagname: str,
                  parent: base_element,
                  idstr: str,
-                 attrdct: dict,
+                 attrdct: typing.Optional[dict],
                  jsel) -> None:
         """Add an HTML element of type tagname to the parent. The new element
         will have an idstr and certain additional attributes as defined in attrdct.
@@ -205,6 +209,7 @@ class generic_element(base_element):
             did_add_onclick = 'onclick' in attrdct
             # print('element: ADDING default onclick for {}'.format(idstr))
             # self._el.onclick = self._clickfunc
+        self._parent: typing.Optional[base_element] = None
         if do_create:
             if parent is self:
                 print("BIG ERROR: self == parent!")
@@ -213,9 +218,7 @@ class generic_element(base_element):
             else:
                 parent.appendChild(self)
                 self.addObserver(parent, base.MSGD_DEFAULT)
-            self._parent = parent
-        else:
-            self._parent = None
+                self._parent = parent
         if not did_add_onclick:
             self._el.addEventListener("click", self._clickfunc, False)
 
@@ -252,7 +255,7 @@ class generic_element(base_element):
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type):
+               msgdat: typing.Optional[base.MSGdata_Type]):
         """Unless overridden, every object simply passes on a message to its parent"""
         print("element.RECV({}): msg {} from {}: passing to parent..".format(self._idstr, msgdesc, whofrom._idstr))
         if self._parent is not None:
@@ -374,7 +377,10 @@ class Img(img):
 
 class form(element):
 
-    def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+    def __init__(self, parent: base_element,
+                 idstr: str,
+                 attrdct: typing.Optional[dict],
+                 jsel) -> None:
         generic_element.__init__(self, 'form', parent, idstr, attrdct, jsel)
 
     def submit(self):
@@ -390,7 +396,7 @@ class table(element):
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'table', parent, idstr, attrdct, jsel)
         self.sort_colnum = None
-        self._header_cells: list = None
+        self._header_cells: typing.Optional[list] = None
         for colnum, pyth in enumerate(self.get_header_cells()):
             pyth.setAttribute('*buttonpressmsg', {'cmd': 'tablesort',
                                                   'colnum': colnum})
@@ -400,10 +406,10 @@ class table(element):
         if self._header_cells is None:
             jsrow, rownum = self._el.rows[0], 0
             idstub = self.getID()
-            pyrow = getPyElementByJsEl("{}{}".format(idstub, rownum),
-                                       jsrow,
-                                       tr,
-                                       None)
+            pyrow = typing.cast(tr, getPyElementByJsEl("{}{}".format(idstub, rownum),
+                                                       jsrow,
+                                                       tr,
+                                                       None))
             if pyrow is None:
                 print("columnsort: pyrow is None")
                 return
@@ -415,15 +421,10 @@ class table(element):
         New python objects are created if they do not already exist.
         """
         idstub = self.getID()
-        retlst, rownum = [], 0
-        for jsrow in self._el.rows:
-            pyrow = getPyElementByJsEl("{}{}".format(idstub, rownum),
-                                       jsrow,
-                                       tr,
-                                       None)
-            retlst.append(pyrow)
-            rownum += 1
-        return retlst
+        return [typing.cast(tr, getPyElementByJsEl("{}{}".format(idstub, rownum),
+                                                   jsrow,
+                                                   tr,
+                                                   None)) for jsrow, rownum in enumerate(self._el.rows)]
 
     def columnsort(self, colnum: int) -> None:
         """Sort the rows of the table using the javascript onclick() attributes
@@ -438,7 +439,7 @@ class table(element):
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         if msgdesc == base.MSGD_BUTTON_CLICK:
             print("table GOT BUTTON CLICK")
             if msgdat is None:
@@ -458,7 +459,10 @@ class table(element):
 class tr(element):
     """A table row element"""
 
-    def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+    def __init__(self, parent: base_element,
+                 idstr: str,
+                 attrdct: typing.Optional[dict],
+                 jsel) -> None:
         generic_element.__init__(self, 'tr', parent, idstr, attrdct, jsel)
 
     def getcells(self) -> list:
@@ -500,7 +504,7 @@ class th(element):
 class td(element):
     """A table data cell element"""
 
-    def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+    def __init__(self, parent: base_element, idstr: str, attrdct: typing.Optional[dict], jsel) -> None:
         generic_element.__init__(self, 'td', parent, idstr, attrdct, jsel)
 
 

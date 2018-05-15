@@ -12,18 +12,18 @@ SVGShape = typing.Any
 class svg(html.element):
     def __init__(self, parent: html.base_element,
                  idstr: str,
-                 attrdct: dict,
+                 attrdct: typing.Optional[dict],
                  jsel,
-                 sizetup: typing.Tuple[str, str]) -> None:
+                 sizetup: typing.Optional[typing.Tuple[str, str]]) -> None:
         html.generic_element.__init__(self, 'div', parent, idstr, attrdct, jsel)
+        self.curels: typing.List[SVGShape] = []
         self.drawing = SVG(idstr)
         if sizetup is None:
-            w = h = '100%'
+            ws = hs = '100%'
         else:
-            w, h = sizetup
-        self.drawing.size(w, h)
-        w, h = self.get_WH()
-        self.curels = []
+            ws, hs = sizetup
+        self.drawing.size(ws, hs)
+        # w, h = self.get_WH()
         # print("YAHOOO {} {}".format(w, h))
         # self.myrect = self.drawing.rect(w-10, h-10).attr({'fill': '#f06'})
 

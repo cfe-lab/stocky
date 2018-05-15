@@ -1,14 +1,10 @@
 
-from org.transcrypt.stubs.browser import FormData, __new__
 
-from typing import Dict, List, Tuple, Type, Callable
+from typing import Dict, List, Tuple, Type, Callable, Optional, Union
 
 import qailib.transcryptlib.genutils as genutils
 import qailib.common.base as base
-import qailib.common.serversocketbase as serversocketbase
-import qailib.common.dataelements as dataelements
 import qailib.transcryptlib.htmlelements as html
-import qailib.transcryptlib.guiforms as guiforms
 
 log = genutils.log
 
@@ -18,7 +14,7 @@ class base_controller(base.base_obj):
     def __init__(self, idstr: str) -> None:
         super().__init__(idstr)
         self._lktab: Dict[str,
-                          Callable[[base.base_obj, dict], None]] = {
+                          Callable[[base.base_obj, Optional[dict]], None]] = {
                               base.MSGD_BUTTON_CLICK: self.button_press,
                               base.MSGD_LOG_MESSAGE: self.log_event,
                               base.MSGD_FORM_SUBMIT: self.form_submit,
@@ -27,7 +23,7 @@ class base_controller(base.base_obj):
     def rcvMsg(self,
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
+               msgdat: Optional[base.MSGdata_Type]) -> None:
         # NOTE: msg can be either a str or a python dct
         whofrom_id = whofrom._idstr or "empty-whofrom"
         log("controller.rcvMsg: RCV({}): '{}' from '{}'".format(self._idstr, msgdesc, whofrom_id))
@@ -40,48 +36,32 @@ class base_controller(base.base_obj):
                                                                              whofrom_id))
             super().rcvMsg(whofrom, msgdesc, msgdat)
 
-    def button_press(self, whofrom: base.base_obj, data_in: base.MSGdata_Type) -> None:
+    def button_press(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
         """This function is called when any button is pressed.
         The whofrom_id is a string (the id string, the widget 'idstr' argument) that identifies
         the button.
         """
         pass
 
-    def form_submit(self, whofrom: base.base_obj, data_in: base.MSGdata_Type) -> None:
+    def form_submit(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
         """This function is called when a form has verified its input fields
         and has data to provide. This is sent in the data_in argument.
         """
         pass
 
-    def data_cache_ready(self, whofrom: base.base_obj, data_in: base.MSGdata_Type) -> None:
+    def data_cache_ready(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
         """ This method is called whenever a MSGD_DATA_CACHE_READY message is sent
         to this controller.
         NOTE: the data is provided as a python dictionary.
         """
         pass
 
-    def log_event(self, whofrom: base.base_obj, data_in: base.MSGdata_Type) -> None:
+    def log_event(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
         """ This method is called whenever the datacache issues a logging event.
         NOTE: the data is provided as a python dictionary with
         'exitcode' and 'errmsg' keys.
         """
         pass
-
-
-class socket_controller(base_controller):
-    """The base class of all main programs on the client side.
-    The controller uses a server_socket to communicate with the server via
-    a data_cache, and responds to events received.
-    """
-    def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
-        super().__init__(myname)
-        self._ws = ws
-        self._dcache = dataelements.data_cache("datacache", ws)
-        self._dcache.addObserver(self, base.MSGD_LOG_MESSAGE)
-        self._dcache.addObserver(self, base.MSGD_DATA_CACHE_READY)
-
-        # NOTE: server messages are sent to the datacache
-        # ws.addObserver(self, base.MSGD_SERVER_MSG)
 
 
 class base_widget(html.div):
@@ -149,7 +129,7 @@ class base_button(base_widget):
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
+               msgdat: Optional[base.MSGdata_Type]) -> None:
         whofrom_id = whofrom._idstr or "empty-whofrom"
         log("basebutton RECV({}): msgdesc {} from {}".format(self._idstr, msgdesc, whofrom_id))
         # self._contr.rcvMsg(self, msg)
@@ -163,28 +143,28 @@ class text_button(base_button):
 
 
 #                 idstr: str, attrdct: dict, data_element) -> None:
-class text_display(base_widget):
-    def __init__(self, contr: base_controller, parent: base_button,
-                 idstr: str, attrdct: dict, jsel, data_element: dataelements.record) -> None:
-        super().__init__(contr, parent, idstr, attrdct, jsel)
-        self._data_el = data_element
-        self._txt = html.textnode(self, 'GOO1')
-        self.rcvMsg(self, base.MSGD_VALUE_CHANGE, None)
-        data_element.addObserver(self, base.MSGD_VALUE_CHANGE)
-
-    def rcvMsg(self, whofrom: base.base_obj,
-               msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
-        if msgdesc == base.MSGD_VALUE_CHANGE:
-            log('text_disp: value change!')
-            if msgdat is not None:
-                newdat = msgdat.get('data', None)
-                if newdat is not None:
-                    # self._txt.set_text(self._data_el.get_as_string('data'))
-                    self._txt.set_text(newdat.get_as_string('data'))
-        else:
-            log('text_disp: received {}, calling superclass'.format(msgdesc))
-            super().rcvMsg(whofrom, msgdesc, msgdat)
+# class text_display(base_widget):
+#    def __init__(self, contr: base_controller, parent: base_button,
+#                 idstr: str, attrdct: dict, jsel, data_element: dataelements.record) -> None:
+#        super().__init__(contr, parent, idstr, attrdct, jsel)
+#        self._data_el = data_element
+#        self._txt = html.textnode(self, 'GOO1')
+#        self.rcvMsg(self, base.MSGD_VALUE_CHANGE, None)
+#        data_element.addObserver(self, base.MSGD_VALUE_CHANGE)
+#
+#    def rcvMsg(self, whofrom: base.base_obj,
+#               msgdesc: base.MSGdesc_Type,
+#               msgdat: Optional[base.MSGdata_Type]) -> None:
+#        if msgdesc == base.MSGD_VALUE_CHANGE:
+#            log('text_disp: value change!')
+#            if msgdat is not None:
+#                newdat = msgdat.get('data', None)
+#                if newdat is not None:
+#                    # self._txt.set_text(self._data_el.get_as_string('data'))
+#                    self._txt.set_text(newdat.get_as_string('data'))
+#        else:
+#            log('text_disp: received {}, calling superclass'.format(msgdesc))
+#            super().rcvMsg(whofrom, msgdesc, msgdat)
 
 
 def scodict_table(parent, idstr, attrdct, coltuple, dct_lst, colattr=None) -> html.table:
@@ -236,11 +216,11 @@ class sort_table:
 def writelist(parent: html.base_element, idstr: str, attrdct: dict, iterels, ordered=True):
     """Generate a list of items """
     if ordered:
-        lst_el = html.ol(parent, idstr, attrdct, None)
+        lst_el: Union[html.ol, html.ul] = html.ol(parent, idstr, attrdct, None)
     else:
         lst_el = html.ul(parent, idstr, attrdct, None)
     for elstr, elattr in iterels:
-        html.textnode(html.li(lst_el, None, elattr, None), elstr)
+        html.textnode(html.li(lst_el, "", elattr, None), elstr)
     return lst_el
 
 
@@ -257,7 +237,7 @@ def writeNEWlist(parent: html.base_element,
     in the list being created.
     """
     if ordered:
-        lst_el = html.ol(parent, idstr, attrdct, None)
+        lst_el: Union[html.ol, html.ul] = html.ol(parent, idstr, attrdct, None)
     else:
         lst_el = html.ul(parent, idstr, attrdct, None)
     for eltype, elattr_dct in iterels:
@@ -268,7 +248,7 @@ def writeNEWlist(parent: html.base_element,
             del elattr_dct['scoelement']
             del elattr_dct['scoid']
             # html.textnode(html.li(lst_el, None), elidstr, elattr)
-            menu_el = eltype(html.li(lst_el, None, elattr_dct, None), elidstr, elattr_dct, None)
+            menu_el = eltype(html.li(lst_el, "", elattr_dct, None), elidstr, elattr_dct, None)
             if isinstance(elvis, str):
                 # log('stringy', elvis)
                 # its a string: create a text node
@@ -299,82 +279,9 @@ class MenuList(base_widget):
     def rcvMsg(self,
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
+               msgdat: Optional[base.MSGdata_Type]) -> None:
         print("menulst: relaying message {}, {}".format(msgdesc, msgdat))
         self.relayMsg(whofrom, msgdesc, msgdat)
-
-
-class FormWidget(base_widget):
-    """A Basic Form widget.
-    Note that, in 'normal' http-based web sites, the form HTML element has
-    an 'action' attribute (URL on the server to which the form data
-    is sent)
-    and a 'method' attribute (PUT or GET http method).
-    Here, however, we are using websockets to communicate with the server, and we must
-    therefore NOT allow the form to be submitted in the conventional sense.
-    There are at least two ways of doing this:
-    a) use a submit input element and override the onsubmit method of the form
-    b) use button input element and override the onclick method of the form.
-    As the messaging system already uses B, we opt for that.
-
-    Note that in addition, catching the onsubmit events would require called javascript
-    calls ev.preventDefault() and ev.stopPropagation() in the event handler.
-    """
-    def __init__(self,
-                 contr: base_controller,
-                 parent: 'base_widget',
-                 idstr: str,
-                 attrdct: dict,
-                 jsel,
-                 formbuilder: guiforms.HtmlFormBuilder,
-                 my_user_data: dataelements.record) -> None:
-        super().__init__(contr, parent, "{}-pp".format(idstr), attrdct, jsel)
-        self._formbuilder = formbuilder
-        self._userdata = my_user_data
-        self.form_el = html.form(self, idstr, None, None)
-        html_tab, self._field_lst = formbuilder.gen_table(self.form_el,
-                                                          'usertable',
-                                                          dict(border=1, width='100%'),
-                                                          my_user_data)
-        self.addItem(html_tab)
-        self.addSubmitButton('usermod-button', 'Submit')
-        self.addObserver(contr, base.MSGD_FORM_SUBMIT)
-
-    def addItem(self, menu_itm: html.element) -> html.element:
-        """Append an html item to the end of the form elements."""
-        self.form_el.appendChild(menu_itm)
-        return menu_itm
-
-    def addSubmitButton(self, button_idstr: str, buttontext: str) -> None:
-        attrdct = {"value": buttontext, "type": "submit"}
-        self.button = html.input_button(self.form_el, button_idstr, attrdct, None)
-        # self.button._el.onsubmit = self._onsubmit
-        self.button.addObserver(self, base.MSGD_BUTTON_CLICK)
-
-    def rcvMsg(self,
-               whofrom: base.base_obj,
-               msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
-        if whofrom == self.button:
-            print("FormWidget received my button click!")
-            self.handle_submission()
-        else:
-            print("menulst: relaying message {}, {}".format(msgdesc, msgdat))
-            self.relayMsg(whofrom, msgdesc, msgdat)
-
-    def OLDgetFormData(self) -> dict:
-        """Return a dict containing the current values of the form elements.
-        This method reaches into the nether regions of javascript and uses
-        a FormData element to retrieve the keys and values of any input elements
-        in the form.
-        See here for the specification of FormData:
-        https://developer.mozilla.org/en-US/docs/Web/API/FormData/Using_FormData_Objects
-
-        NOTE: this should work, and it did use to; However now it returns an empty
-        string. We work around this by extracting the data from the form ourselves.
-        """
-        fd = __new__(FormData(self.form_el._el))
-        return dict([tt for tt in fd.entries()])
 
 
 class BasicView(base_widget):
@@ -412,7 +319,7 @@ class SwitchView(base_widget):
         self.view_dct[viewname] = child_el
         child_el.addObserver(self, base.MSGD_BUTTON_CLICK)
 
-    def getView(self, numorname) -> BasicView:
+    def getView(self, numorname) -> Optional[BasicView]:
         # find the view which should be 'on'
         on_view = None
         if isinstance(numorname, int):
@@ -445,9 +352,10 @@ class SwitchView(base_widget):
     def rcvMsg(self,
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: base.MSGdata_Type) -> None:
+               msgdat: Optional[base.MSGdata_Type]) -> None:
         print("switchview: got message {}, {}".format(msgdesc, msgdat))
-        cmd = msgdat.get('cmd', None)
-        tgt_view_name = msgdat.get('target', None)
-        if cmd == 'viewswitch' and tgt_view_name is not None:
-            self.switchTo(tgt_view_name)
+        if msgdat is not None:
+            cmd = msgdat.get('cmd', None)
+            tgt_view_name = msgdat.get('target', None)
+            if cmd == 'viewswitch' and tgt_view_name is not None:
+                self.switchTo(tgt_view_name)

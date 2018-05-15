@@ -9,13 +9,13 @@ COMMON = ${LIBDIR}/common/base.py \
          ${LIBDIR}/common/serversocketbase.py \
 
 LIBS =  ${LIBDIR}/transcryptlib/genutils.py \
-  ${LIBDIR}/transcryptlib/guiforms.py \
+  ${LIBDIR}/transcryptlib/handlebars.py\
   ${LIBDIR}/transcryptlib/htmlelements.py \
+  ${LIBDIR}/transcryptlib/__init__ \
   ${LIBDIR}/transcryptlib/serversocket.py \
+  ${LIBDIR}/transcryptlib/SVGlib.py \
   ${LIBDIR}/transcryptlib/websocket.py \
   ${LIBDIR}/transcryptlib/widgets.py \
-  ${LIBDIR}/transcryptlib/SVGlib.py \
-  ${LIBDIR}/transcryptlib/handlebars.py\
   wcviews.py\
   commonmsg.py
 
@@ -52,7 +52,8 @@ __javascript__/webclient.js: Makefile webclient.py  ${LIBS} ${COMMON}
 
 typetest:
 	transcrypt ${OPTS} typetest.py
-
-force:
+mypy: ##  analyse the webclient code using mypy
+	mypy --ignore-missing-imports  webclient.py
+force: ## force the compilation of the web client
 	rm -f __javascript__/webclient.js
 	transcrypt ${OPTS} webclient.py

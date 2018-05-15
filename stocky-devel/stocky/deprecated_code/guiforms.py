@@ -9,8 +9,8 @@ import qailib.transcryptlib.htmlelements as html
 
 class HTMLField(formbase.BaseField, html.input):
     def __init__(self, parent: html.base_element, idstr: str,
-                 inp_type: str, attrdct: dict) -> None:
-        html.input.__init__(self, parent, idstr, inp_type, attrdct)
+                 inp_type: str, attrdct: dict, jsel) -> None:
+        html.input.__init__(self, parent, idstr, inp_type, attrdct, jsel)
         formbase.BaseField.__init__(self)
         desc_str = attrdct.get('desc', None)
         if desc_str is not None:

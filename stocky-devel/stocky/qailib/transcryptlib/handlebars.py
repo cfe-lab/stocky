@@ -10,7 +10,7 @@ from org.transcrypt.stubs.browser import document, Handlebars
 handycache: typing.Dict[str, typing.Any] = {}
 
 
-def evalTemplate(htmlid: str, context: dict) -> str:
+def evalTemplate(htmlid: str, context: dict) -> typing.Optional[str]:
     """Recover a Handlebars template from the DOM by Id, then
     compile it and evaluate it with the provided context.
     The context must be a dict which defines the variables used in the Handlebars template.
