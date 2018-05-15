@@ -22,11 +22,11 @@ help:
 web: ## compile the webclient using transcrypt
 	$(MAKE) -C webclient webclient
 test-all: ## run the unit tests of the server code using pytest
-	pytest
+	pytest serverlib
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py serverlib
 test-coverage: ## run the unit tests of the server code, then show the test coverage 
-	coverage run -m py.test
+	coverage run -m py.test serverlib
 	coverage report --omit="serverlib/tests/*","serverlib/__init__.py"
 pep8: ## analyse the server code for compliance with pep8 using codestyle
-	pytest --codestyle
+	pytest --codestyle serverlib
