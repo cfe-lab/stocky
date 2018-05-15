@@ -128,9 +128,9 @@ class Test_TLSAscii:
             if exp_val is None:
                 if got_val is not None:
                     print("got_val: inp: {}, mode: {}, exp_msg: {}, exp_val: {}".format(testlst,
-                                                                               test_mode,
-                                                                               expected_msg,
-                                                                               exp_val))
+                                                                                        test_mode,
+                                                                                        expected_msg,
+                                                                                        exp_val))
                     raise RuntimeError("expected None: testin {}, expected: {}, got: {}".format(testin,
                                                                                                 exp_val,
                                                                                                 got_val))
