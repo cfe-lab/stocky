@@ -24,8 +24,20 @@ def tojson(data) -> str:
 
 
 def fromjson(data_bytes: bytes) -> typing.Any:
-    """Convert bytes into a data struct which we return."""
+    """Convert bytes into a data struct which we return.
+    This routine will raise an exception of there is an error in json.loads
+    """
     return json.loads(data_bytes)
+
+
+def safe_fromjson(data_bytes: bytes) -> typing.Optional[typing.Any]:
+    """Convert bytes into a data struct which we return.
+    This routine will return None if the conversion from json fails.
+    """
+    try:
+        return json.loads(data_bytes)
+    except json.decoder.JSONDecodeError:
+        return None
 
 
 def raw_get_json_data(url: str) -> typing.Any:

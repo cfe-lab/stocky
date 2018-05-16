@@ -87,7 +87,11 @@ class CLResponse:
         cmd, arg = r
         if cmd == resp_code:
             # convert the arg string into an int
-            return int(arg)
+            try:
+                ii = int(arg)
+            except ValueError:
+                raise RuntimeError("return_code: failed to convert to int")
+            return ii
         else:
             raise RuntimeError("return_code: unexpected {}, expected {}".format(cmd, resp_code))
 
@@ -160,6 +164,7 @@ class BaseCommLink:
         """Convert a dict into a json string suitable for sending
         to the RFID reader as a comment
         """
+        # NOTE: the leading space in the format string is required
         return " {}{}{}".format(BaseCommLink.DCT_START_CHAR,
                                 QAILib.tojson(d),
                                 BaseCommLink.DCT_STOP_CHAR)
@@ -174,7 +179,7 @@ class BaseCommLink:
         if hash_ndx == -1 or ampers_ndx == -1:
             return None
         dict_str = s[hash_ndx+1:ampers_ndx]
-        return QAILib.fromjson(bytes(dict_str, 'utf-8'))
+        return QAILib.safe_fromjson(bytes(dict_str, 'utf-8'))
 
     @staticmethod
     def RC_string(ret_code: TLSRetCode) -> str:

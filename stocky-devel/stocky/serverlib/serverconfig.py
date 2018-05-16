@@ -29,7 +29,7 @@ known_set = frozenset(['VERSION', 'RFID_REGION_CODE', 'TIME_ZONE',
 def read_logging_config(yamlfilename: str) -> dict:
     cfg_dct = yamlutil.readyamlfile(yamlfilename, ENV_NAME=CONFIG_DIR_ENV_NAME)
     if not isinstance(cfg_dct, dict):
-        raise RuntimeError("config must be a single dict class , but found a {}".format(type(cfg_dct)))
+        raise RuntimeError("logging config must be a single dict class , but found a {}".format(type(cfg_dct)))
     return cfg_dct
 
 

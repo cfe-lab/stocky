@@ -5,18 +5,65 @@ import logging
 import serverlib.commlink as commlink
 
 
+BaseCommLinkClass = commlink.BaseCommLink
+DummyCommLinkClass = commlink.DummyCommLink
+
 CommLinkClass = commlink.DummyCommLink
 
 
 class Test_Commlink:
 
     def setup_method(self) -> None:
-        logger = logging.Logger("testing")
-        self.cl = CommLinkClass({'logger': logger})
+        self.logger = logging.Logger("testing")
+        self.cl = CommLinkClass({'logger': self.logger})
         if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
+
+    def test_baseCL_notimp(self):
+        """The base should raise NotImplemented errors."""
+        b = BaseCommLinkClass({'logger': self.logger})
+        for func in [lambda b: b.raw_send_cmd('bla'),
+                     lambda b: b.send_cmd('bla'),
+                     lambda b: b.raw_read_response(),
+                     lambda b: b.is_alive(),
+                     lambda b: b.id_string()]:
+            with pytest.raises(NotImplementedError):
+                func(b)
+
+    def test_baseCL_RC_string01(self):
+        """Convert legal retcodes"""
+        for retcode in commlink._tlsretcode_dct.keys():
+            retstr = BaseCommLinkClass.RC_string(retcode)
+            assert isinstance(retstr, str), "expected a string"
+
+    def test_baseCL_RC_string02(self):
+        """Convert illlegal retcodes"""
+        for retcode in [-100, 50]:
+            with pytest.raises(RuntimeError):
+                BaseCommLinkClass.RC_string(retcode)
+
+    def test_baseCL_comment_dct01(self):
+        din = dict(a=1, b=5, c='99')
+        code = BaseCommLinkClass.encode_comment_dict(din)
+        assert isinstance(code, str), "string expected"
+        dout = BaseCommLinkClass.extract_comment_dict(code)
+        assert din == dout, "dicts are not the same!"
+
+        # an invalid string must return a None dict
+        for code in ["blaaa", "BA", "AkkkkkkkB"]:
+            dout = BaseCommLinkClass.extract_comment_dict(code)
+            assert dout is None, "expected None for dict"
+
+    def test_dummy_get_cmd_from_str01(self):
+        """Invalid commands should raise an exception"""
+        for cmdstr in ['.iv bla',
+                       'iv -x',
+                       '.bb',
+                       '.i AB  ']:
+            with pytest.raises(RuntimeError):
+                DummyCommLinkClass.get_cmd_from_str(cmdstr)
 
     def test_cl_response_codes_len(self) -> None:
         """All commlink response codes must be of length 2"""
@@ -78,6 +125,17 @@ class Test_Commlink:
             resp_got = clresp.return_code()
             assert resp_got == resp_exp, "unexpected respcode"
 
+    def test_cl_return_code02(self):
+        """A malformed error message should raise an exception."""
+        testy_lst = [[("ME", "hello"), ('ER', "bla")],
+                     [("ME", "hello"), ('ER', "")],
+                     [("ME", "hello"), ('IV', "")],
+                     ]
+        for test_lst in testy_lst:
+            clresp = commlink.CLResponse(test_lst)
+            with pytest.raises(RuntimeError):
+                clresp.return_code()
+
     def test_dummyCL_valid01(self):
         """Issue a valid command and check its result."""
         clresp = self.cl._blocking_cmd(".ec -p")
@@ -107,3 +165,4 @@ class Test_Commlink:
         with pytest.raises(RuntimeError):
             self.cl._blocking_cmd(".bla -p")
         # assert False, "force fail"
+
