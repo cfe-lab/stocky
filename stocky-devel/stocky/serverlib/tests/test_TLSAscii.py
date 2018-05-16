@@ -3,6 +3,7 @@
 import math
 import logging
 
+import pytest
 from gevent.queue import Queue
 
 import serverlib.commlink as commlink
@@ -10,18 +11,35 @@ import serverlib.TLSAscii as TLSAscii
 from webclient.commonmsg import CommonMSG
 
 
+class DeadCommLink(commlink.BaseCommLink):
+    """A dummy commlink used for testing"""
+
+    def __init__(self, cfgdct: dict) -> None:
+        super().__init__(cfgdct)
+
+    def is_alive(self, doquick: bool=True) -> bool:
+        return False
+
+    def id_string(self) -> str:
+        return "DeadCommLink"
+
+
 class Test_TLSAscii:
 
     def setup_method(self) -> None:
         self.msgQ = Queue()
-        logger = logging.Logger("testing")
-        self.cl = commlink.DummyCommLink({'logger': logger})
+        self.logger = logging.Logger("testing")
+        self.cl = commlink.DummyCommLink({'logger': self.logger})
+        self.deadcl = DeadCommLink({'logger': self.logger})
         if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
         self.radar_ave_num = 1
-        self.tls = TLSAscii.TLSReader(self.msgQ, logger, self.cl, self.radar_ave_num)
+        self.tls = TLSAscii.TLSReader(self.msgQ,
+                                      self.logger,
+                                      self.cl,
+                                      self.radar_ave_num)
 
     def test_radar01(self):
         EPCcode = "123456"
@@ -30,6 +48,22 @@ class Test_TLSAscii:
         # assert isinstance(rssi, int), "int expected"
         # print("GOOT {}".format(rssi))
         # assert False, "force fail"
+
+    def test_barcodeparams01(self):
+        bb = TLSAscii.BarcodeParams(True, True, 1)
+        assert bb is not None, "alert failed"
+        bcstr = bb.tostr()
+        assert isinstance(bcstr, str), "expected a string"
+
+    def test_barcodeparams02(self):
+        with pytest.raises(RuntimeError):
+            TLSAscii.BarcodeParams(True, True, 22)
+
+    def test_alertparams01(self):
+        aa = TLSAscii.AlertParams(buzzeron=False, vibrateon=True,
+                                  vblen=TLSAscii.BuzzViblen('med'),
+                                  pitch=TLSAscii.Buzzertone('med'))
+        assert aa is not None, "alert failed"
 
     def test_RFIDparams01(self):
         assert len(TLSAscii.rfid_lst) == len(TLSAscii.rfid_order_lst)
@@ -51,6 +85,37 @@ class Test_TLSAscii:
             print("unexpected '{}', expected '{}'".format(retstr, exp_str))
             raise RuntimeError("RFIDParams fail")
 
+    def test_RFIDparams04(self):
+        with pytest.raises(RuntimeError):
+            TLSAscii.RFIDParams(wonky_arg=99)
+
+    def test_runningave01(self):
+        with pytest.raises(RuntimeError):
+            TLSAscii.RunningAve(self.logger, 0)
+
+    def test_runningave02(self):
+        ave_len = 2
+        rone = [('CS', '.iv'),
+                ('EP', '000000000000000000001242'), ('RI', '-65'), ('OK', '')]
+        testin = commlink.CLResponse(rone)
+        ra = TLSAscii.RunningAve(self.logger, ave_len)
+        for i in range(2 * ave_len):
+            ra.add_clresp(testin)
+            assert len(ra._dlst) <= ave_len, "unexpected ave list"
+            run_ave = ra.get_runningave()
+            if i < ave_len-1:
+                assert run_ave is None, "running ave not None for i = {} < ave_len={}".format(i, ave_len)
+            else:
+                assert run_ave is not None, "running ave is None for i> ave_len"
+
+    def test_deadcl(self):
+        tls = TLSAscii.TLSReader(self.msgQ,
+                                 self.logger,
+                                 self.deadcl,
+                                 self.radar_ave_num)
+        with pytest.raises(RuntimeError):
+            tls._sendcmd('hello', 'johnny')
+
     def test_RI2dist01(self):
         rivals = [(-65, 1.0),
                   (-70, 1.53),
@@ -64,6 +129,14 @@ class Test_TLSAscii:
                                                                                           exp_val,
                                                                                           got_val))
         # assert False, "force fail"
+
+    def test_radardata01(self):
+        rone = [('CS', '.iv'),
+                ('EP', '000000000000000000001242'), ('RI', 'BLA'), ('OK', '')]
+        for testlst in [rone]:
+            testin = commlink.CLResponse(testlst)
+            gotval = TLSAscii.RunningAve._radar_data(self.logger, testin)
+            assert gotval is None, "expected None"
 
     def test_convert_msg(self):
         rone = [('CS', '.iv'),

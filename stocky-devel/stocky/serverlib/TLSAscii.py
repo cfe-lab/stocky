@@ -284,11 +284,8 @@ class RunningAve:
         """
         if len(self._dlst) < self.Nave:
             return None
-        nonempty = [vdct for vdct in self._dlst if vdct is not None]
-        if len(nonempty) == 0:
-            return None
         sumdct: typing.Dict[str, typing.List[int]] = {}
-        for vdct in nonempty:
+        for vdct in self._dlst:
             for epc, ri in vdct.items():
                 assert isinstance(ri, int), "INT expected {}".format(ri)
                 sumdct.setdefault(epc, []).append(ri)
@@ -355,6 +352,8 @@ class TLSReader(Taskmeister.BaseReader):
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
         elif comment_str == 'RAD':
             msg_type = CommonMSG.MSG_RF_RADAR_DATA
+        elif comment_str == 'IVreset':
+            return None
         else:
             self.logger.error('unhandled comment string {}'.format(comment_str))
         # B: now try to determine ret_data.
@@ -388,6 +387,7 @@ class TLSReader(Taskmeister.BaseReader):
         NOTE: this method is overrulling the method defined in BaseTaskMeister.
         """
         clresp: commlink.CLResponse = self._cl.raw_read_response()
+        # print("INCOMING {}".format(clresp))
         return self._convert_message(clresp)
 
     def set_region(self, region_code: str) -> None:
@@ -489,6 +489,10 @@ class TLSReader(Taskmeister.BaseReader):
         cmdstr = ".da -s {:02d}{:02d}{:02d}".format(yy-2000, mm, dd)
         self._sendcmd(cmdstr, "setdate")
 
+    def reset_inventory_options(self):
+        """Issue a command to reset the .iv options to the default ones."""
+        self._sendcmd(".iv -x", "IVreset")
+
     def RadarSetup(self, EPCcode: str) -> None:
         """Set up the reader to search for a tag with a specific Electronic Product Code (EPC).
         by later on issuing RadarGet() commands.
@@ -498,6 +502,7 @@ class TLSReader(Taskmeister.BaseReader):
         See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
         """
         # cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(EPCcode)
+        self.reset_inventory_options()
         cmdstr = ".iv -al off -x -n -fi on -ron -io off -qt b -qs s0 -sa 4 -st s0 -sl 30 -so 0020"
         self._sendcmd(cmdstr, "radarsetup")
 
@@ -509,6 +514,7 @@ class TLSReader(Taskmeister.BaseReader):
 
     def BT_set_stock_check_mode(self):
         """Set the RFID reader into stock taking mode."""
+        self.reset_inventory_options()
         alert_parms = AlertParams(buzzeron=False, vibrateon=True,
                                   vblen=BuzzViblen('med'),
                                   pitch=Buzzertone('med'))
@@ -523,6 +529,12 @@ class TLSReader(Taskmeister.BaseReader):
         elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
             self.mode = tls_mode.radar
             self.RadarSetup('000000000000000000001237')
+        elif msg.msg == CommonMSG.MSG_SV_GENERIC_COMMAND:
+            self.mode = tls_mode.stock
+            # self.BT_set_stock_check_mode()
+            cmdstr = msg.data
+            # print("BLACMD {}".format(cmdstr))
+            self._sendcmd(cmdstr, "radarsetup")
         else:
             self.mode = tls_mode.undef
             self.logger.debug("TLS skipping msg {}".format(msg))

@@ -79,6 +79,28 @@ class TickGenerator(BaseTaskMeister):
         return CommonMSG(CommonMSG.MSG_SV_TIMER_TICK, self.msgid)
 
 
+class CommandListGenerator(TickGenerator):
+    """Generate a generic message every X seconds.
+    The commands are cycled through from a list of commands provided.
+    An empty string in the list means that that cycle is skipped.
+    """
+    def __init__(self, msgQ: gevent.queue.Queue, logger,
+                 sec_interval: int, msgid: str,
+                 cmdlst: typing.List[str]) -> None:
+        super().__init__(msgQ, logger, sec_interval, msgid)
+        self.cmdlst = cmdlst
+        if len(cmdlst) == 0:
+            raise RuntimeError("cmdlst len is 0")
+        self.nmsg = 0
+
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
+        cmdstr = self.cmdlst[self.nmsg]
+        self.nmsg = (self.nmsg + 1) % len(self.cmdlst)
+        if len(cmdstr) == 0:
+            return None
+        return CommonMSG(CommonMSG.MSG_SV_GENERIC_COMMAND, cmdstr)
+
+
 class WebSocketReader(BaseReader):
     """The stocky server uses this Taskmeister to receive messages from the webclient
     in json format. It puts CommonMSG instances onto the queue."""

@@ -1,16 +1,18 @@
+# This is a version of the stocky main program used to test different forms of RFID scanning
+# IT does not have a web interface, but just scans in an infinite loop
 # The stocky main program using Flask socket
 # See the runserver.sh script in this directory for how to launch the program.
 
+import typing
+# from geventwebsocket import websocket
+import serverlib.serverconfig as serverconfig
+import serverlib.commlink as commlink
+import serverlib.stockyserver as stockyserver
+import serverlib.Taskmeister as Taskmeister
 
 import logging.config
 import flask
 from flask_sockets import Sockets
-
-
-from geventwebsocket import websocket
-import serverlib.serverconfig as serverconfig
-import serverlib.commlink as commlink
-import serverlib.stockyserver as stockyserver
 
 
 def get_logger_name(mylogger) -> str:
@@ -44,6 +46,29 @@ socky = Sockets(app)
 # app.logger.debug('hoity toity')
 
 
+def gen_arglst() -> typing.List[str]:
+    modtt = ('io', )
+    retlst = []
+    retlst.append('.iv -x')
+    numvar = len(modtt)
+    numcase = 2 ** numvar
+    oodct = {True: 'on', False: 'off'}
+    cmdstr1 = '.iv -al off -e on -r on -ie on -o 29'
+    for icase in range(numcase):
+        mask = 1
+        cmdstropt = ''
+        for bit in range(numvar):
+            cmdstropt += " -{} {} ".format(modtt[bit], oodct[(mask & icase) != 0])
+            mask *= 2
+        cmdstr = cmdstr1 + cmdstropt + '-ql all -fi on'
+        retlst.append(cmdstr)
+    retlst.append('')
+    retlst.append('.iv -p')
+    assert len(retlst) == numcase+3, "list is wrong length"
+    print("\n".join(retlst))
+    return retlst
+
+
 def init_app(cfgname: str):
     """This routine is used a helper in order to launch the serverclass with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
@@ -53,29 +78,16 @@ def init_app(cfgname: str):
     global the_main
     the_main = stockyserver.serverclass(app, commlink.SerialCommLink, cfgname)
     # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
+
+    arg_lst = gen_arglst()
+    gencmd = Taskmeister.CommandListGenerator(the_main.msgQ,
+                                              the_main.logger,
+                                              1,
+                                              'listgen', arg_lst)
+    gencmd.set_active(True)
+    the_main.timerTM.set_active(True)
+    the_main.mainloop(None)
     return app
-
-
-# this launches the server main program in response to the webclient program starting
-# in the browser
-@socky.route('/goo')
-def goo(ws: websocket):
-    if the_main is not None:
-        the_main.mainloop(ws)
-    else:
-        print('the_main is None!')
-
-
-# this is required to serve the javascript code
-@app.route('/webclient/__javascript__/<path:path>')
-def send_js(path):
-    return flask.send_from_directory('webclient/__javascript__', path)
-
-
-# serve the main page
-@app.route('/')
-def main_page():
-    return flask.render_template('mainpage.html')
 
 
 if __name__ == "__main__":

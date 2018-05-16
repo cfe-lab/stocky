@@ -26,6 +26,9 @@ class CommonMSG:
     # in response to a MSG_WC_STOCK_CHECK
     MSG_SV_NEW_STOCK_LIST = 'SV_NEW_STOCK_LIST'
 
+    # the server wants to send a generic command directly to the RFID reader
+    MSG_SV_GENERIC_COMMAND = 'SV_GENERIC_CMD'
+
     # the web client is performing a stock check
     # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
     MSG_WC_STOCK_CHECK = 'WC_STOCK_MODE'

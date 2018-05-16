@@ -1,4 +1,5 @@
 
+import pytest
 import gevent
 import logging
 
@@ -45,15 +46,49 @@ class Test_Taskmeister:
             raise RuntimeError("unexpected tn = {}".format(tn))
         # assert False, "force fail"
 
-    def test_tick01(self):
+    def test_tick01(self) -> None:
         """TickGenerator must generate ticks when enabled"""
         testname = "hello"
         ticker = Taskmeister.TickGenerator(self.msgq, self.logger,
                                            self.sec_interval, testname)
         self.perform_timetest(ticker)
 
-    def test_random01(self):
+    def test_random01(self) -> None:
         """RandomGenerator must generate messages when enabled"""
         rand = Taskmeister.RandomGenerator(self.msgq, self.logger,
                                            self.sec_interval)
         self.perform_timetest(rand)
+
+    def test_base01(self) -> None:
+        tt1 = Taskmeister.BaseTaskMeister(self.msgq, self.logger, 1)
+        tt2 = Taskmeister.BaseReader(self.msgq, self.logger)
+        for tt in [tt1, tt2]:
+            with pytest.raises(NotImplementedError):
+                tt.generate_msg()
+
+    def test_listgen01(self) -> None:
+        testlist = ['one', 'two', '', 'three']
+        tt = Taskmeister.CommandListGenerator(self.msgq,
+                                              self.logger,
+                                              self.sec_interval,
+                                              "testy",
+                                              testlist)
+        tt.set_active(True)
+        test_sleep_time = self.sec_interval * len(testlist)
+        gevent.sleep(test_sleep_time)
+        gotlst = self.msgq.msglst
+        # check length...
+        expected_lst = [d for d in testlist if d != '']
+        assert len(gotlst) == len(expected_lst), "wrong list length"
+        # check the actual data...
+        gotmsglst = [r.data for r in gotlst]
+        assert gotmsglst == expected_lst, "lists are not the same!"
+
+    def test_listgen02(self) -> None:
+        testlist = []
+        with pytest.raises(RuntimeError):
+            Taskmeister.CommandListGenerator(self.msgq,
+                                             self.logger,
+                                             self.sec_interval,
+                                             "testy",
+                                             testlist)
