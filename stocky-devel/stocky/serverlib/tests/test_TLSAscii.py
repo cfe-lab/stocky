@@ -1,5 +1,5 @@
-# import pytest
 
+import typing
 import math
 import logging
 
@@ -9,6 +9,7 @@ from gevent.queue import Queue
 import serverlib.commlink as commlink
 import serverlib.TLSAscii as TLSAscii
 from webclient.commonmsg import CommonMSG
+import serverlib.tests.test_commlink as test_commlink
 
 
 class DeadCommLink(commlink.BaseCommLink):
@@ -16,6 +17,9 @@ class DeadCommLink(commlink.BaseCommLink):
 
     def __init__(self, cfgdct: dict) -> None:
         super().__init__(cfgdct)
+
+    def open_device(self) -> typing.Any:
+        return None
 
     def is_alive(self, doquick: bool=True) -> bool:
         return False
@@ -29,7 +33,7 @@ class Test_TLSAscii:
     def setup_method(self) -> None:
         self.msgQ = Queue()
         self.logger = logging.Logger("testing")
-        self.cl = commlink.DummyCommLink({'logger': self.logger})
+        self.cl = test_commlink.DummyCommLink({'logger': self.logger})
         self.deadcl = DeadCommLink({'logger': self.logger})
         if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")

@@ -17,7 +17,7 @@ import serverlib.QAILib as QAILib
 class BaseTaskMeister:
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
-                 sec_interval: int) -> None:
+                 sec_interval: float) -> None:
         self.msgQ = msgQ
         self.logger = logger
         self._isactive = False
@@ -71,7 +71,7 @@ class TickGenerator(BaseTaskMeister):
     The timer message contains the name (msgid) of the timer event.
     """
     def __init__(self, msgQ: gevent.queue.Queue, logger,
-                 sec_interval: int, msgid: str) -> None:
+                 sec_interval: float, msgid: str) -> None:
         super().__init__(msgQ, logger, sec_interval)
         self.msgid = msgid
 
@@ -85,7 +85,7 @@ class CommandListGenerator(TickGenerator):
     An empty string in the list means that that cycle is skipped.
     """
     def __init__(self, msgQ: gevent.queue.Queue, logger,
-                 sec_interval: int, msgid: str,
+                 sec_interval: float, msgid: str,
                  cmdlst: typing.List[str]) -> None:
         super().__init__(msgQ, logger, sec_interval, msgid)
         self.cmdlst = cmdlst

@@ -18,8 +18,9 @@ def _get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
         return yamlfilename
     if not (yamlfilename.startswith('.') or ENV_NAME is None):
         dirname = os.environ.get(ENV_NAME, None)
-        if dirname is not None:
-            yamlfilename = os.path.join(dirname, yamlfilename)
+        if dirname is None:
+            raise RuntimeError('Environment variable {} is not set'.format(ENV_NAME))
+        yamlfilename = os.path.join(dirname, yamlfilename)
     return yamlfilename
 
 

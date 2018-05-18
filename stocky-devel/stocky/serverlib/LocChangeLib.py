@@ -20,7 +20,8 @@ class LocChange:
     valid_opcode_set = frozenset(valid_opcode_lst)
 
     def __init__(self, itemid: itemidtype, timestamp: timelib.DateTimeType,
-                 oldlocid: locidtype, newlocid: locidtype,
+                 oldlocid: locidtype,
+                 newlocid: typing.Optional[locidtype],
                  opcode: opcodetype) -> None:
         self.itemid = itemid
         if not isinstance(timestamp, timelib.DateTimeType):

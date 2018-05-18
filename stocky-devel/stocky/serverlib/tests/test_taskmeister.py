@@ -1,4 +1,6 @@
 
+
+import typing
 import pytest
 import gevent
 import logging
@@ -85,7 +87,7 @@ class Test_Taskmeister:
         assert gotmsglst == expected_lst, "lists are not the same!"
 
     def test_listgen02(self) -> None:
-        testlist = []
+        testlist: typing.List[str] = []
         with pytest.raises(RuntimeError):
             Taskmeister.CommandListGenerator(self.msgq,
                                              self.logger,

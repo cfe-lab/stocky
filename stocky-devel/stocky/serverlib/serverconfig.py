@@ -21,9 +21,13 @@ STATE_DIR_ENV_NAME = 'STOCKY_STATE_DIR'
 
 VERSION_FLT = 1.0
 
+# these are the kyes that must be on file
 known_set = frozenset(['VERSION', 'RFID_REGION_CODE', 'TIME_ZONE',
                        'RFID_READER_DEVNAME', 'STOCK_LIST_URL',
                        'STOCK_LIST_FILE'])
+
+# these are the keys on file PLUS the ones added after reading the yaml file
+valid_keys = known_set | frozenset(['TZINFO'])
 
 
 def read_logging_config(yamlfilename: str) -> dict:
@@ -74,6 +78,6 @@ def read_server_config(yamlfilename: str) -> dict:
         sugg_names = [n for n, s in fuzzywuzzy.process.extract(tz_name, pytz.all_timezones, limit=10)]
         print("Did you mean any of the following: {} ?".format(", ".join(sugg_names)))
         print("*** To get a list of all possible time zone names, set the time zone variable to '?' ***")
-        raise
+        raise RuntimeError('Unknown timezone')
     cfg_dct['TZINFO'] = tzinfo
     return cfg_dct

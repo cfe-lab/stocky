@@ -147,6 +147,14 @@ class BaseCommLink:
         self.logger = cfgdct['logger']
         # we keep track of command numbers.
         self._cmdnum = 0
+        self.mydev = self.open_device()
+        self._idstr: typing.Optional[str] = None
+
+    def open_device(self) -> typing.Any:
+        # NOTE: we do not raise an notimplemented exception here, because otherwise
+        # we would not be able to instantiate a BaseCommLink.
+        self.logger.warn('BaseCommLink.opendevice() called, which should not happen')
+        return None
 
     @staticmethod
     def _line_2_resptup(l: str) -> typing.Optional[ResponseTuple]:
@@ -201,11 +209,55 @@ class BaseCommLink:
         self.raw_send_cmd(cmdstr)
         self._cmdnum += 1
 
+    def _filterbyte(self) -> bytes:
+        """Every now and again, the RFID reader sends us bytes 0x00 and 0xff which cannot
+        be translated into ASCII.
+        As far as I know, we don't need these, so just filter them out here.
+        """
+        mydev = self.mydev
+        doread = True
+        skipset = frozenset([b'\xff', b'\x00'])
+        while doread:
+            b = mydev.read(size=1)
+            doread = (b in skipset)
+        return b
+
+    def _str_readline(self) -> str:
+        """Read bytes (not strings) from the serial device until we hit
+        a (CR, LF) then collect the bytes together into a line and return as a string"""
+        retbytes, doread = b'', True
+        while doread:
+            newbyte = self._filterbyte()
+            if newbyte != byteCR:
+                retbytes += newbyte
+            else:
+                newbyte = self._filterbyte()
+                if newbyte != byteLF:
+                    self.logger.error("rd: internal error 1")
+                    raise RuntimeError('protocol error')
+                doread = False
+        try:
+            retstr = str(retbytes, 'utf-8')
+        except UnicodeDecodeError as e:
+            raise RuntimeError("bytes '{}': {}".format(retbytes, e))
+        return retstr
+
     def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
+        An exception is raised if something goes wrong.
         """
-        raise NotImplementedError("send not defined")
+        if self.mydev is None:
+            msg = 'CL: raw_send_cmd: Device is not alive!'
+            self.logger.error(msg)
+            raise RuntimeError(msg)
+        try:
+            self.logger.debug("CL: writing '{}'".format(cmdstr))
+            self.mydev.write(bytes(cmdstr, 'utf-8') + byteCRLF)
+            self.mydev.flush()
+        except Exception as e:
+            self.logger.error("write failed '{}'".format(e))
+            raise
 
     def raw_read_response(self) -> CLResponse:
         """Read a sequence of response tuples from the device.
@@ -213,7 +265,26 @@ class BaseCommLink:
         either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF>.
         The response is packed up into a CLResponse instance and returned.
         """
-        raise NotImplementedError("read not defined")
+        self.logger.debug("raw_read...")
+        rlst, done = [], False
+        while not done:
+            try:
+                cur_line = self._str_readline()
+            except Exception as e:
+                self.logger.error("readline failed '{}'".format(e))
+                raise
+            self.logger.debug("rr '{}' ({})".format(cur_line, len(cur_line)))
+            if len(cur_line) > 0:
+                resp_tup = BaseCommLink._line_2_resptup(cur_line)
+                if resp_tup is not None:
+                    rlst.append(resp_tup)
+                else:
+                    self.logger.error("line_2_resptup failed '{}'".format(cur_line))
+            else:
+                # we have reached a 'terminal' message (OK or ER)
+                done = True        # --
+        self.logger.debug("raw_read got {}...".format(rlst))
+        return CLResponse(rlst)
 
     def is_alive(self, doquick: bool=True) -> bool:
         raise NotImplementedError("is_alive not defined")
@@ -253,8 +324,8 @@ _tlsretcode_dct = {0: 'No Error',
 class SerialCommLink(BaseCommLink):
     """Communicate with the RFID reader via a serial device (i.e. USB or Bluetooth)"""
 
-    def __init__(self, cfgdct: dict) -> None:
-        super().__init__(cfgdct)
+    def open_device(self) -> typing.Any:
+        cfgdct = self.cfgdct
         devname = cfgdct['RFID_READER_DEVNAME']
         self.logger.debug("commlink opening '{}'".format(devname))
         try:
@@ -268,84 +339,8 @@ class SerialCommLink(BaseCommLink):
         except Exception as e:
             self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname))
             myser = None
-        self.mydev = myser
         self.logger.debug("serial commlink '{}' OK".format(devname))
-        self._idstr: typing.Optional[str] = None
-
-    def raw_send_cmd(self, cmdstr: str) -> None:
-        """Send a string to the device as a command.
-        The call returns as soon as the cmdstr data has been written.
-        An exception is raised if something goes wrong.
-        """
-        if self.mydev is None:
-            msg = 'CL: raw_send_cmd: Device is not alive!'
-            self.logger.error(msg)
-            raise RuntimeError(msg)
-        try:
-            self.logger.debug("CL: writing '{}'".format(cmdstr))
-            self.mydev.write(bytes(cmdstr, 'utf-8') + byteCRLF)
-            self.mydev.flush()
-        except Exception as e:
-            self.logger.error("write failed '{}'".format(e))
-            raise
-
-    def filterbyte(self) -> bytes:
-        """Every now and again, the RFID reader sends us bytes 0x00 and 0xff which cannot
-        be translated into ASCII.
-        As far as I know, we don't need these, so just filter them out here.
-        """
-        mydev = self.mydev
-        doread = True
-        skipset = frozenset([b'\xff', b'\x00'])
-        while doread:
-            b = mydev.read(size=1)
-            doread = (b in skipset)
-        return b
-
-    def _str_readline(self) -> str:
-        """Read bytes (not strings) from the serial device until we hit
-        a (CR, LF) then collect together into a line and return as a string"""
-        retbytes, doread = b'', True
-        while doread:
-            newbytes = self.filterbyte()
-            if newbytes != byteCR:
-                retbytes += newbytes
-            else:
-                newbytes = self.filterbyte()
-                if newbytes != byteLF:
-                    self.logger.error("rd: internal error 1")
-                    raise RuntimeError('protocol error')
-                doread = False
-        try:
-            retstr = str(retbytes, 'utf-8')
-        except UnicodeDecodeError as e:
-            raise RuntimeError("bytes '{}': {}".format(retbytes, e))
-        return retstr
-
-    def raw_read_response(self) -> CLResponse:
-        """Read a sequence of response tuples from the device.
-        Return a CLResponse instance.
-        """
-        self.logger.debug("raw_read...")
-        rlst, done = [], False
-        while not done:
-            try:
-                cur_line = self._str_readline()
-            except Exception as e:
-                self.logger.error("readline failed '{}'".format(e))
-                raise
-            self.logger.debug("rr '{}' ({})".format(cur_line, len(cur_line)))
-            if len(cur_line) > 0:
-                resp_tup = BaseCommLink._line_2_resptup(cur_line)
-                if resp_tup is not None:
-                    rlst.append(resp_tup)
-                else:
-                    self.logger.error("line_2_resptup failed '{}'".format(cur_line))
-            else:
-                # we have reached a 'terminal' message (OK or ER)
-                done = True        # --
-        self.logger.debug("raw_read got {}...".format(rlst))
-        return CLResponse(rlst)
+        return myser
 
     def is_alive(self, doquick: bool=True) -> bool:
         return self.mydev is not None
@@ -366,81 +361,3 @@ class SerialCommLink(BaseCommLink):
                     ('Protocol version', 'PV')]
             self._idstr = ", ".join(["{}: {}".format(title, cl_resp[k]) for title, k in klst])
         return self._idstr
-
-
-class DummyCommLink(BaseCommLink):
-    """A dummy commlink used for testing"""
-
-    def __init__(self, cfgdct: dict) -> None:
-        super().__init__(cfgdct)
-        self.resplst: typing.List[str] = []
-
-    def is_alive(self, doquick: bool=True) -> bool:
-        return True
-
-    def id_string(self) -> str:
-        return "DummyCommLink"
-
-    @staticmethod
-    def get_cmd_from_str(cmdstr: str) -> typing.Tuple[str, dict]:
-        # split off any comment dict if it exists...
-        comm_ndx = cmdstr.find(BaseCommLink.DCT_START_CHAR)
-        if comm_ndx != -1:
-            cmdstr = cmdstr[:comm_ndx-1]
-        if len(cmdstr) < 3:
-            raise RuntimeError("cmdstr too short")
-        cmdargs = cmdstr.split()
-        if len(cmdargs) == 0:
-            raise RuntimeError("cmdargs is 0")
-        cmd = cmdargs[0]
-        if cmd[0] != '.':
-            raise RuntimeError("cmdstr must start with a period")
-        cc = cmd[1:]
-        if cc not in command_set:
-            raise RuntimeError("unknown command '{}'".format(cmd))
-        optdct = {}
-        i, n = 1, len(cmdargs)
-        while i < n:
-            opt = cmdargs[i]
-            if opt[0] == '-':
-                optkey = opt[1:]
-                if i+1 < n and cmdargs[i+1][0] != '-':
-                    i += 1
-                    optval = cmdargs[i]
-                else:
-                    optval = ''
-                optdct[optkey] = optval
-            else:
-                raise RuntimeError('syntax error')
-            i += 1
-        return cc, optdct
-
-    def raw_send_cmd(self, cmdstr: str) -> None:
-        """Perform a sanity check of cmdstr and save it for later.
-        Raise an exception if there is an error in the command.
-        Also, for testing purposes, pretend to return some actual values depending
-        on the command issued.
-        """
-        cc, optdct = DummyCommLink.get_cmd_from_str(cmdstr)
-        self.resplst.append('CS: {}'.format(cmdstr))
-        if cc == 'iv' and 'x' not in optdct:
-            self.resplst.append('RI: -40')
-        self.resplst.extend(['OK:', ''])
-
-    def raw_read_response(self) -> CLResponse:
-        rlst = []
-        done = len(self.resplst) == 0
-        while not done:
-            cur_line = self.resplst.pop(0).strip()
-            if len(cur_line) > 0:
-                resp_tup = BaseCommLink._line_2_resptup(cur_line)
-                if resp_tup is not None:
-                    rlst.append(resp_tup)
-                else:
-                    self.logger.error("line_2_resptup failed '{}'".format(cur_line))
-            else:
-                # we have reached a 'terminal' message (OK or ER)
-                done = True
-            done = len(self.resplst) == 0
-        # --
-        return CLResponse(rlst)

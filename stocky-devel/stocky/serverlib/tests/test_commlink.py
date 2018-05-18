@@ -1,33 +1,218 @@
+import typing
 import pytest
-
 import logging
 
 import serverlib.commlink as commlink
 
 
+class dummyserialdevice:
+    def __init__(self, cont: bytes=b'') -> None:
+        assert isinstance(cont, bytes), "expected bytes"
+        self.cont = cont
+        self.pos = 0
+        self.doraise = False
+
+    def read(self, size: int=1) -> bytes:
+        assert size == 1, 'only support size = 1'
+        if self.pos < len(self.cont):
+            retbyte = self.cont[self.pos:self.pos+1]
+            self.pos += 1
+            assert isinstance(retbyte, bytes), 'read returning non-byte'
+            return retbyte
+        else:
+            raise RuntimeError('EOF reached')
+
+    def write(self, b: bytes) -> None:
+        assert isinstance(b, bytes), 'write wants bytes!'
+        self.cont += b
+
+    def flush(self) -> None:
+        if self.doraise:
+            raise RuntimeError('Raise on Flush')
+
+    def get_cont(self) -> bytes:
+        return self.cont
+
+    def raise_on_flush(self, on: bool) -> None:
+        self.doraise = on
+
+
+class DummySerialCommLink(commlink.SerialCommLink):
+
+    def open_device(self) -> typing.Any:
+        return dummyserialdevice(b'bla')
+
+
+class DummyCommLink(commlink.BaseCommLink):
+    """A dummy commlink used for testing"""
+
+    def __init__(self, cfgdct: dict) -> None:
+        super().__init__(cfgdct)
+        self.resplst: typing.List[str] = []
+
+    def is_alive(self, doquick: bool=True) -> bool:
+        return True
+
+    def id_string(self) -> str:
+        return "DummyCommLink"
+
+    def open_device(self) -> typing.Any:
+        return None
+
+    @staticmethod
+    def get_cmd_from_str(cmdstr: str) -> typing.Tuple[str, dict]:
+        # split off any comment dict if it exists...
+        comm_ndx = cmdstr.find(commlink.BaseCommLink.DCT_START_CHAR)
+        if comm_ndx != -1:
+            cmdstr = cmdstr[:comm_ndx-1]
+        if len(cmdstr) < 3:
+            raise RuntimeError("cmdstr too short")
+        cmdargs = cmdstr.split()
+        if len(cmdargs) == 0:
+            raise RuntimeError("cmdargs is 0")
+        cmd = cmdargs[0]
+        if cmd[0] != '.':
+            raise RuntimeError("cmdstr must start with a period")
+        cc = cmd[1:]
+        if cc not in commlink.command_set:
+            raise RuntimeError("unknown command '{}'".format(cmd))
+        optdct = {}
+        i, n = 1, len(cmdargs)
+        while i < n:
+            opt = cmdargs[i]
+            if opt[0] == '-':
+                optkey = opt[1:]
+                if i+1 < n and cmdargs[i+1][0] != '-':
+                    i += 1
+                    optval = cmdargs[i]
+                else:
+                    optval = ''
+                optdct[optkey] = optval
+            else:
+                raise RuntimeError('syntax error')
+            i += 1
+        return cc, optdct
+
+    def raw_send_cmd(self, cmdstr: str) -> None:
+        """Perform a sanity check of cmdstr and save it for later.
+        Raise an exception if there is an error in the command.
+        Also, for testing purposes, pretend to return some actual values depending
+        on the command issued.
+        """
+        cc, optdct = DummyCommLink.get_cmd_from_str(cmdstr)
+        self.resplst.append('CS: {}'.format(cmdstr))
+        if cc == 'iv' and 'x' not in optdct:
+            self.resplst.append('RI: -40')
+        self.resplst.extend(['OK:', ''])
+
+    def raw_read_response(self) -> commlink.CLResponse:
+        rlst = []
+        done = len(self.resplst) == 0
+        while not done:
+            cur_line = self.resplst.pop(0).strip()
+            if len(cur_line) > 0:
+                resp_tup = commlink.BaseCommLink._line_2_resptup(cur_line)
+                if resp_tup is not None:
+                    rlst.append(resp_tup)
+                else:
+                    self.logger.error("line_2_resptup failed '{}'".format(cur_line))
+            else:
+                # we have reached a 'terminal' message (OK or ER)
+                done = True
+            done = len(self.resplst) == 0
+        # --
+        return commlink.CLResponse(rlst)
+
+
 BaseCommLinkClass = commlink.BaseCommLink
-DummyCommLinkClass = commlink.DummyCommLink
+DummyCommLinkClass = DummyCommLink
 
-CommLinkClass = commlink.DummyCommLink
+CommLinkClass = DummyCommLink
 
 
-class Test_Commlink:
+class Test_commlink:
 
     def setup_method(self) -> None:
         self.logger = logging.Logger("testing")
-        self.cl = CommLinkClass({'logger': self.logger})
+        cfgdct = {'logger': self.logger}
+        self.cl = CommLinkClass(cfgdct)
         if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
+        self.dscl = DummySerialCommLink(cfgdct)
+
+    def test_str_read01(self):
+        """_str_readline must strip out unwanted characters."""
+        cfgdct = {'logger': self.logger}
+        dscl = DummySerialCommLink(cfgdct)
+        dscl.mydev = dummyserialdevice(b'he\xffll\x00o' + commlink.byteCRLF)
+        retval = dscl._str_readline()
+        assert isinstance(retval, str), 'string expected'
+        assert retval == 'hello', 'hello expected'
+        # print('retval {}'.format(retval))
+        # assert False, 'force fail'
+
+    def test_str_read02(self):
+        """_str_readline must raise an exception if a line is not properly terminated."""
+        cfgdct = {'logger': self.logger}
+        dscl = DummySerialCommLink(cfgdct)
+        dscl.mydev = dummyserialdevice(b'he\xffll\x00o' + commlink.byteCR + commlink.byteCR)
+        with pytest.raises(RuntimeError):
+            dscl._str_readline()
+
+    def test_str_read03(self):
+        """_str_readline must raise an exception when it reads non-utf8 characters."""
+        cfgdct = {'logger': self.logger}
+        dscl = DummySerialCommLink(cfgdct)
+        dscl.mydev = dummyserialdevice(b'he\xfell\x00o' + commlink.byteCRLF)
+        with pytest.raises(RuntimeError):
+            dscl._str_readline()
+
+    def test_raw_send_cmd01(self):
+        cfgdct = {'logger': self.logger}
+        dscl = DummySerialCommLink(cfgdct)
+        with pytest.raises(RuntimeError):
+            dscl.mydev = None
+            dscl.raw_send_cmd('hello RFID')
+        #
+        ds = dscl.mydev = dummyserialdevice()
+        teststr = 'hello RFID'
+        dscl.raw_send_cmd(teststr)
+        gotbytes = ds.get_cont()
+        assert isinstance(gotbytes, bytes), 'expected bytes'
+        # NOTE: the received string will have CRLF appended to it.
+        gotstr = str(gotbytes, 'utf-8').strip()
+        assert teststr == gotstr, 'unexpected string'
+
+        # now switch on ds to raise an exception on flush
+        ds.raise_on_flush(True)
+        with pytest.raises(RuntimeError):
+            dscl.raw_send_cmd(teststr)
+
+    def test_raw_read_response01(self):
+        cfgdct = {'logger': self.logger}
+        dscl = DummySerialCommLink(cfgdct)
+        testbytes = b"""CS: .iv'
+        EP: 000000000000000000001242
+        RI: -61
+        OK:""" + commlink.byteCRLF + commlink.byteCRLF
+        dscl.mydev = dummyserialdevice(testbytes)
+        retval = dscl.raw_read_response()
+        assert isinstance(retval, commlink.CLResponse), 'wrong type'
+        # assert False, "force fail"
+
+    def test_is_alive01(self):
+        cfgdct = {'logger': self.logger}
+        dscl = DummySerialCommLink(cfgdct)
+        assert dscl.is_alive(), "expected true"
+        dscl.mydev = None
+        assert not dscl.is_alive(), "expected false"
 
     def test_baseCL_notimp(self):
         """The base should raise NotImplemented errors."""
         b = BaseCommLinkClass({'logger': self.logger})
-        for func in [lambda b: b.raw_send_cmd('bla'),
-                     lambda b: b.send_cmd('bla'),
-                     lambda b: b.raw_read_response(),
-                     lambda b: b.is_alive(),
+        for func in [lambda b: b.is_alive(),
                      lambda b: b.id_string()]:
             with pytest.raises(NotImplementedError):
                 func(b)
@@ -165,4 +350,3 @@ class Test_Commlink:
         with pytest.raises(RuntimeError):
             self.cl._blocking_cmd(".bla -p")
         # assert False, "force fail"
-

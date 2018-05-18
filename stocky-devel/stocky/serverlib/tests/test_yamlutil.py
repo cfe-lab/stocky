@@ -2,6 +2,10 @@
 import typing
 import pytest
 import py.path
+import unittest.mock as mock
+import os
+import os.path
+
 import pytz
 
 import serverlib.yamlutil as yamlutil
@@ -20,6 +24,41 @@ class Test_yamlutil:
         """Reading a nonexistent file should raise a RuntimeError"""
         with pytest.raises(RuntimeError):
             yamlutil.readyamlfile('bla.goo')
+
+    def test_get_filename01(self) -> None:
+        fname = 'hello.dolly'
+        envname = 'SCOENV'
+        # a: nonexistent env var should rais an exception
+        with pytest.raises(RuntimeError):
+            yamlutil._get_filename(fname, envname)
+        # b: existing env var should work
+        envval = 'bladir'
+        exp_str = os.path.join(envval, fname)
+        with mock.patch.dict(os.environ, {envname: envval}):
+            got_str = yamlutil._get_filename(fname, envname)
+            print('retstr {}'.format(got_str))
+            assert exp_str == got_str, 'unexpectd str'
+        # assert False, 'force fail'
+
+    def test_readscanner01(self, tmpdir: py.path.local) -> None:
+        """A YAML scanning error should raise an exception."""
+        locfname = str(tmpdir.join('/bla.yaml'))
+        with open(locfname, "w") as fo:
+            fo.write("!?\}")
+        with pytest.raises(RuntimeError):
+            yamlutil.readyamlfile(locfname)
+        # print("got '{}'".format(d))
+        # assert False, "force fail"
+
+    def test_readparse01(self, tmpdir: py.path.local) -> None:
+        """A YAML parsing error should raise an exception."""
+        locfname = str(tmpdir.join('/bla.yaml'))
+        with open(locfname, "w") as fo:
+            fo.write("[1, 2, }")
+        with pytest.raises(RuntimeError):
+            yamlutil.readyamlfile(locfname)
+        # print("got '{}'".format(d))
+        # assert False, "force fail"
 
     def check_dump(self, fname: str, data: typing.Any, lverb: bool) -> None:
         """Dump some data, read it back and compare to the original"""
