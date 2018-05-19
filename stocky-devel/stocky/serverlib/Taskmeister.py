@@ -1,6 +1,9 @@
 
 
-# a generic class that defines interfaces to job tasks
+# a generic class that defines an interface to gevent job tasks
+# a Taskmeister has a gevent loop which, when active, puts CommonMSG instances onto
+# a message queue
+
 import typing
 from random import random
 
@@ -29,6 +32,10 @@ class BaseTaskMeister:
         self._isactive = is_active
 
     def _worker_loop(self) -> None:
+        """The Taskmeister even generation loop.
+        If we are active, we put non-None messages onto the provided message queue
+        that self.generate_msg() has created, then sleep for the required time.
+        """
         msgq = self.msgQ
         while True:
             if self._isactive:
@@ -36,7 +43,7 @@ class BaseTaskMeister:
                 if msg is not None:
                     msgq.put(msg)
             # --
-            if self._sec_sleep > 0:
+            if self._sec_sleep > 0.0:
                 gevent.sleep(self._sec_sleep)
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
@@ -53,13 +60,17 @@ class BaseReader(BaseTaskMeister):
     activated upon instantiation, and waits sec_interval=0 seconds in the main loop.
     The main purpose of this class is for handling blocking reads (websockets, bluetooth, ...)
     """
-    def __init__(self, msgQ: gevent.queue.Queue, logger) -> None:
-        super().__init__(msgQ, logger, 0)
-        self.set_active(True)
+    def __init__(self, msgQ: gevent.queue.Queue,
+                 logger,
+                 sec_interval: float,
+                 do_activate: bool) -> None:
+        super().__init__(msgQ, logger, sec_interval)
+        if do_activate:
+            self.set_active(True)
 
 
 class RandomGenerator(BaseTaskMeister):
-    """Generate a random message every second. This is used for testing."""
+    """Generate a random number message every X seconds. This is used for testing."""
     def generate_msg(self) -> typing.Optional[CommonMSG]:
         number = round(random()*10, 3)
         self.logger.debug("random: {}".format(number))
@@ -104,9 +115,14 @@ class CommandListGenerator(TickGenerator):
 class WebSocketReader(BaseReader):
     """The stocky server uses this Taskmeister to receive messages from the webclient
     in json format. It puts CommonMSG instances onto the queue."""
-    def __init__(self, msgQ: gevent.queue.Queue, logger, ws: websocket) -> None:
-        super().__init__(msgQ, logger)
+
+    def __init__(self, msgQ: gevent.queue.Queue,
+                 logger,
+                 ws: websocket,
+                 sec_interval: float=0.0,
+                 do_activate: bool=True) -> None:
         self.ws = ws
+        super().__init__(msgQ, logger, sec_interval, do_activate)
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
         """Block until a command is received from the webclient over websocket.
@@ -119,6 +135,24 @@ class WebSocketReader(BaseReader):
         if msg is None:
             retmsg = None
         else:
-            dct = QAILib.fromjson(msg)
-            retmsg = CommonMSG(dct['msg'], dct['data'])
+            dct = QAILib.safe_fromjson(msg)
+            if dct is None:
+                self.logger.warn("malformed json string, got '{}'".format(msg))
+                retmsg = None
+            elif isinstance(dct, dict):
+                exp_keys = frozenset(['msg', 'data'])
+                got_keys = set(dct.keys())
+                if got_keys == exp_keys:
+                    # now make sure we have a legal msg field
+                    try:
+                        retmsg = CommonMSG(dct['msg'], dct['data'])
+                    except AssertionError as e:
+                        self.logger.warn("illegal msgtype= '{}'".format(dct['msg']))
+                        retmsg = None
+                else:
+                    self.logger.warn("unexpected dict keys, got '{}'".format(got_keys))
+                    retmsg = None
+            else:
+                self.logger.warn("expected a single dict in json message , but got '{}'".format(dct))
+                retmsg = None
         return retmsg

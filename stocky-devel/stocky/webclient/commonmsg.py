@@ -48,7 +48,17 @@ class CommonMSG:
     # the RFID reader has produced a command response
     MSG_RF_CMD_RESP = 'RF_CMD_RESP'
 
+    # NOTE: because of transcrypt, we cannot use a set..
+    valid_msg_lst = [MSG_SV_RAND_NUM, MSG_SV_TIMER_TICK, MSG_SV_USB_STATE_CHANGE,
+                     MSG_SV_NEW_STOCK_LIST, MSG_SV_GENERIC_COMMAND,
+                     MSG_WC_STOCK_CHECK, MSG_WC_SET_STOCK_LOCATION, MSG_WC_RADAR_MODE,
+                     MSG_RF_STOCK_DATA, MSG_RF_RADAR_DATA, MSG_RF_CMD_RESP]
+
+    valid_msg_dct = dict([(k, 1) for k in valid_msg_lst])
+
     def __init__(self, msg: str, data: typing.Any) -> None:
+        assert isinstance(msg, str), 'msg must be a string!'
+        assert CommonMSG.valid_msg_dct.get(msg, None) is not None, "illegal msg string '{}'".format(msg)
         self.msg = msg
         self.data = data
 

@@ -303,7 +303,7 @@ class TLSReader(Taskmeister.BaseReader):
                  cl: commlink.BaseCommLink,
                  radar_ave_num: int) -> None:
         """Create a class that can talk to the RFID reader via the provided commlink class."""
-        super().__init__(msgQ, logger)
+        super().__init__(msgQ, logger, 0, True)
         self._cl = cl
         self.mode = tls_mode(tls_mode.undef)
         self.runningave = RunningAve(logger, radar_ave_num)
@@ -348,12 +348,15 @@ class TLSReader(Taskmeister.BaseReader):
             else:
                 raise RuntimeError('unknown mode')
         elif comment_str == 'radarsetup':
+            # the server has previously sent a command to the RFID reader to go into
+            # radar mode. We generate a message only if this failed.
             if not ret_is_ok:
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
         elif comment_str == 'RAD':
             msg_type = CommonMSG.MSG_RF_RADAR_DATA
         elif comment_str == 'IVreset':
-            return None
+            if not ret_is_ok:
+                msg_type = CommonMSG.MSG_RF_CMD_RESP
         else:
             self.logger.error('unhandled comment string {}'.format(comment_str))
         # B: now try to determine ret_data.
@@ -396,7 +399,7 @@ class TLSReader(Taskmeister.BaseReader):
         NOTE: not all 1128 readers support this command and will return and error message
         instead.
         """
-        if len(region_code) != 2:
+        if not isinstance(region_code, str) or len(region_code) != 2:
             raise RuntimeError("length of region code <> 2!")
         cmdstr = ".sr -s {}".format(region_code)
         self._sendcmd(cmdstr)
@@ -419,11 +422,7 @@ class TLSReader(Taskmeister.BaseReader):
                                                        p.pitch.value)
         self._sendcmd(cmdstr)
 
-    def get_alert_default(self) -> AlertParams:
-        """Return the current default alert parameters."""
-        raise NotImplementedError('not implemented')
-
-    def abort(self) -> None:
+    def send_abort(self) -> None:
         """Abort the current command."""
         cmdstr = ".ab\n"
         self._sendcmd(cmdstr)
@@ -431,9 +430,6 @@ class TLSReader(Taskmeister.BaseReader):
     def set_readbarcode_params(self, p: BarcodeParams) -> None:
         cmdstr = ".bc " + p.tostr() + " -n\n"
         self._sendcmd(cmdstr, "bcparams")
-
-    def get_readbarcode_params(self) -> BarcodeParams:
-        raise NotImplementedError('not implemented')
 
     def readbarcode(self, p: BarcodeParams) -> None:
         """Perform a read barcode operation. If p is None, use the

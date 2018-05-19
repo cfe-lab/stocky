@@ -74,7 +74,8 @@ class Test_serverlib:
                              ('TIME_ZONE', '?'),
                              ('TIME_ZONE', 'moon')
                              ]:
-            with mock.patch.dict(dnew, {k: brokenval}, clear=True):
+            # with mock.patch.dict(dnew, values={k: brokenval}):
+            with mock.patch.dict(dnew, {k: brokenval}):
                 yamlutil.writeyamlfile(dnew, fname)
                 with pytest.raises(RuntimeError):
                     serverconfig.read_server_config(fname)

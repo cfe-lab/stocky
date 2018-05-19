@@ -53,11 +53,18 @@ class Test_TLSAscii:
         # print("GOOT {}".format(rssi))
         # assert False, "force fail"
 
+    def test_is_radarmode01(self):
+        assert not self.tls.is_in_radarmode(), 'not radarmode expected!'
+        self.tls.mode = TLSAscii.tls_mode.radar
+        assert self.tls.is_in_radarmode(), 'radarmode expected!'
+
     def test_barcodeparams01(self):
         bb = TLSAscii.BarcodeParams(True, True, 1)
         assert bb is not None, "alert failed"
         bcstr = bb.tostr()
         assert isinstance(bcstr, str), "expected a string"
+        self.tls.set_readbarcode_params(bb)
+        self.tls.readbarcode(bb)
 
     def test_barcodeparams02(self):
         with pytest.raises(RuntimeError):
@@ -68,6 +75,11 @@ class Test_TLSAscii:
                                   vblen=TLSAscii.BuzzViblen('med'),
                                   pitch=TLSAscii.Buzzertone('med'))
         assert aa is not None, "alert failed"
+        self.tls.doalert(aa)
+        self.tls.set_alert_default(aa)
+
+    def test_abort_cmd(self):
+        self.tls.send_abort()
 
     def test_RFIDparams01(self):
         assert len(TLSAscii.rfid_lst) == len(TLSAscii.rfid_order_lst)
@@ -89,6 +101,21 @@ class Test_TLSAscii:
             print("unexpected '{}', expected '{}'".format(retstr, exp_str))
             raise RuntimeError("RFIDParams fail")
 
+    def test_set_date_time(self):
+        """Test legal and illegal datetimes..."""
+        for dt in [(2009, 10, 20, 25, 60, 60),
+                   (2009, 10, 20, 23, 60, 59),
+                   (2009, 10, 20, 23, 59, 60),
+                   (2009, 10, 20, 25, 59, 59),
+                   (2009, 10, 36, 23, 59, 59),
+                   (2009, 13, 20, 23, 59, 59),
+                   (1999, 13, 20, 23, 59, 59)]:
+            with pytest.raises(RuntimeError):
+                print('testing {}'.format(dt))
+                self.tls.set_date_time(*dt)
+        dt = (2009, 10, 20, 22, 59, 59)
+        self.tls.set_date_time(*dt)
+
     def test_RFIDparams04(self):
         with pytest.raises(RuntimeError):
             TLSAscii.RFIDParams(wonky_arg=99)
@@ -96,6 +123,18 @@ class Test_TLSAscii:
     def test_runningave01(self):
         with pytest.raises(RuntimeError):
             TLSAscii.RunningAve(self.logger, 0)
+
+    def test_stock_check_mode(self):
+        self.tls.BT_set_stock_check_mode()
+
+    def test_set_region(self):
+        """Test setting the region code string"""
+        for reg in ['BLA', 100]:
+            with pytest.raises(RuntimeError):
+                self.tls.set_region(reg)
+
+        # NOTE: this should work, but we don't yet test for the generated output..
+        self.tls.set_region('us')
 
     def test_runningave02(self):
         ave_len = 2
@@ -143,6 +182,7 @@ class Test_TLSAscii:
             assert gotval is None, "expected None"
 
     def test_convert_msg(self):
+        "Test the _convert_message with a number of legal and illegal RFID messages"
         rone = [('CS', '.iv'),
                 ('EP', '000000000000000000001242'), ('RI', '-64'),
                 ('EP', '000000000000000000001243'), ('RI', '-55'),
@@ -193,6 +233,37 @@ class Test_TLSAscii:
                     (rsix, radar_mode, rad_dat, None),
                     (rsix, stock_mode, stk_dat, None),
                     (rsix, undef_mode, cmd_dat, None)]
+        #
+        # pass in messages with a radarsetup comment
+        # one OK, one error message
+        ivcmd = '.iv A{"MSG":"31","CMT":"radarsetup"}B'
+        rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
+        rad2 = [('CS', ivcmd),
+                ('EP', '000000000000000000001242'), ('RI', '-67'),
+                ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
+        testvals.append((rad1, undef_mode, cmd_dat, 3))
+        testvals.append((rad2, undef_mode, rad_dat, None))
+
+        #
+        # pass in messages with an IVreset comment
+        ivcmd = '.iv A{"MSG":"31","CMT":"IVreset"}B'
+        rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
+        rad2 = [('CS', ivcmd),
+                ('EP', '000000000000000000001242'), ('RI', '-67'),
+                ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
+        testvals.append((rad1, undef_mode, cmd_dat, 3))
+        testvals.append((rad2, undef_mode, rad_dat, None))
+
+        # pass in messages with an unknown commentstring
+        # should return None in both cases
+        ivcmd = '.iv A{"MSG":"31","CMT":"WONKYCOMMENT"}B'
+        rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
+        rad2 = [('CS', ivcmd),
+                ('EP', '000000000000000000001242'), ('RI', '-67'),
+                ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
+        testvals.append((rad1, undef_mode, cmd_dat, None))
+        testvals.append((rad2, undef_mode, rad_dat, None))
+
         for testlst, test_mode, expected_msg, exp_val in testvals:
             print("\n\n-------------------------")
             testin = commlink.CLResponse(testlst)
@@ -225,8 +296,15 @@ class Test_TLSAscii:
                     dat = dct['data']
                     if not isinstance(dat, list) or len(dat) != exp_val:
                         print("expected data as a list of length exp_val = {}".format(exp_val))
-                        print("inp: {}, mode: {}, exp_msg: {}, exp_val: {}".format(testlst,
-                                                                                   test_mode,
-                                                                                   expected_msg,
-                                                                                   exp_val))
+                        print("data is '{}'".format(dat))
+                        print("inp: {},\n mode: {},\n exp_msg: {},\n exp_val(length): {}".format(testlst,
+                                                                                                 test_mode,
+                                                                                                 expected_msg,
+                                                                                                 exp_val))
                         raise RuntimeError("unexpected output")
+
+        # an illegal TLS mode should raise an exception..
+        testin = commlink.CLResponse(rone)
+        self.tls.mode = 'bla'
+        with pytest.raises(RuntimeError):
+            self.tls._convert_message(testin)

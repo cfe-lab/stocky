@@ -2,19 +2,22 @@
 # See the runserver.sh script in this directory for how to launch the program.
 
 
-import logging.config
-import flask
-from flask_sockets import Sockets
-
 
 from geventwebsocket import websocket
 import serverlib.serverconfig as serverconfig
 import serverlib.commlink as commlink
 import serverlib.stockyserver as stockyserver
 
+import logging
+import logging.config
+# import logging.Logger.manager as logman
+import flask
+from flask_sockets import Sockets
+
 
 def get_logger_name(mylogger) -> str:
     ld = logging.Logger.manager.loggerDict
+    # ld = logman.loggerDict
     # print("loggernames {}".format(ld.keys()))
     for k, v in ld.items():
         if v == mylogger:
