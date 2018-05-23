@@ -25,7 +25,7 @@ class LocChange:
                  opcode: opcodetype) -> None:
         self.itemid = itemid
         if not isinstance(timestamp, timelib.DateTimeType):
-            raise RuntimeError("timestamp must be a datetime")
+            raise TypeError("timestamp must be a datetime")
         self.ts = timestamp
         self.oldlocid = oldlocid
         self.newlocid = newlocid
@@ -63,7 +63,8 @@ class LocChange:
     @staticmethod
     def from_dict(d: dict) -> "LocChange":
         """Create a new LocChange instance from a serialised dictionary"""
-        assert isinstance(d, dict), "dict instance expected"
+        if not isinstance(d, dict):
+            raise TypeError("dict instance expected")
         klst = ['itemid', 'ts', 'oldlocid', 'newlocid', 'opcode']
         val_lst = [d[k] for k in klst]
         # check for the datetime, entry...

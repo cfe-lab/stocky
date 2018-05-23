@@ -18,7 +18,7 @@ class Test_timelib:
             assert isinstance(nn, timelib.DateTimeType), "wrong type returned"
 
     def test_loc02(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(TypeError):
             timelib.set_local_timezone("now")
 
     def test_loc03(self):

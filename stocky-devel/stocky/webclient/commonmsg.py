@@ -57,8 +57,10 @@ class CommonMSG:
     valid_msg_dct = dict([(k, 1) for k in valid_msg_lst])
 
     def __init__(self, msg: str, data: typing.Any) -> None:
-        assert isinstance(msg, str), 'msg must be a string!'
-        assert CommonMSG.valid_msg_dct.get(msg, None) is not None, "illegal msg string '{}'".format(msg)
+        if not isinstance(msg, str):
+            raise TypeError('msg must be a string!')
+        if CommonMSG.valid_msg_dct.get(msg, None) is None:
+            raise ValueError("illegal msg string '{}'".format(msg))
         self.msg = msg
         self.data = data
 

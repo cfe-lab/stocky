@@ -101,7 +101,7 @@ class CommandListGenerator(TickGenerator):
         super().__init__(msgQ, logger, sec_interval, msgid)
         self.cmdlst = cmdlst
         if len(cmdlst) == 0:
-            raise RuntimeError("cmdlst len is 0")
+            raise ValueError("cmdlst len is 0")
         self.nmsg = 0
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
@@ -146,7 +146,7 @@ class WebSocketReader(BaseReader):
                     # now make sure we have a legal msg field
                     try:
                         retmsg = CommonMSG(dct['msg'], dct['data'])
-                    except AssertionError as e:
+                    except (ValueError, TypeError) as e:
                         self.logger.warn("illegal msgtype= '{}'".format(dct['msg']))
                         retmsg = None
                 else:

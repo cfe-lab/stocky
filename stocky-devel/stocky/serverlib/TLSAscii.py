@@ -28,6 +28,9 @@ Some parameters need to enclosed in double quotes.
 
 BarcodeType = str
 
+# and electronic producet code type. Also see is_valid_EPC
+EPCstring = str
+
 
 class BuzzViblen(Enum):
     """length of buzzer or vibrator"""
@@ -66,7 +69,7 @@ class BarcodeParams:
         self.with_date_time = with_date_time
         self.read_time_secs = read_time_secs
         if read_time_secs < 1 or read_time_secs > 9:
-            raise RuntimeError("BarcodeParams: read_time is out of range!")
+            raise ValueError("BarcodeParams: read_time is out of range!")
 
     def tostr(self) -> str:
         cmdstr = "-al {} -dt {} -t {}".format(onoffdct[self.doalert],
@@ -130,6 +133,19 @@ valid_rfid_dct = dict(rfid_lst)
 rfid_order_lst = ['x', 'al', 'c', 'e', 'r', 'ie', 'dt', 'fs', 'ix', 'sb',
                   'so', 'sl', 'sd', 'o', 'io', 'sa', 'st', 'qa', 'ql', 'qs',
                   'qt', 'qv', 'fi', 'tf', 'p', 'n']
+
+
+def is_valid_EPC(epc: EPCstring) -> bool:
+    """Perform a somple sanity check on the EPC code.
+    Return 'the EPC code is not apparently broken'
+    """
+    if isinstance(epc, EPCstring):
+        # EPC code must be 96 bits in length. This is 24 4-bit hex characters
+        len_ok = len(epc) == 24
+        # currently, we do not check contents
+        return len_ok
+    else:
+        return False
 
 
 class RFIDParams:
@@ -399,8 +415,10 @@ class TLSReader(Taskmeister.BaseReader):
         NOTE: not all 1128 readers support this command and will return and error message
         instead.
         """
-        if not isinstance(region_code, str) or len(region_code) != 2:
-            raise RuntimeError("length of region code <> 2!")
+        if not isinstance(region_code, str):
+            raise TypeError('string expected for region code')
+        if len(region_code) != 2:
+            raise ValueError("length of region code <> 2!")
         cmdstr = ".sr -s {}".format(region_code)
         self._sendcmd(cmdstr)
 
@@ -467,21 +485,39 @@ class TLSReader(Taskmeister.BaseReader):
 
         The hour (hh parameter) is in  24 hour format.
         """
-        if not (0 <= hrs <= 24):
-            raise RuntimeError("hour is out of range")
-        if not (0 <= mins < 60):
-            raise RuntimeError("minute is out of range")
-        if not (0 <= secs < 60):
-            raise RuntimeError("second is out of range")
+        if isinstance(hrs, int):
+            if not (0 <= hrs <= 24):
+                raise ValueError("hour is out of range")
+        else:
+            raise TypeError('int expected for hrs')
+        if isinstance(mins, int):
+            if not (0 <= mins < 60):
+                raise ValueError("minute is out of range")
+        else:
+            raise TypeError('int expected for mins')
+        if isinstance(secs, int):
+            if not (0 <= secs < 60):
+                raise ValueError("second is out of range")
+        else:
+            raise TypeError('int expected for secs')
         cmdstr = ".tm -s {:02d}{:02d}{:02d}".format(hrs, mins, secs)
         self._sendcmd(cmdstr, "settime")
 
-        if yy < 2000:
-            raise RuntimeError("year is out of range")
-        if not (1 <= mm <= 12):
-            raise RuntimeError("month is out of range")
-        if not (1 <= dd <= 31):
-            raise RuntimeError("day is out of range")
+        if isinstance(yy, int):
+            if yy < 2000:
+                raise ValueError("year is out of range")
+        else:
+            raise TypeError('int expected for year')
+        if isinstance(mm, int):
+            if not (1 <= mm <= 12):
+                raise ValueError("month is out of range")
+        else:
+            raise TypeError('int expected for month')
+        if isinstance(dd, int):
+            if not (1 <= dd <= 31):
+                raise ValueError("day is out of range")
+        else:
+            raise TypeError('int expected for day')
         cmdstr = ".da -s {:02d}{:02d}{:02d}".format(yy-2000, mm, dd)
         self._sendcmd(cmdstr, "setdate")
 
@@ -489,7 +525,7 @@ class TLSReader(Taskmeister.BaseReader):
         """Issue a command to reset the .iv options to the default ones."""
         self._sendcmd(".iv -x", "IVreset")
 
-    def RadarSetup(self, EPCcode: str) -> None:
+    def RadarSetup(self, epc: EPCstring) -> None:
         """Set up the reader to search for a tag with a specific Electronic Product Code (EPC).
         by later on issuing RadarGet() commands.
         The 'Radar' functionality allows the user to search for a specific tag, and to determine
@@ -497,7 +533,7 @@ class TLSReader(Taskmeister.BaseReader):
 
         See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
         """
-        # cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(EPCcode)
+        # cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(epc)
         self.reset_inventory_options()
         cmdstr = ".iv -al off -x -n -fi on -ron -io off -qt b -qs s0 -sa 4 -st s0 -sl 30 -so 0020"
         self._sendcmd(cmdstr, "radarsetup")
@@ -519,6 +555,8 @@ class TLSReader(Taskmeister.BaseReader):
     def send_RFID_msg(self, msg: CommonMSG) -> None:
         """The stocky server uses this routine to send messages (commands) to the
         RFID reader device."""
+        if not isinstance(msg, CommonMSG):
+            raise TypeError('CommonMSG instance expected')
         if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
             self.mode = tls_mode.stock
             self.BT_set_stock_check_mode()
@@ -533,4 +571,28 @@ class TLSReader(Taskmeister.BaseReader):
             self._sendcmd(cmdstr, "radarsetup")
         else:
             self.mode = tls_mode.undef
-            self.logger.debug("TLS skipping msg {}".format(msg))
+            self.logger.warn("TLS skipping msg {}".format(msg))
+
+    def write_user_bank(self, epc: EPCstring, data: str) -> None:
+        """Select a tag with the provided EPC code and write
+        the data string to the user bank.
+
+        The data string is a string containing ASCII-hex characters
+        which must be a multiple of four (only words are written)
+
+        NOTE: this command string was adapted from the document provided
+        by TSL to their customers:
+        Application\ Note\ -\ Selecting\ Reading\ and\ Writing\ Transponders\
+        with\ the\ TSL\ ASCII\ 2\ Protocol\ V1.33.pdf
+        """
+        if isinstance(data, str):
+            if len(data) % 4 != 0:
+                raise ValueError('data string must be a multiple of four in length')
+        else:
+            raise TypeError('data string expected')
+        d_len = len(data) // 4
+        # this determined the location in the user bank t write the data
+        data_offset = '0005'
+        cmdstr = """.wr -db usr -da {} -dl {} -do {} -ql all -qs s1 -qt b -sa 4 -sb epc
+ -sd {} -sl 60 -so 0020 -st s1""".format(data, d_len, data_offset, epc)
+        self._sendcmd(cmdstr, comment='WRITE')

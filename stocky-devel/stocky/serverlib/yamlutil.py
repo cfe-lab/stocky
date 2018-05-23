@@ -78,6 +78,6 @@ def readyamlfile(yamlfilename: str, ENV_NAME: str=None) -> typing.Any:
                 raise RuntimeError("YAML scanning error reading from '{}'\n{}".format(yamlfilename, e))
             except yaml.parser.ParserError as e:
                 raise RuntimeError("YAML parse error reading from '{}'\n{}".format(yamlfilename, e))
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IsADirectoryError) as e:
         raise RuntimeError("YAML: file not found '{}'".format(yamlfilename))
     return _massage_td(data)

@@ -67,7 +67,7 @@ class Test_TLSAscii:
         self.tls.readbarcode(bb)
 
     def test_barcodeparams02(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError):
             TLSAscii.BarcodeParams(True, True, 22)
 
     def test_alertparams01(self):
@@ -103,6 +103,7 @@ class Test_TLSAscii:
 
     def test_set_date_time(self):
         """Test legal and illegal datetimes..."""
+        # try with wrong values
         for dt in [(2009, 10, 20, 25, 60, 60),
                    (2009, 10, 20, 23, 60, 59),
                    (2009, 10, 20, 23, 59, 60),
@@ -110,9 +111,20 @@ class Test_TLSAscii:
                    (2009, 10, 36, 23, 59, 59),
                    (2009, 13, 20, 23, 59, 59),
                    (1999, 13, 20, 23, 59, 59)]:
-            with pytest.raises(RuntimeError):
+            with pytest.raises(ValueError):
                 print('testing {}'.format(dt))
                 self.tls.set_date_time(*dt)
+        # should work
+        ok_tup = (2009, 10, 20, 22, 59, 59)
+        self.tls.set_date_time(*ok_tup)
+        # replace each argument with an int in turn: should fail...
+        for i in range(len(ok_tup)):
+            broken_lst = list(ok_tup)
+            broken_lst[i] = 'bla'
+            dt = tuple(broken_lst)
+            with pytest.raises(TypeError):
+                self.tls.set_date_time(*dt)
+        # this should work
         dt = (2009, 10, 20, 22, 59, 59)
         self.tls.set_date_time(*dt)
 
@@ -129,8 +141,9 @@ class Test_TLSAscii:
 
     def test_set_region(self):
         """Test setting the region code string"""
-        for reg in ['BLA', 100]:
-            with pytest.raises(RuntimeError):
+        for reg, exc in [('BLA', ValueError),
+                         (100, TypeError)]:
+            with pytest.raises(exc):
                 self.tls.set_region(reg)
 
         # NOTE: this should work, but we don't yet test for the generated output..
@@ -308,3 +321,36 @@ class Test_TLSAscii:
         self.tls.mode = 'bla'
         with pytest.raises(RuntimeError):
             self.tls._convert_message(testin)
+
+    def test_sendRFIDmsg(self):
+        # sending an instance other than a CommonMSG should raise an exception
+        with pytest.raises(TypeError):
+            self.tls.send_RFID_msg('bla')
+
+        cm = CommonMSG(CommonMSG.MSG_WC_STOCK_CHECK, 'bla')
+        self.tls.send_RFID_msg(cm)
+        assert self.tls.mode == TLSAscii.tls_mode.stock
+
+        cm = CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, 'bla')
+        self.tls.send_RFID_msg(cm)
+        assert self.tls.mode == TLSAscii.tls_mode.radar
+
+        cm = CommonMSG(CommonMSG.MSG_SV_GENERIC_COMMAND, '.iv')
+        self.tls.send_RFID_msg(cm)
+        assert self.tls.mode == TLSAscii.tls_mode.stock
+
+        cm = CommonMSG(CommonMSG.MSG_SV_RAND_NUM, 'bla')
+        self.tls.send_RFID_msg(cm)
+        assert self.tls.mode == TLSAscii.tls_mode.undef
+
+    def test_setBT(self):
+        with pytest.raises(RuntimeError):
+            self.tls.set_bluetooth(True, "bla", 'blu', 'btname', True, 'bb')
+
+    def test_is_valid_EPC(self):
+        for epc, exp_val in [('bla', False),
+                             ('000000000000000000001237', True)]:
+            res = TLSAscii.is_valid_EPC(epc)
+            assert isinstance(res, bool), 'expected a bool'
+            if res != exp_val:
+                raise RuntimeError('unexpected res')

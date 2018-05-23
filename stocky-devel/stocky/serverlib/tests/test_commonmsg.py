@@ -28,10 +28,8 @@ class Test_commonmsg:
     def test_commonmsg01(self):
         """Check illegal msgtypes are caught."""
         mydat = 100.0
-        # wrong type should raise an assertion
-        with pytest.raises(AssertionError):
-            CommonMSG([1, 2], mydat)
-
-        # wrong string value should raise an assertion
-        with pytest.raises(AssertionError):
-            CommonMSG("blastr", mydat)
+        # wrong type or value should raise an appropriate assertion
+        for msg, exc in [([1, 2], TypeError),
+                         ("blastr", ValueError)]:
+            with pytest.raises(exc):
+                CommonMSG(msg, mydat)

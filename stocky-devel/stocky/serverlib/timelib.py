@@ -23,7 +23,7 @@ _tzinfo: typing.Optional[TimeZoneType] = None
 
 def set_local_timezone(newtzinfo: TimeZoneType) -> None:
     if not isinstance(newtzinfo, TimeZoneType):
-        raise RuntimeError("tz must be a tzinfo instance")
+        raise TypeError("tz must be a tzinfo instance")
     global _tzinfo
     _tzinfo = newtzinfo
 

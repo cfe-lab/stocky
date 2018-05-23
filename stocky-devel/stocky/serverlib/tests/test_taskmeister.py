@@ -114,7 +114,7 @@ class Test_Taskmeister:
 
     def test_listgen02(self) -> None:
         testlist: typing.List[str] = []
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError):
             Taskmeister.CommandListGenerator(self.msgq,
                                              self.logger,
                                              self.sec_interval,

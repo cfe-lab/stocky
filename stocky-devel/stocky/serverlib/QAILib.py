@@ -6,9 +6,13 @@ import typing
 import requests
 import requests.exceptions
 import json
+import logging
 import serverlib.timelib as timelib
 import serverlib.serverconfig as serverconfig
 import serverlib.yamlutil as yamlutil
+
+
+logger = logging.Logger('QAILib')
 
 
 def tojson(data) -> str:
@@ -18,7 +22,7 @@ def tojson(data) -> str:
     try:
         retstr = json.dumps(data, separators=(',', ':'), default=str)
     except TypeError as e:
-        print("problem converting to json '{}'".format(data))
+        logger.warn("problem converting to json '{}'".format(data))
         raise e
     return retstr
 
@@ -72,6 +76,20 @@ def get_json_data_with_time(url: str) -> typing.Optional[QAI_dct]:
     return rawdata_to_qaidct(mydat)
 
 
+def is_valid_url_string(url: str) -> bool:
+    """Return 'the url represents a valid syntax for a url'
+    Note that this function does not actually attempt to make a
+    connection to the server designated by the url string.
+    """
+    prep = requests.PreparedRequest()
+    params = None
+    try:
+        prep.prepare_url(url, params)
+    except (requests.exceptions.InvalidURL, requests.exceptions.MissingSchema):
+        return False
+    return True
+
+
 STATE_DIR_ENV_NAME = serverconfig.STATE_DIR_ENV_NAME
 
 
@@ -85,11 +103,13 @@ class BaseQAIdata:
         self._set_cur_data(self.loadfileQAIdata())
 
     def _set_cur_data(self, qai_dct: typing.Optional[QAI_dct]) -> bool:
+        if qai_dct is not None and not isinstance(qai_dct, dict):
+            raise TypeError('expected a dict')
         self.cur_data = qai_dct
-        self._locdct = self._check_massaga_data()
+        self._locdct = self._check_massage_data()
         return self.cur_data is not None and self._locdct is not None
 
-    def _check_massaga_data(self) -> typing.Optional[Location_dct]:
+    def _check_massage_data(self) -> typing.Optional[Location_dct]:
         """Verify and convert the raw json data read from QAI via the API
         into something that the stocky webclient can digest easily.
         Return the successfully converted location_dict or None.
@@ -101,7 +121,7 @@ class BaseQAIdata:
         LOC_KEY = 'location'
         for item_dct in dlst:
             if not isinstance(item_dct, dict):
-                print("item_dct is not a dict")
+                logger.warn("item_dct is not a dict")
                 return None
             # We need to know whether the key is present (it must be).
             # The value of the key may be None, in which case we set it to Unknown
@@ -109,7 +129,7 @@ class BaseQAIdata:
                 for loc in BaseQAIdata.splitlocstring(item_dct[LOC_KEY]):
                     locdct.setdefault(loc, []).append(item_dct)
             else:
-                print("location is missing in {}".format(item_dct))
+                logger.warn("location is missing in {}".format(item_dct))
                 return None
         # if we get this far, we have succeeded
         return locdct
@@ -229,12 +249,18 @@ class BaseQAIdata:
 class QAIdata(BaseQAIdata):
 
     def qai_is_online(self) -> bool:
-        cur_data = get_json_data_with_time(self._qaiurl)
-        return (cur_data is None)
+        if is_valid_url_string(self._qaiurl):
+            cur_data = get_json_data_with_time(self._qaiurl)
+            return (cur_data is None)
+        else:
+            return False
 
     def pull_qai_data(self) -> bool:
         """Perform a http request to the QAI server and download the newest version
         from it.
         Return := 'the data pull was successful'
         """
-        return self._set_cur_data(get_json_data_with_time(self._qaiurl))
+        if is_valid_url_string(self._qaiurl):
+            return self._set_cur_data(get_json_data_with_time(self._qaiurl))
+        else:
+            return False

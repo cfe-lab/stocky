@@ -44,7 +44,11 @@ class DummySerialCommLink(commlink.SerialCommLink):
 
 
 class DummyCommLink(commlink.BaseCommLink):
-    """A dummy commlink used for testing"""
+    """A dummy commlink used for testing.
+    This class will pretend to be a serial device, but actually
+    sanity check the commands sent, then also generate some really simple
+    answer codes.
+    """
 
     def __init__(self, cfgdct: dict) -> None:
         super().__init__(cfgdct)
