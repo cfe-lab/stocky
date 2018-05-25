@@ -24,6 +24,11 @@ PORTNUM=5000
 #NOTE Must run the docker image with --privileged to give the container access to devices
 USB_DIR = /dev/bus/usb
 
+DOCKER_TESTRUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
+-v ${STOCKY_STATE_DIR}:/stockystate \
+-v ${STOCKY_CONFIG_DIR}:/stockyconfig \
+-w /stockysrc ${ENV_OPTS} 
+
 DOCKER_RUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
 -v ${STOCKY_STATE_DIR}:/stockystate \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
@@ -60,6 +65,10 @@ runlocal:  ## run the stocky docker image with local code interactively with bas
 
 runprod: ## run the stocky docker image for production.
 	${DOCKER_RUN_CMD} ${BASE_IMAGE_NAME}
+
+runtests:  ## run the stocky docker image with image code 
+	${DOCKER_TESTRUN_CMD}  -it ${BASE_IMAGE_NAME} make test-all pep8
+
 
 clean-logs: ## remove all log files from the stocky-devel-state directory
 	rm -f stocky-devel-state/*.log

@@ -1,0 +1,11 @@
+sudo: required
+language: ruby
+services:
+  - docker
+
+before_install:
+  - cd stocky-devel
+  - make build-nocache
+script:
+  - cd stocky-devel
+  - make runtests
