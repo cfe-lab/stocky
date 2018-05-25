@@ -134,18 +134,23 @@ rfid_order_lst = ['x', 'al', 'c', 'e', 'r', 'ie', 'dt', 'fs', 'ix', 'sb',
                   'so', 'sl', 'sd', 'o', 'io', 'sa', 'st', 'qa', 'ql', 'qs',
                   'qt', 'qv', 'fi', 'tf', 'p', 'n']
 
+hexnums = [chr(ord('0') + i) for i in range(10)]
+hexletters = [chr(ord('A') + i) for i in range(6)]
+hexchars = frozenset(hexnums + hexletters)
+
+
+def is_hex_string(s: str) -> bool:
+    """Return: 'this string contains only valid hex characters'"""
+    return sum([ch in hexchars for ch in s]) == len(s)
+
 
 def is_valid_EPC(epc: EPCstring) -> bool:
     """Perform a somple sanity check on the EPC code.
     Return 'the EPC code is not apparently broken'
+    EPC code must be 96 bits in length. This is 24 4-bit hex characters.
+    All characters must be hex characters
     """
-    if isinstance(epc, EPCstring):
-        # EPC code must be 96 bits in length. This is 24 4-bit hex characters
-        len_ok = len(epc) == 24
-        # currently, we do not check contents
-        return len_ok
-    else:
-        return False
+    return isinstance(epc, EPCstring) and len(epc) == 24 and is_hex_string(epc)
 
 
 class RFIDParams:
@@ -469,8 +474,14 @@ class TLSReader(Taskmeister.BaseReader):
         """Set the bluetooth parameters. This command is only available over
         a USB connection and always performs a reset of the reader.
         """
+        if sum([isinstance(var, tt) for var, tt in [(bt_on, bool), (bundle_id, str),
+                                                    (bundle_seed_id, str),
+                                                    (bt_name, str),
+                                                    (bt_spp, bool),
+                                                    (bt_pairing_code, str)]]) != 6:
+            raise TypeError('illegal types for set_bluetooth')
         if len(bt_pairing_code) != 4:
-            raise RuntimeError("BT pairing code <> length 4!")
+            raise ValueError("BT pairing code <> length 4!")
         protoname = 'spp' if bt_spp else 'hid'
         cmdstr = '.bt -e{} -f"{}" -w{} -bi"{}" -bs"{}" -m{}\n'.format(onoffdct[bt_on],
                                                                       bt_name,
@@ -533,7 +544,8 @@ class TLSReader(Taskmeister.BaseReader):
 
         See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
         """
-        # cmdstr = ".iv -x -n -ron -io off -qt b -qs s0 -sa 4 -st s0 -sb epc -sd {} -sl 30 -so 0020".format(epc)
+        if not is_valid_EPC(epc):
+            raise ValueError("radarsetup: illegal EPC: '{}'".format(epc))
         self.reset_inventory_options()
         cmdstr = ".iv -al off -x -n -fi on -ron -io off -qt b -qs s0 -sa 4 -st s0 -sl 30 -so 0020"
         self._sendcmd(cmdstr, "radarsetup")
@@ -578,21 +590,40 @@ class TLSReader(Taskmeister.BaseReader):
         the data string to the user bank.
 
         The data string is a string containing ASCII-hex characters
-        which must be a multiple of four (only words are written)
+        which must be a multiple of four (only words are written).
 
         NOTE: this command string was adapted from the document provided
         by TSL to their customers:
         Application\ Note\ -\ Selecting\ Reading\ and\ Writing\ Transponders\
         with\ the\ TSL\ ASCII\ 2\ Protocol\ V1.33.pdf
         """
+        if not is_valid_EPC(epc):
+            raise ValueError("illegal EPC = '{}'".format(epc))
         if isinstance(data, str):
-            if len(data) % 4 != 0:
-                raise ValueError('data string must be a multiple of four in length')
+            if not (len(data) % 4 == 0 and is_hex_string(data)):
+                raise ValueError("invalid data string '{}".format(data))
         else:
             raise TypeError('data string expected')
         d_len = len(data) // 4
-        # this determined the location in the user bank t write the data
+        # this determined the location in the user bank to write the data
         data_offset = '0005'
         cmdstr = """.wr -db usr -da {} -dl {} -do {} -ql all -qs s1 -qt b -sa 4 -sb epc
  -sd {} -sl 60 -so 0020 -st s1""".format(data, d_len, data_offset, epc)
         self._sendcmd(cmdstr, comment='WRITE')
+
+    def read_user_bank(self, epc: EPCstring, num_chars: int) -> None:
+        """Select a tag with the provided EPC code and read out the
+        data string from the tag's user bank.
+        """
+        if not is_valid_EPC(epc):
+            raise ValueError("illegal EPC = '{}'".format(epc))
+        if isinstance(num_chars, int):
+            if num_chars % 4 != 0:
+                raise ValueError("invalid num_chars '{}'".format(num_chars))
+        else:
+            raise TypeError('num_chars: int expected')
+        d_len = num_chars // 4
+        data_offset = '0005'
+        cmdstr = """.rd -db usr -dl {} -do {} -ql all -qs s1 -qt b -sa 4 -sb epc -sd {}
+ -sl 60 -so 0020 -st s1""".format(d_len, data_offset, epc)
+        self._sendcmd(cmdstr, comment='READ')

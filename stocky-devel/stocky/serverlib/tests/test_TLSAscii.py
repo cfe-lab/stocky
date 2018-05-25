@@ -44,10 +44,14 @@ class Test_TLSAscii:
                                       self.logger,
                                       self.cl,
                                       self.radar_ave_num)
+        self.good_epc = '000000000000000000001237'
+        self.bad_epc = "123456"
 
     def test_radar01(self):
-        EPCcode = "123456"
-        self.tls.RadarSetup(EPCcode)
+        with pytest.raises(ValueError):
+            self.tls.RadarSetup(self.bad_epc)
+        # --
+        self.tls.RadarSetup(self.good_epc)
         self.tls.RadarGet()
         # assert isinstance(rssi, int), "int expected"
         # print("GOOT {}".format(rssi))
@@ -343,14 +347,49 @@ class Test_TLSAscii:
         self.tls.send_RFID_msg(cm)
         assert self.tls.mode == TLSAscii.tls_mode.undef
 
-    def test_setBT(self):
-        with pytest.raises(RuntimeError):
-            self.tls.set_bluetooth(True, "bla", 'blu', 'btname', True, 'bb')
-
     def test_is_valid_EPC(self):
         for epc, exp_val in [('bla', False),
-                             ('000000000000000000001237', True)]:
+                             ('000000000000000000001237', True),
+                             ('0000000AB000000000001237', True),
+                             ('0000000GF000000000001237', False),
+                             (100, False)]:
             res = TLSAscii.is_valid_EPC(epc)
             assert isinstance(res, bool), 'expected a bool'
             if res != exp_val:
-                raise RuntimeError('unexpected res')
+                raise RuntimeError("unexpected res={} for '{}'".format(res, epc))
+
+    def test_set_bluetooth01(self):
+        for bad_dat in [(1, 'bla', 'blu', 'bt_name', True, 'pcod'),
+                        (True, 100, 'blu', 'bt_name', True, 'pcod'),
+                        (True, 'bla', 'blu', 'bt_name', 1, 'pcod')]:
+            with pytest.raises(TypeError):
+                self.tls.set_bluetooth(*bad_dat)
+        # the wrong pcode...
+        bad_dat = (True, 'bla', 'blu', 'bt_name', True, 'pcode')
+        with pytest.raises(ValueError):
+            self.tls.set_bluetooth(*bad_dat)
+        # should work
+        good_dat = (True, 'bla', 'blu', 'bt_name', True, '1234')
+        self.tls.set_bluetooth(*good_dat)
+
+    def test_write_userbank01(self):
+        valid_data = '0123ABCDEF89'
+        with pytest.raises(ValueError):
+            self.tls.write_user_bank(self.bad_epc, valid_data)
+        # --
+        for dat, exc in [(100, TypeError),
+                         ('fgrt', ValueError),
+                         ('AB10F', ValueError)]:
+            with pytest.raises(exc):
+                self.tls.write_user_bank(self.good_epc, dat)
+        self.tls.write_user_bank(self.good_epc, valid_data)
+
+    def test_read_userbank01(self):
+        with pytest.raises(ValueError):
+            self.tls.read_user_bank(self.bad_epc, 4)
+        # --
+        for numch, exc in [('bla', TypeError),
+                           (11, ValueError)]:
+            with pytest.raises(exc):
+                self.tls.read_user_bank(self.good_epc, numch)
+        self.tls.read_user_bank(self.good_epc, 8)
