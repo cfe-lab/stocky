@@ -5,7 +5,6 @@ services:
 
 before_install:
   - cd stocky-devel
-  - make build-nocache
+  - make build
 script:
-  - cd stocky-devel
   - make runtests
