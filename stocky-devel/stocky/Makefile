@@ -22,7 +22,7 @@ help:
 web: ## compile the webclient using transcrypt
 	$(MAKE) -C webclient webclient
 test-all: ## run the unit tests of the server code using pytest
-	pytest serverlib
+	pytest -v serverlib
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py serverlib
 test-coverage: ## run the unit tests of the server code, then show the test coverage 
