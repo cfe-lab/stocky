@@ -67,7 +67,7 @@ runprod: ## run the stocky docker image for production.
 	${DOCKER_RUN_CMD} ${BASE_IMAGE_NAME}
 
 runtests:  ## run the stocky docker image with image code 
-	${DOCKER_TESTRUN_CMD}  -it ${BASE_IMAGE_NAME} make test-all pep8
+	${DOCKER_TESTRUN_CMD}  -it ${BASE_IMAGE_NAME} make all-test pep8
 
 
 clean-logs: ## remove all log files from the stocky-devel-state directory
