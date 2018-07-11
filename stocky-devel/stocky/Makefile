@@ -29,8 +29,10 @@ all-coverage: ## run the unit tests of the server code, then show the test cover
 	coverage report -m --omit="serverlib/tests/*","serverlib/__init__.py"
 #--
 qai-test: ## run the unit tests that access the test QAI
-	#pytest -v serverlib --with_qai --ff --maxfail=1 -k test_qai_helper
-	pytest -v serverlib --with_qai --ff  -k test_qai_helper
+	pytest -v serverlib --with_qai --ff --maxfail=1 -k test_qai_helper
+	# pytest -vvv serverlib --with_qai --ff  -k test_qai_helper
+	# pytest -vvv serverlib --with_qai -k test_qai_helper
+	#pytest -vvv serverlib --with_qai -k test_reagent_receive
 qai-coverage: ## show test coverage of code accessing the test QAI server
 	coverage run -m py.test serverlib --with_qai -k test_qai_helper
 	coverage report  -m --include="serverlib/qai_helper.py"

@@ -3,13 +3,24 @@
 import typing
 import pytest
 import os.path
+import random
+import string
+
 
 import requests
 import serverlib.qai_helper as qai_helper
 import serverlib.yamlutil as yamlutil
 
+# this is 200
 HTTP_OK = requests.codes.ok
+# this is 201
 HTTP_CREATED = requests.codes.created
+
+# this 500
+HTTP_INTERNAL_SERVER_ERROR = requests.codes.internal_server_error
+
+# this is 422
+HTTP_UNPROCESSABLE = requests.codes.unprocessable
 
 withqai = pytest.mark.skipif(not pytest.config.option.with_qai,
                              reason="needs --with_qai option in order to run")
@@ -22,33 +33,20 @@ auth_password = 'abc123'
 # qai_url = "https://qai.cfenet.ubc.ca:3000/qcs_reagents/json_get"
 # rubbish_url = "https://bla.bla.com"
 
-# -- the following endpoints are part of the 'official' API that can be used
-# by stocky
-# -- location. We only have a get
-PATH_LOCATION_LIST = '/qcs_location/list'
-
-
-# -- reagent operations
-# reagent get
-PATH_REAGENT_LIST = '/qcs_reagent/list'
-PATH_REAGENT_LIST_REAGENTS = '/qcs_reagent/list_reagents'
-PATH_REAGENT_LOCITEMS = '/qcs_reagent/location_items'
-PATH_REAGENT_SHOW = '/qcs_reagent/show'
-PATH_REAGENT_RECEIVE = '/qcs_reagent/receive'
-
-# reagent patch
-PATH_REAGENT_VERIFY_LOCATION = '/qcs_reagent/verify_location'
-
-# -- reagent items ---
-# reagent item get
-PATH_REAGITEM_LIST = '/qcs_reagent/list_reagent_items'
-
-# reagent item post
-PATH_REAGITEM_STATUS = '/qcs_reagent/item_status'
-
 
 # this reagent is expected to be in the database
 TEST_REAGENT_NAME = 'test reagent'
+
+PATH_LOCATION_LIST = qai_helper.PATH_LOCATION_LIST
+PATH_REAGENT_RECEIVE = qai_helper.PATH_REAGENT_RECEIVE
+PATH_REAGENT_LIST_REAGENTS = qai_helper.PATH_REAGENT_LIST_REAGENTS
+PATH_REAGENT_LIST = qai_helper.PATH_REAGENT_LIST
+PATH_REAGENT_LOCITEMS = qai_helper.PATH_REAGENT_LOCITEMS
+PATH_REAGENT_SHOW = qai_helper.PATH_REAGENT_SHOW
+PATH_REAGITEM_STATUS = qai_helper.PATH_REAGITEM_STATUS
+PATH_REAGITEM_STATUS = qai_helper.PATH_REAGITEM_STATUS
+PATH_REAGENT_VERIFY_LOCATION = qai_helper.PATH_REAGENT_VERIFY_LOCATION
+PATH_REAGITEM_LIST = qai_helper.PATH_REAGITEM_LIST
 
 
 # -- the following endpoints are used for creating reagents and reagent items for testing
@@ -64,6 +62,7 @@ TPATH_USER_LIST = '/qcs_user/list'
 # in order to be able to check whether our tests cover all of the
 # published API in {setup, teardown}_module, we keep a set of all possible API calls.
 api_set = frozenset([('get', PATH_LOCATION_LIST),
+                     ('get', PATH_REAGITEM_LIST),
                      ('get', PATH_REAGENT_RECEIVE),
                      ('get', TPATH_REAGENT_LIST_SUPPLIERS),
                      ('get', PATH_REAGENT_LIST_REAGENTS),
@@ -82,7 +81,7 @@ api_set = frozenset([('get', PATH_LOCATION_LIST),
 _callset: typing.Set[typing.Tuple[str, str]] = set()
 
 
-class TrackerSession(qai_helper.Session):
+class TrackerSession(qai_helper.QAISession):
     """A session that keeps track of all calls performed."""
     def __init__(self) -> None:
         super().__init__()
@@ -104,6 +103,10 @@ class TrackerSession(qai_helper.Session):
         _callset.add(('delete', path))
         return super().delete_json(path, params, retries=retries)
 
+    def generate_receive_url(self, locid: int, rfidlst: typing.List[int]) -> str:
+        _callset.add(('get', PATH_REAGENT_RECEIVE))
+        return super().generate_receive_url(locid, rfidlst)
+
 
 def setup_module(module) -> None:
     print("SEETUP MODULE")
@@ -111,12 +114,12 @@ def setup_module(module) -> None:
 
 
 def teardown_module(module) -> None:
-    # print("TEEEARDOWN MODULE")
     missing_api = api_set - _callset
     if missing_api:
         print("Missing calls:")
         print("\n".join(["{}".format(stup) for stup in missing_api]))
         raise RuntimeError("Incomplete test of the API")
+    print("Complete API URLS tested")
 
 
 def get_testfilename(fn: str) -> str:
@@ -164,60 +167,24 @@ class Test_qai_log_in:
         with pytest.raises(requests.exceptions.ConnectionError):
             self.s.login("http://localhost", auth_uname, auth_password)
 
+    def test_is_logged_in01(self):
+        retval = self.s.is_logged_in()
+        assert isinstance(retval, bool), "bool expected"
+        assert not retval, "expected false"
+
 
 @withqai
-class QAItester:
-    """An abstract base class that sets up the QAI access and ensures test data
-    is in place. The actual tests are run in the subclasses."""
+class SimpleQAItester:
     @classmethod
     def setup_class(cls) -> None:
-        # print("SETUP CLASS {}".format(cls))
+        lverb = True
+        if lverb:
+            print("SETUP CLASS {}".format(cls))
         cls.s = TrackerSession()
         cls.s.login(qai_url, auth_uname, auth_password)
-        # if we have a reagent of this name, lets use it
         rcode, cls.reagent_list = cls.s.get_json(PATH_REAGENT_LIST_REAGENTS)
         assert rcode == HTTP_OK, "called failed"
-        cls.create_test_reagent()
-
-    def setup_method(self) -> None:
-        # print("setup method {}".format(self))
-        assert self.s is not None, "s is none"
-        assert self.reagent_list is not None, "reagentlist is none"
-
-    def teardown_method(self) -> None:
-        # we cannot remove test data
-        # self.remove_test_reagent()
-        pass
-
-    @classmethod
-    def get_reagent_item_record(cls, item_id, isrfid=False):
-        """Retrieve the complete record of the test reagent.
-        This routine uses qcs_reagent/show to retrieve the item.
-        """
-        reagent_id = cls.test_reagent_id
-        rcode, r_show = cls.s.get_json(PATH_REAGENT_SHOW, params=dict(id=reagent_id))
-        assert rcode == HTTP_OK, "called failed"
-        itm_lst = r_show['items']
-        if isrfid:
-            fndlst = [d for d in itm_lst if d['rfid'] == item_id]
-        else:
-            fndlst = [d for d in itm_lst if d['id'] == item_id]
-        assert len(fndlst) == 1, "itemid not found"
-        return fndlst[0]
-
-    @classmethod
-    def create_test_reagent(cls) -> None:
-        """Create some test data to play with.
-        If the following do not already exist in the database, we
-        create a reagent, and a reagent item.
-        """
-        lverb = False
-        rcode, cls.reagent_dct = cls.s.get_json(PATH_REAGENT_LIST)
-        assert rcode == HTTP_OK, "called failed"
-        if lverb:
-            yamlutil.writeyamlfile(cls.reagent_dct, "./reagentlst.yaml")
-        cls.reagent_lst = cls.reagent_dct['items']
-
+        # get list of suppliers
         rcode, cls.supplierlst = cls.s.get_json(TPATH_REAGENT_LIST_SUPPLIERS)
         assert rcode == HTTP_OK, "called failed"
         if lverb:
@@ -228,6 +195,35 @@ class QAItester:
             cls.selected_supplier = "Upjohn"
         else:
             cls.selected_supplier = cls.supplierlst[0]
+        # retrieve the list of locations and choose some for testing.
+        rcode, cls.loclst = cls.s.get_json(PATH_LOCATION_LIST)
+        assert rcode == HTTP_OK, "called failed"
+        if lverb:
+            yamlutil.writeyamlfile(cls.loclst, "./loclist.yaml")
+        nameset = frozenset(['SPH\\604\\Research Fridge', 'SPH\\605\\Fridge'])
+        cls.testlocs = [d for d in cls.loclst if d['name'] in nameset]
+        if len(cls.testlocs) != len(nameset):
+            print("loclst '{}'".format(cls.loclst))
+            raise RuntimeError("error finding location names {}".format(nameset))
+        cls.establish_test_reagent()
+
+    @classmethod
+    def establish_test_reagent(cls):
+        lverb = True
+        # next, retrieve the list of users and choose our testing user.
+        rcode, userlst = cls.s.get_json(TPATH_USER_LIST)
+        assert rcode == HTTP_OK, "called failed"
+        if lverb:
+            yamlutil.writeyamlfile(userlst, "./userlst.yaml")
+        cls.test_user_login = 'wscott'
+        fndlst = [d for d in userlst if d['login'] == cls.test_user_login]
+        if len(fndlst) != 1:
+            print("userlst: {}".format(userlst))
+            raise RuntimeError('failed to find test user')
+        cls.test_user = fndlst[0]
+        cls.test_reagent_item_lot_num = 'testlotAAA'
+        cls.test_reagent_item_notes = "A fictitious stock item for software testing purposes"
+        cls.test_itema_rfid = '1111114'
         # --- create or retrieve a test reagent
         cls.test_reagent_name = "Whisky-Cola"
         cls.test_reagent_catnum = '9999'
@@ -245,7 +241,7 @@ class QAItester:
                     'notes': 'essential equipment',
                     'storage': '',
                     'needs_validation': None,
-                    'expiry_time': '1 month',
+                    'expiry_time': 30,
                     'supplier': cls.selected_supplier,
                     'catalog_number': cls.test_reagent_catnum,
                     'date_msds_expires': 'never',
@@ -256,34 +252,212 @@ class QAItester:
             cls.test_reagent_id = postres['id']
         print("goot ID {}".format(cls.test_reagent_id))
         assert cls.test_reagent_id is not None, "cannot get test reagent id"
-        # --- create some reagent items
-        # first, retrieve the list of locations and choose some for testing.
-        rcode, cls.loclst = cls.s.get_json(PATH_LOCATION_LIST)
-        assert rcode == HTTP_OK, "called failed"
-        if lverb:
-            yamlutil.writeyamlfile(cls.loclst, "./loclist.yaml")
-        cls.testlocs = []
-        for locname in ['SPH\\604\\Research Fridge',
-                        'SPH\\605\\Fridge']:
-            findlst = [d for d in cls.loclst if d['name'] == locname]
-            if len(findlst) != 1:
-                print("loclst '{}'".format(cls.loclst))
-                raise RuntimeError("error finding location name")
-            cls.testlocs.extend(findlst)
-        # next, retrieve the list of users and choose our testing user.
-        rcode, userlst = cls.s.get_json(TPATH_USER_LIST)
-        assert rcode == HTTP_OK, "called failed"
-        if lverb:
-            yamlutil.writeyamlfile(userlst, "./userlst.yaml")
-        cls.test_user_login = 'wscott'
-        fndlst = [d for d in userlst if d['login'] == cls.test_user_login]
+
+    @classmethod
+    def get_reagent_item_record(cls, item_id, isrfid=False):
+        """Retrieve the complete record of the test reagent.
+        This routine uses qcs_reagent/show to retrieve the item.
+        Raise a RuntimeError if anything goes wrong.
+        """
+        reagent_id = cls.test_reagent_id
+        rcode, r_show = cls.s.get_json(PATH_REAGENT_SHOW, params=dict(id=reagent_id))
+        if rcode != HTTP_OK:
+            raise RuntimeError("get call failed")
+        itm_lst = r_show['items']
+        if len(itm_lst) == 0:
+            raise RuntimeError("item list is zero")
+        if isrfid:
+            fndlst = [d for d in itm_lst if d['rfid'] == item_id]
+        else:
+            fndlst = [d for d in itm_lst if d['id'] == item_id]
         if len(fndlst) != 1:
-            print("userlst: {}".format(userlst))
-            raise RuntimeError('failed to find test user')
-        cls.test_user = fndlst[0]
-        cls.test_reagent_item_lot_num = 'testlotAAA'
-        cls.test_reagent_item_notes = "A fictitious stock item for software testing purposes"
-        cls.test_itema_rfid = '1111111'
+            raise RuntimeError("itemid not found")
+        return fndlst[0]
+
+    @classmethod
+    def setRFID(cls, item_id, new_RFID):
+        rcode, res = cls.s.patch_json(TPATH_REAGENT_ITEM,
+                                      data=dict(id=item_id, rfid=new_RFID))
+        print("setRFID {}: {} -> {}".format(item_id, new_RFID, res))
+        if rcode != HTTP_OK:
+            raise RuntimeError("call failed, retcode={}\n".format(rcode))
+
+    @classmethod
+    def setlocation(cls, item_id, new_locid):
+        rcode, res = cls.s.patch_json(TPATH_REAGENT_ITEM,
+                                      data=dict(id=item_id, qcs_location_id=new_locid))
+        print("setlocid {}: {} -> {}".format(item_id, new_locid, res))
+        if rcode != HTTP_OK:
+            raise RuntimeError("call failed, retcode={}\n".format(rcode))
+
+    def setup_method(self) -> None:
+        # print("setup method {}".format(self))
+        assert self.s is not None, "s is none"
+        assert self.reagent_list is not None, "reagentlist is none"
+
+    def teardown_method(self) -> None:
+        # we cannot remove test data
+        # self.remove_test_reagent()
+        pass
+
+
+def random_string(len: int) -> str:
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len))
+
+
+@withqai
+class Test_creation(SimpleQAItester):
+
+    def test_is_logged_in02(self):
+        retval = self.s.is_logged_in()
+        assert isinstance(retval, bool), "bool expected"
+        assert retval, "expected true"
+
+    def test_create_item01(self):
+        """Try to create a reagent item. This should succeed."""
+        test_itema_locid = self.testlocs[0]['id']
+        test_rfid = random_string(6)
+        print("setting new location to {}".format(test_itema_locid))
+        itema = {'qcs_reag_id': self.test_reagent_id,
+                 'qcs_location_id': test_itema_locid,
+                 'lot_num': self.test_reagent_item_lot_num,
+                 'notes': self.test_reagent_item_notes,
+                 'rfid': test_rfid,
+                 'source_ids': [],
+                 'statuses': [{'status': 'MADE',
+                               'occurred': '1956-03-31T00:00:00Z',
+                               'qcs_user_id': self.test_user['id']}]}
+        rcode, res = self.s.post_json(TPATH_REAGENT_ITEM, data={'items': [itema]})
+        print("itema {}".format(itema))
+        print("postres '{}'".format(res))
+        assert rcode == HTTP_OK, "creation call failed"
+        itm_rec = self.get_reagent_item_record(test_rfid, isrfid=True)
+        assert itm_rec['qcs_location_id'] == test_itema_locid, " locid mismatch"
+        assert itm_rec['rfid'] == test_rfid, "rfid mismatch"
+
+    def test_create_item_nolocation01(self):
+        """Creating a reagent item without a location should fail."""
+        # NOTE: test once without a location key, once with a value of None.
+        itema = {'qcs_reag_id': self.test_reagent_id,
+                 'lot_num': self.test_reagent_item_lot_num,
+                 'notes': self.test_reagent_item_notes,
+                 'source_ids': [],
+                 'statuses': [{'status': 'MADE',
+                               'occurred': '1956-03-31T00:00:00Z',
+                               'qcs_user_id': self.test_user['id']}]}
+        for i in range(2):
+            test_rfid = random_string(6)
+            itema['rfid'] = test_rfid
+            rcode, res = self.s.post_json(TPATH_REAGENT_ITEM, data={'items': [itema]})
+            print("itema {}".format(itema))
+            print("postres '{}'".format(res))
+            assert rcode != HTTP_OK, "creation call succeeded against expectations"
+            with pytest.raises(RuntimeError):
+                self.get_reagent_item_record(test_rfid, isrfid=True)
+            # add the key for the next round..
+            itema['qcs_location_id'] = None
+
+    def test_create_reagent_fail01(self):
+        """ Creation of a reagent with faulty input data should fail."""
+        test_reagent_name = 'TEST' + random_string(5)
+        testlst = []
+        pdct1 = {'basetype': 'stockchem',
+                 'name': test_reagent_name,
+                 'category': 'Other Chemicals',
+                 'notes': self.test_reagent_item_notes,
+                 'storage': '',
+                 'needs_validation': None,
+                 'expiry_time': 10,
+                 'supplier': self.selected_supplier,
+                 'date_msds_expires': 'never'}
+        # illegal basetype
+        pdct2 = pdct1.copy()
+        pdct2['basetype'] = 'WRONG_BASETYPE'
+        testlst.append(pdct2)
+        # illegal category
+        pdct2 = pdct1.copy()
+        pdct2['category'] = 'WRONG_CAT'
+        testlst.append(pdct2)
+        # illegal storage
+        pdct2 = pdct1.copy()
+        pdct2['storage'] = 'WRONG STORAGE'
+        testlst.append(pdct2)
+        # illegal validation
+        pdct2 = pdct1.copy()
+        pdct2['needs_validation'] = 'YES'
+        testlst.append(pdct2)
+        # illegal expiry_time
+        pdct2 = pdct1.copy()
+        pdct2['expiry_time'] = '2 years'
+        testlst.append(pdct2)
+        # illegal expiry_time
+        pdct2 = pdct1.copy()
+        pdct2['expiry_time'] = 'now'
+        testlst.append(pdct2)
+        for testnum, pdct in enumerate(testlst):
+            rcode, postres = self.s.post_json(TPATH_REAGENT_SAVE, data=pdct, retries=1)
+            print("PDCT #{}: {}".format(testnum, pdct))
+            print("POSTRES rcode {}: {}".format(rcode, postres))
+            assert rcode == HTTP_INTERNAL_SERVER_ERROR, "call should not have succeeded"
+            print("\n\n")
+        # this should pass
+        testnum, pdct = -1, pdct1
+        rcode, postres = self.s.post_json(TPATH_REAGENT_SAVE, data=pdct, retries=1)
+        print("PDCT #{}: {}".format(testnum, pdct))
+        print("POSTRES {}".format(postres))
+        assert rcode == HTTP_CREATED, "call should have succeeded"
+        # assert False, "force fail"
+
+    def test_reagent_receive(self):
+        test_locid = self.testlocs[1]['id']
+        rfidlst = ['RFID' + random_string(6) for i in range(4)]
+        pdct = {'location_id': test_locid, 'rfids': rfidlst}
+        print("RECEIVE: {}".format(pdct))
+        # assert False, "force fail"
+        r = self.s._scoget(PATH_REAGENT_RECEIVE, params=pdct)
+        url = r.url
+        print("the URL IS {}".format(url))
+        # assert False, "force fail"
+
+    def test_gen_receive_url01(self):
+        """Generating a receive URL with an empty rfidlst should raise an exception."""
+        test_locid = self.testlocs[1]['id']
+        for rfidlst in [None, []]:
+            with pytest.raises(RuntimeError):
+                self.s.generate_receive_url(test_locid, rfidlst)
+
+    def test_gen_receive_url02(self):
+        test_locid = 9999
+        rfidlst = ['RFID' + random_string(6) for i in range(2)]
+        urlstr = self.s.generate_receive_url(test_locid, rfidlst)
+        assert isinstance(urlstr, str), "string expected"
+        print("the URL IS {}".format(urlstr))
+        # assert False, "force fail"
+
+
+@withqai
+class DATAQAItester(SimpleQAItester):
+    """An abstract base class that sets up the QAI access and ensures test data
+    is in place. The actual tests are run in the subclasses."""
+    @classmethod
+    def setup_class(cls) -> None:
+        super().setup_class()
+        cls.create_test_reagent()
+
+    @classmethod
+    def create_test_reagent(cls) -> None:
+        """Create some test data to play with.
+        If the following do not already exist in the database, we
+        create a reagent, and a reagent item.
+        """
+        lverb = True
+        rcode, cls.reagent_dct = cls.s.get_json(PATH_REAGENT_LIST)
+        assert rcode == HTTP_OK, "called failed"
+        if lverb:
+            yamlutil.writeyamlfile(cls.reagent_dct, "./reagentlst.yaml")
+        cls.reagent_lst = cls.reagent_dct['items']
+        cls.establish_test_reagent()
+        # --- create some reagent items
         # see whether we have a reagent item with this rfid: create one if not, and set
         # the item_id
         cls.test_itema_id = None
@@ -295,26 +469,42 @@ class QAItester:
             yamlutil.writeyamlfile(reagitemlst, "./reagitemlst.yaml")
         fndlst = [d for d in reagitemlst if d['rfid'] == cls.test_itema_rfid]
         if len(fndlst) == 0:
-            # create a reagent id
-            cls.test_itema_locid = cls.testlocs[0]['id']
-            itema = {'rfid': cls.test_itema_rfid,
-                     'qcs_reag_id': cls.test_reagent_id,
-                     'qcs_location_id': cls.test_itema_locid,
-                     'lot_num': cls.test_reagent_item_lot_num,
-                     'notes': cls.test_reagent_item_notes,
-                     'source_ids': [],
-                     'statuses': [{'status': 'MADE',
-                                   'occurred': '1956-03-31T00:00:00Z',
-                                   'qcs_user_id': cls.test_user['id']}]}
-            rcode, res = cls.s.post_json(TPATH_REAGENT_ITEM, data={'items': [itema]})
-            assert rcode == HTTP_OK, "called failed"
-            print("postres '{}'".format(res))
+            # if there are items, but not one with the expected RFID, then modify the RFID
+            # of a record
+            if len(reagitemlst) > 0:
+                print("setting location")
+                cls.setlocation(reagitemlst[0]['id'], cls.test_itema_locid)
+                print("SETTING RFID\n")
+                cls.setRFID(reagitemlst[0]['id'], cls.test_itema_rfid)
+            else:
+                # create a reagent item
+                cls.test_itema_locid = cls.testlocs[0]['id']
+                print("setting new location to {}".format(cls.test_itema_locid))
+                itema = {'rfid': cls.test_itema_rfid,
+                         'qcs_reag_id': cls.test_reagent_id,
+                         'qcs_location_id': cls.test_itema_locid,
+                         'lot_num': cls.test_reagent_item_lot_num,
+                         'notes': cls.test_reagent_item_notes,
+                         'source_ids': [],
+                         'statuses': [{'status': 'MADE',
+                                       'occurred': '1956-03-31T00:00:00Z',
+                                       'qcs_user_id': cls.test_user['id']}]}
+                rcode, res = cls.s.post_json(TPATH_REAGENT_ITEM, data={'items': [itema]})
+                assert rcode == HTTP_OK, "called failed"
+                print("postres '{}'".format(res))
             itm_rec = cls.get_reagent_item_record(cls.test_itema_rfid, isrfid=True)
             cls.test_itema_id = itm_rec['id']
+            print('LOC2 {}'.format(itm_rec))
+            # raise RuntimeError("Stopping for a test")
         else:
+            print("Found item with required RFID")
+            assert len(fndlst) == 1, "Database Error: multiple items with same RFID"
             # ensure the required state of an existing reagent item
+            print("BLAREC {}".format(fndlst[0]))
             cls.test_itema_id = fndlst[0]['id']
+            print("looking for item {}".format(cls.test_itema_id))
             itm_rec = cls.get_reagent_item_record(cls.test_itema_id)
+            print("Found required item")
             # ensure that the reagent item is MADE, not IN_USE
             if itm_rec['last_status'] == 'IN_USE':
                 res = cls.s.delete_json(PATH_REAGITEM_STATUS,
@@ -325,20 +515,25 @@ class QAItester:
             assert itm_rec['last_status'] == 'MADE', 'made status expected'
             cls.test_itema_locid = itm_rec['loc_id']
             # ensure the RFID is what the tests expected
-            if itm_rec['rfid'] != cls.test_itema_rfid:
-                rcode, res = cls.s.patch_json(TPATH_REAGENT_ITEM,
-                                              data=dict(id=cls.test_itema_id,
-                                                        rfid=cls.test_itema_rfid))
-                assert rcode == HTTP_OK, "called failed"
-                itm_rec = cls.get_reagent_item_record(cls.test_itema_id)
-                assert itm_rec['rfid'] == cls.test_itema_rfid, "failed to set RFID"
+            # if itm_rec['rfid'] != cls.test_itema_rfid:
+            #    rcode, res = cls.s.patch_json(TPATH_REAGENT_ITEM,
+            #                                  data=dict(id=cls.test_itema_id,
+            #                                            rfid=cls.test_itema_rfid))
+            #    assert rcode == HTTP_OK, "called failed"
+            #    itm_rec = cls.get_reagent_item_record(cls.test_itema_id)
+            assert itm_rec['rfid'] == cls.test_itema_rfid, "failed to set RFID"
+        print("ITEMREC IS {}".format(itm_rec))
+        if itm_rec['loc_id'] is None:
+            print("setting item location")
+            cls.test_itema_locid = cls.testlocs[0]['id']
+            cls.setlocation(cls.test_itema_id, cls.test_itema_locid)
         assert cls.test_itema_id is not None, "failed to determine itema_id"
         assert cls.test_itema_locid is not None, "failed to determine itema_locid"
-        # assert False, "force fail"
+        # raise RuntimeError("force fail")
 
 
 @withqai
-class Test_qai_helper_get(QAItester):
+class Test_qai_helper_get(DATAQAItester):
     """These tests are performed after a valid log in has been performed.
     They only perform get operations (i.e. do not modify the test database)
     """
@@ -419,12 +614,8 @@ class Test_qai_helper_get(QAItester):
         """"Uploading RFID tags to specific items should be possible."""
         pass
 
-
-@withqai
-class Test_qai_helper_modify(QAItester):
-    """These tests are performed after a valid log in has been performed.
-    They perform get, put and patch operations (i.e. the test database is modified)
-    """
+    # The tests below this line perform get, put and patch operations (i.e. the test
+    # database is modified)
 
     def get_reagent_item(self, item_id):
         """We want to retrieve the current state of an reagent item.
@@ -543,8 +734,10 @@ class Test_qai_helper_modify(QAItester):
                    'add_rfids': []
                    }
         rcode, res = self.s.patch_json(PATH_REAGENT_VERIFY_LOCATION, data=mod_dct)
-        assert rcode == HTTP_OK, "called failed"
         if lverb:
             print("res VER1 {}".format(res))
-        # assert res['message'] == 'OK', 'patch call failed'
-        # assert False, "force fail"
+        assert rcode == HTTP_OK, "called failed"
+
+    def test_location_list01(self):
+        loclst2 = self.s.get_location_list()
+        assert self.loclst == loclst2, "lists are not the same"

@@ -1,0 +1,313 @@
+* The API stocky uses for accessing QAI
+
+** Notes
+- All times are strings of the form '1956-03-31T10:00:00Z'. It is important that
+  the time-zone information ('Z') is included in the time string to ensure
+  a unique point in time.
+
+** GET /qcs_location/list
+GET /qcs_location/list
+Description: List possible locations.
+Output: Array of
+        {
+                id: number
+                name: hierarchical string, backslash-separated
+        }
+
+
+** GET /qcs_reagent/receive
+GET /qcs_reagent/receive
+Description: Pass a collection of RFIDs to be entered as items. User will fill in
+reagent name, lot number, notes, etc.
+User will also choose location if one is not provided in the query string.
+{
+        location_id?: number
+        rfids: string[]
+}
+Responds with: HTML
+
+
+
+** GET /qcs_reagent/list_suppliers
+GET /qcs_reagent/list_suppliers
+Output: Array of strings (supplier names)
+
+** GET /qcs_reagent/list_reagents
+GET /qcs_reagent/list_reagents
+Description: A faster, simpler alternative to /qcs_reagent/list, lists all reagents at once.
+Output: Array of { id: number, name: string, category: string }
+
+** GET /qcs_reagent/list_reagent_items
+GET /qcs_reagent/list_reagent_items
+Input: {reagent_id: number}
+Output: Array of {id: number, lot_num: string, rfid: string}
+
+** GET /qcs_reagent/list
+GET /qcs_reagent/list
+Description: List all reagents, optionally filtered.
+
+Input:
+{
+    page_size: number
+    offset: number // for use in pagination
+    is_disposed?: boolean // show only reagents where disposed = 't' (normally hidden)
+    is_active?: boolean // show only reagents with items which have current status of MADE, IN_USE, or VALIDATED
+    category?: string // filter reagents by category
+    basetype?: 'reagent'|'stockchem' // filter reagents by basetype
+    search?: string // search for keyword in reagent name or notes field
+}
+
+Output: 
+{
+    items: [
+        id: number,
+        name: string
+    ],
+    total_count: number
+}
+
+** GET /qcs_reagent/location_items
+GET /qcs_reagent/location_items
+Description: List all items in a location, along with traversal options for location.
+
+Input:
+{
+    id: number
+}
+
+Output:
+{
+    location: {
+        id: number,
+        name: string
+    },
+    superloc: [ // traverse up through the hierarchy. contains all ancestors.
+        {
+            id: number,
+            name: string
+        }
+    ],
+    subloc: [ // traverse down through the hierarchy. contains all DIRECT descendants (no grandchildren)
+        {
+            id: number,
+            name: string
+        }
+    ],
+    items: [ // missing, used_up, or expired items are not included
+        {
+            id: number,
+            rfid: string,
+            lot_num: string,
+            notes: string,
+            qcs_reag_id: number,
+            qcs_location_id: number,
+            last_seen: datetime,
+            needs_validation: 't'|null,
+            is_missing: false,
+            made_by: string,
+            made_occurred: datetime,
+            validation_status: VALIDATED|NOT_VALIDATED|NOT_NEEDED,
+            is_available: boolean,
+            statuses: string[],
+            last_status: IN_USE|MADE|VALIDATED,
+            last_status_occurred: datetime
+        }
+    ],
+    missing_items: [
+        {
+            id: number,
+            rfid: string,
+            lot_num: string,
+            notes: string,
+            qcs_reag_id: number,
+            qcs_location_id: number,
+            last_seen: datetime,
+            needs_validation: 't'|null,
+            is_missing: true,
+            made_by: string,
+            made_occurred: datetime,
+            validation_status: VALIDATED|NOT_VALIDATED|NOT_NEEDED,
+            is_available: boolean,
+            statuses: string[],
+            last_status: IN_USE|MADE|VALIDATED|MISSING|USED_UP|EXPIRED,
+            last_status_occurred: datetime
+        }
+    ]
+}
+
+** GET /qcs_reagent/show
+GET /qcs_reagent/show
+Description: Get details about about a reagent and its associated items.
+
+Input:
+{
+    id: number
+}
+
+Output:
+{
+    id: number,
+    name: string,
+    basetype: 'stock chemical'|'reagent'|'unknown',
+    category: enum,
+    date_msds_expires: datetime,
+    disposed: 't'|null,
+    notes?: string,
+    storage: enum,
+    hazards?: string,
+    needs_validation: 't'|null,
+    expiry_time?: number (days),
+    supplier: string,
+    catalog_number: string,
+    msds_filename?: string,
+    work_instruction_id?: number, // qcs_document id
+    work_instruction_title?: string,
+    is_on_order: boolean,
+    items: [
+        {
+            id: number,
+            rfid: string,
+            lot_num: string,
+            notes: string,
+            qcs_reag_id: number,
+            qcs_location_id: number,
+            last_seen: datetime,
+            needs_validation: 't'|null,
+
+            // status information
+            statuses: string[],
+            is_missing: true,
+            made_by: string,
+            made_occurred: datetime,
+            validation_status: VALIDATED|NOT_VALIDATED|NOT_NEEDED,
+            is_available: boolean,
+            last_status: IN_USE|MADE|VALIDATED|MISSING|USED_UP|EXPIRED,
+            last_status_occurred: datetime
+
+            // composition information
+            sources: qcs_reag_item[], // with added field 'reagent_name'
+            products: qcs_reag_item[] // with added field 'reagent_name'
+        }
+    ],
+
+    // Similar to sources, but gets a currently available version of each source item
+    active_sources: [
+        {
+            reagent: qcs_reag,
+            available_items: {
+                item: qcs_reag_item,
+                history: qcs_reag_status[],
+                location: qcs_location
+            }
+        }
+    ]
+
+
+** POST  /qcs_reagent/item
+POST /qcs_reagent/item
+Input: {
+items: Array of {
+    rfid: string,
+    qcs_reag_id: number,
+    qcs_location_id: number,
+    lot_num: string,
+    notes?: string,
+    source_ids: number[], // qcs_reagent_item ids
+    statuses: Array of {
+        status: One of [ MADE, USED_UP, EXPIRED, VALIDATED, MISSING, IN_USE ]
+        occurred: datetime,
+        qcs_user_id: number
+    }
+}
+}
+
+** PATCH /qcs_reagent/item
+PATCH /qcs_reagent/item
+Input: {
+    id: number (required)
+    (any qcs_reagent_item fields to be updated)
+}
+Responds with: HTTP code 200, 422, or 500
+200: { message: 'OK' }
+422 or 500: { error: '[server error message]' }
+
+NOTE: we patch a single reagent item at a time.
+
+** POST  /qcs_reagent/save
+POST /qcs_reagent/save
+Input: {
+    basetype: 'reagent'|'stockchem'
+    name: string
+    category: one of [
+        Primers, Extraction, PCR, Gels, 3730\ Sequencing, NGS\ Sequencing, Quant, TDM
+        IDC\ Processing, Antiviral\ Drugs/Standards, Tissue\ Culture, Disinfectants
+        Safety/Emergency, Other\ Chemicals
+    ]
+    notes?
+    storage?: one of ['', Room Temperature, 4 C, -20 C, -70 C]
+    hazards
+    needs_validation?: 't'|null
+    expiry_time: int (number of days)
+    supplier?: string
+    catalog_number?: string
+    date_msds_expires?: string
+    msds_filename?: string
+    msds_content? (base64-encoded binary data)
+}
+Output: {
+    message: string,
+    action: string (url)
+    id: number
+}
+
+** PATCH /qcs_reagent/save
+PATCH /qcs_reagent/save
+Input: {
+    id: number (required)
+    (any qcs_reagent fields to be updated)
+}
+Responds with: HTTP code 200, 422, or 500
+200: { message: 'OK' }
+422 or 500: { error: '[server error message]' }
+
+
+** POST   /qcs_reagent/item_status
+POST /qcs_reagent/item_status
+Description: Update the status of an item. Either qcs_reag_item_id or rfid is required.
+Date is optional.
+Input:
+{
+        qcs_reag_item_id?: number,
+        rfid?: string,
+        status: 'USED_UP', 'MADE', 'IN_USE', 'EXPIRED', 'MISSING', 'VALIDATED',
+        occurred?: date (defaults to current system date)
+}
+
+Responds with: HTTP code 200, 422, or 500
+200: { message: 'OK' }
+422 or 500: { error: '[server error message]' }
+
+** DELETE /qcs_reagent/item_status
+DELETE /qcs_reagent/item_status
+Input:
+(either rfid or qcs_reag_item_id are required)
+{
+    rfid?: string
+    qcs_reag_item_id?: number,
+    status: One of [ MADE, USED_UP, EXPIRED, VALIDATED, MISSING, IN_USE ]
+}
+
+
+** PATCH /qcs_reagent/verify_location
+PATCH /qcs_reagent/verify_location
+Description: Add RFIDs or remove RFIDs from a location. Use with /qcs_reagents/list with
+location_id parameter to get expected inventory.
+{
+        location_id: number,
+        add_rfids: string[],
+        remove_rfids: string[]
+}
+Responds with: HTTP code 200, 422, or 500
+200: { message: 'OK' }
+422 or 500: { error: '[server error message]' }
+

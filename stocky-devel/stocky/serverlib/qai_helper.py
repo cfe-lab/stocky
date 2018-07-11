@@ -32,6 +32,9 @@ class Session(requests.Session):
             raise RuntimeError("Login failed for QAI user '{}'.".format(qai_user))
         self._islogged_in = True
 
+    def is_logged_in(self):
+        return self._islogged_in
+
     def _retry_response(self,
                         method,
                         path: str,
@@ -100,6 +103,20 @@ class Session(requests.Session):
         """
         return self._retry_json(self.post, path, data=data, retries=retries)
 
+    def _scoget(self, path: str, params: dict=None, retries=3) -> requests.Response:
+        return self._retry_response(self.get, path, params=params, retries=retries)
+
+    def generate_receive_url(self, locid: int, rfidlst: typing.List[int]) -> str:
+        """Generate the URL in string form that can be used to generate
+        a RFID receive response.
+        """
+        if rfidlst is None or len(rfidlst) == 0:
+            raise RuntimeError("Empty rfidlst")
+        ustr = self.qai_path + PATH_REAGENT_RECEIVE
+        qstr = "?location_id={}".format(locid)
+        rstr = "".join(["&rfids={}".format(rfid) for rfid in rfidlst])
+        return ustr + qstr + rstr
+
     def get_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
         """ Get a JSON object from the web server.
 
@@ -112,3 +129,43 @@ class Session(requests.Session):
 
     def delete_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
         return self._retry_json(self.delete, path, params=params, retries=retries)
+
+
+# -- the following endpoints are part of the 'official' API that can be used
+# by stocky
+# -- location. We only have a get
+PATH_LOCATION_LIST = '/qcs_location/list'
+
+
+# -- reagent operations
+# reagent get
+PATH_REAGENT_LIST = '/qcs_reagent/list'
+PATH_REAGENT_LIST_REAGENTS = '/qcs_reagent/list_reagents'
+PATH_REAGENT_LOCITEMS = '/qcs_reagent/location_items'
+PATH_REAGENT_SHOW = '/qcs_reagent/show'
+PATH_REAGENT_RECEIVE = '/qcs_reagent/receive'
+
+# reagent patch
+PATH_REAGENT_VERIFY_LOCATION = '/qcs_reagent/verify_location'
+
+# -- reagent items ---
+# reagent item get
+PATH_REAGITEM_LIST = '/qcs_reagent/list_reagent_items'
+
+# reagent item post
+PATH_REAGITEM_STATUS = '/qcs_reagent/item_status'
+
+
+HTTP_OK = requests.codes.ok
+HTTP_CREATED = requests.codes.created
+
+
+class QAISession(Session):
+    """Add some QAI- API-specific functions"""
+
+    def get_location_list(self):
+        """Retrieve a list of locations."""
+        # first, retrieve the list of locations and choose some for testing.
+        rcode, loclst = self.get_json(PATH_LOCATION_LIST)
+        assert rcode == HTTP_OK, "called failed"
+        return loclst
