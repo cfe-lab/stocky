@@ -46,4 +46,3 @@ class ChemStock:
         """
         if not self.qai_is_online():
             return False
-        
