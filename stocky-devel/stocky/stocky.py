@@ -1,6 +1,5 @@
-# The stocky main program using Flask socket
+# The stocky web server main program using Flask socket
 # See the runserver.sh script in this directory for how to launch the program.
-
 
 
 from geventwebsocket import websocket

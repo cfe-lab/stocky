@@ -15,7 +15,7 @@ def yamldump(data: typing.Any) -> str:
     return yaml.dump(data, Dumper=yaml.CDumper)  # type: ignore
 
 
-def _get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
+def get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
     if yamlfilename.startswith('/'):
         return yamlfilename
     if not (yamlfilename.startswith('.') or ENV_NAME is None):
@@ -27,7 +27,7 @@ def _get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
 
 
 def writeyamlfile(data: typing.Any, yamlfilename: str, ENV_NAME: str=None) -> None:
-    yamlfilename = _get_filename(yamlfilename, ENV_NAME)
+    yamlfilename = get_filename(yamlfilename, ENV_NAME)
     with open(yamlfilename, "w") as fo:
         fo.write(yamldump(data))
 
@@ -69,7 +69,7 @@ def readyamlfile(yamlfilename: str, ENV_NAME: str=None) -> typing.Any:
     We convert these datetime records to be timezone aware, that is explicitly in UTC
     in order to avoid confusion.
     """
-    yamlfilename = _get_filename(yamlfilename, ENV_NAME)
+    yamlfilename = get_filename(yamlfilename, ENV_NAME)
     try:
         with open(yamlfilename, "r") as fi:
             try:

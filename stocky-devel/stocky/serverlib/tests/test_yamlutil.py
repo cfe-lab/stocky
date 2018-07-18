@@ -30,12 +30,12 @@ class Test_yamlutil:
         envname = 'SCOENV'
         # a: nonexistent env var should rais an exception
         with pytest.raises(RuntimeError):
-            yamlutil._get_filename(fname, envname)
+            yamlutil.get_filename(fname, envname)
         # b: existing env var should work
         envval = 'bladir'
         exp_str = os.path.join(envval, fname)
         with mock.patch.dict(os.environ, {envname: envval}):
-            got_str = yamlutil._get_filename(fname, envname)
+            got_str = yamlutil.get_filename(fname, envname)
             print('retstr {}'.format(got_str))
             assert exp_str == got_str, 'unexpectd str'
         # assert False, 'force fail'

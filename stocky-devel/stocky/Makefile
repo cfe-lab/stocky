@@ -24,6 +24,8 @@ web: ## compile the webclient using transcrypt
 #--
 all-test: ## run the unit tests of the server code using pytest
 	pytest -v serverlib
+single-test:
+	pytest -v serverlib -k test_ChemStock
 all-coverage: ## run the unit tests of the server code, then show the test coverage 
 	coverage run -m py.test serverlib
 	coverage report -m --omit="serverlib/tests/*","serverlib/__init__.py"

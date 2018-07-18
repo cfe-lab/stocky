@@ -155,17 +155,92 @@ PATH_REAGITEM_LIST = '/qcs_reagent/list_reagent_items'
 # reagent item post
 PATH_REAGITEM_STATUS = '/qcs_reagent/item_status'
 
+# suppliers
+PATH_REAGENT_LIST_SUPPLIERS = '/qcs_reagent/list_suppliers'
+
+# user list
+PATH_USER_LIST = '/qcs_user/list'
+
+
+# -- these are the DUMP URLs
+DUMP_REAGENTS = '/table_dump/qcs_reag'
+DUMP_REAG_ITEMS = '/table_dump/qcs_reag_item'
+DUMP_REAG_ITEM_STATUS = '/table_dump/qcs_reag_item_status'
+DUMP_REAG_ITEM_COMPOSITION = '/table_dump/qcs_reag_composition'
+DUMP_LOCATION = '/table_dump/qcs_location'
 
 HTTP_OK = requests.codes.ok
 HTTP_CREATED = requests.codes.created
 
 
+QAIdct = typing.Dict[str, typing.Any]
+
+
 class QAISession(Session):
     """Add some QAI- API-specific functions"""
 
-    def get_location_list(self):
-        """Retrieve a list of locations."""
-        # first, retrieve the list of locations and choose some for testing.
+    # these are entries in the QAIdct
+    QAIDCT_REAGENTS = 'reagents'
+    QAIDCT_REAGENT_ITEMS = 'reagent_items'
+    QAIDCT_REAITEM_STATUS = 'reagent_item_status'
+    QAIDCT_REAITEM_COMPOSITION = 'reagen_item_composition'
+    QAIDCT_LOCATIONS = 'locations'
+    QAIDCT_USERS = 'users'
+
+    def _get_location_list(self) -> typing.List[dict]:
+        """Retrieve a list of all locations.
+        The dict contains two keys: id and name.
+        """
         rcode, loclst = self.get_json(PATH_LOCATION_LIST)
-        assert rcode == HTTP_OK, "called failed"
+        if rcode != HTTP_OK:
+            raise RuntimeError("call for location_list failed")
         return loclst
+
+    def _get_supplier_list(self) -> typing.List[str]:
+        """Retrieve a list of reagent suppliers as a list of strings."""
+        rcode, supplierlst = self.get_json(PATH_REAGENT_LIST_SUPPLIERS)
+        if rcode != HTTP_OK:
+            raise RuntimeError("call for supplier_list failed")
+        return supplierlst
+
+    def _get_reagent_list(self) -> typing.List[dict]:
+        """Retrieve a list of all reagents.
+        The dict contains two keys: id and name.
+        """
+        rcode, reagent_lst = self.get_json(PATH_REAGENT_LIST_REAGENTS)
+        if rcode != HTTP_OK:
+            raise RuntimeError("call for reagent_lst failed")
+        return reagent_lst
+
+    def _get_reagent_items(self, reagent_lst: typing.List[dict]) -> typing.Dict[int, dict]:
+        """Retrieve the reagent items for each reagent dict provided.
+        Return a dict with the reagent_id as a key, the value is a dict resulting
+        from the show API call. (I.e. the reagent_items a list in "items", e.g.:
+        reag_dct = get_reagent_items(rlst)
+        my_reag_item_lst = reag_dct[my_reagent_id]['items']
+        """
+        rdct = {}
+        for reagent_dct in reagent_lst:
+            reag_id = reagent_dct['id']
+            rcode, r_show = self.get_json(PATH_REAGENT_SHOW, params=dict(id=reag_id))
+            if rcode != HTTP_OK:
+                raise RuntimeError("call for reagent_show id={}  failed".format(reag_id))
+            rdct[reag_id] = r_show
+        return rdct
+
+    def get_QAI_dump(self) -> QAIdct:
+        """Retrieve the complete reagent database as a dict.
+
+        """
+        rdct = {}
+        for k, url in [(QAISession.QAIDCT_REAGENTS, DUMP_REAGENTS),
+                       (QAISession.QAIDCT_REAGENT_ITEMS, DUMP_REAG_ITEMS),
+                       (QAISession.QAIDCT_REAITEM_STATUS, DUMP_REAG_ITEM_STATUS),
+                       (QAISession.QAIDCT_REAITEM_COMPOSITION, DUMP_REAG_ITEM_COMPOSITION),
+                       (QAISession.QAIDCT_LOCATIONS, DUMP_LOCATION),
+                       (QAISession.QAIDCT_USERS, PATH_USER_LIST)]:
+            rcode, rval = self.get_json(url)
+            if rcode != HTTP_OK:
+                raise RuntimeError("call for {} ({}) failed".format(k, url))
+            rdct[k] = rval
+        return rdct
