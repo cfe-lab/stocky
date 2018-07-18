@@ -3,7 +3,7 @@ import pytest
 import datetime
 
 import serverlib.LocChangeLib as LocChangeLib
-import serverlib.QAILib as QAILib
+import serverlib.qai_helper as qai_helper
 
 
 class Test_locchange:
@@ -144,8 +144,8 @@ class Test_locchange:
         inp_id_set = set([r.itemid for r in self.valid_changes])
         retlst = self.lcl.get_all_location_changes()
         dctlst = [r.as_dict() for r in retlst]
-        js_string = QAILib.tojson(dctlst)
-        ret2lst = QAILib.fromjson(js_string)
+        js_string = qai_helper.tojson(dctlst)
+        ret2lst = qai_helper.fromjson(js_string)
         assert isinstance(ret2lst, list), "list type expected"
         if len(self.valid_changes) != len(retlst):
             raise RuntimeError('unexpected number of items {} vs {}'.format(len(self.valid_changes),

@@ -13,6 +13,35 @@ StatusCode = int
 RequestValue = typing.Tuple[StatusCode, typing.Any]
 
 
+def tojson(data) -> str:
+    """Convert the data structure to json.
+    see https://docs.python.org/3.4/library/json.html
+    """
+    try:
+        retstr = json.dumps(data, separators=(',', ':'), default=str)
+    except TypeError as e:
+        logger.warn("problem converting to json '{}'".format(data))
+        raise e
+    return retstr
+
+
+def fromjson(data_bytes: bytes) -> typing.Any:
+    """Convert bytes into a data struct which we return.
+    This routine will raise an exception of there is an error in json.loads
+    """
+    return json.loads(data_bytes)
+
+
+def safe_fromjson(data_bytes: bytes) -> typing.Optional[typing.Any]:
+    """Convert bytes into a data struct which we return.
+    This routine will return None if the conversion from json fails.
+    """
+    try:
+        return json.loads(data_bytes)
+    except json.decoder.JSONDecodeError:
+        return None
+
+
 class Session(requests.Session):
 
     def __init__(self) -> None:
@@ -40,13 +69,21 @@ class Session(requests.Session):
                         path: str,
                         data: typing.Any=None,
                         params: dict=None,
-                        retries: int=3) ->requests.Response:
+                        retries: int=3,
+                        expect_json: bool=True) ->requests.Response:
         if not self._islogged_in:
             raise RuntimeError("Must log in before using the call API")
-        json_data = data and json.dumps(data)
-        headers = {'Accept': 'application/json'}
+        json_data = data and tojson(data)
+        # json_data = data and json.dumps(data)
+        if expect_json:
+            headers = {'Accept': 'application/json'}
+        else:
+            headers = {'Accept': "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
         if json_data:
             headers['Content-Type'] = 'application/json'
+        else:
+            headers['Content-Type'] = 'text/plain;charset=utf-8'
+        # print("RRR expect_json {}, json_data: {}".format(expect_json, json_data))
         retries_remaining = retries
         average_delay = 20
         while True:
@@ -103,9 +140,6 @@ class Session(requests.Session):
         """
         return self._retry_json(self.post, path, data=data, retries=retries)
 
-    def _scoget(self, path: str, params: dict=None, retries=3) -> requests.Response:
-        return self._retry_response(self.get, path, params=params, retries=retries)
-
     def generate_receive_url(self, locid: int, rfidlst: typing.List[int]) -> str:
         """Generate the URL in string form that can be used to generate
         a RFID receive response.
@@ -116,6 +150,16 @@ class Session(requests.Session):
         qstr = "?location_id={}".format(locid)
         rstr = "".join(["&rfids={}".format(rfid) for rfid in rfidlst])
         return ustr + qstr + rstr
+
+    def _rawget(self, path: str, params: dict=None, retries=3) -> requests.Response:
+        """Perform a get call to the server, in which we do NOT expect a json response
+        from the server.
+        """
+        return self._retry_response(self.get,
+                                    path,
+                                    params=params,
+                                    retries=retries,
+                                    expect_json=False)
 
     def get_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
         """ Get a JSON object from the web server.
@@ -168,12 +212,27 @@ DUMP_REAG_ITEMS = '/table_dump/qcs_reag_item'
 DUMP_REAG_ITEM_STATUS = '/table_dump/qcs_reag_item_status'
 DUMP_REAG_ITEM_COMPOSITION = '/table_dump/qcs_reag_composition'
 DUMP_LOCATION = '/table_dump/qcs_location'
+DUMP_USERS = '/table_dump/qcs_users'
 
 HTTP_OK = requests.codes.ok
 HTTP_CREATED = requests.codes.created
 
 
 QAIdct = typing.Dict[str, typing.Any]
+QAIChangedct = typing.Dict[str, str]
+QAIUpdatedct = typing.Dict[str, bool]
+
+
+class QAIDataset:
+    def __init__(self, qaidct: QAIdct, tsdct: QAIChangedct) -> None:
+        self._qaidct = qaidct
+        self._tsdct = tsdct
+
+    def get_data(self) -> QAIdct:
+        return self._qaidct
+
+    def get_timestamp(self) -> QAIChangedct:
+        return self._tsdct
 
 
 class QAISession(Session):
@@ -186,6 +245,17 @@ class QAISession(Session):
     QAIDCT_REAITEM_COMPOSITION = 'reagen_item_composition'
     QAIDCT_LOCATIONS = 'locations'
     QAIDCT_USERS = 'users'
+
+    data_url_lst = [(QAIDCT_REAGENTS, DUMP_REAGENTS),
+                    (QAIDCT_REAGENT_ITEMS, DUMP_REAG_ITEMS),
+                    (QAIDCT_REAITEM_STATUS, DUMP_REAG_ITEM_STATUS),
+                    (QAIDCT_REAITEM_COMPOSITION, DUMP_REAG_ITEM_COMPOSITION),
+                    (QAIDCT_LOCATIONS, DUMP_LOCATION),
+                    (QAIDCT_USERS, DUMP_USERS)]
+
+    timestamp_url_lst = [(k, "%s//scn" % u) for k, u in data_url_lst]
+    qai_key_lst = [k for k, u in data_url_lst]
+    qai_key_set = frozenset(qai_key_lst)
 
     def _get_location_list(self) -> typing.List[dict]:
         """Retrieve a list of all locations.
@@ -228,19 +298,55 @@ class QAISession(Session):
             rdct[reag_id] = r_show
         return rdct
 
-    def get_QAI_dump(self) -> QAIdct:
-        """Retrieve the complete reagent database as a dict.
-
+    def get_QAI_ChangeData(self) -> QAIChangedct:
+        """Retrieve the current QAI change value (Oracle's system change number)
+        for each data table we track.
         """
-        rdct = {}
-        for k, url in [(QAISession.QAIDCT_REAGENTS, DUMP_REAGENTS),
-                       (QAISession.QAIDCT_REAGENT_ITEMS, DUMP_REAG_ITEMS),
-                       (QAISession.QAIDCT_REAITEM_STATUS, DUMP_REAG_ITEM_STATUS),
-                       (QAISession.QAIDCT_REAITEM_COMPOSITION, DUMP_REAG_ITEM_COMPOSITION),
-                       (QAISession.QAIDCT_LOCATIONS, DUMP_LOCATION),
-                       (QAISession.QAIDCT_USERS, PATH_USER_LIST)]:
+        rdct: QAIChangedct = {}
+        for k, url in self.timestamp_url_lst:
+            # print("TRYING {} {}".format(k, url))
+            resp = self._rawget(url)
+            rcode = resp.status_code
+            rval = resp.text
+            # print("BLARESP rcode: {}, cont {}".format(rcode, rval))
+            if rcode != HTTP_OK:
+                raise RuntimeError("call {}  failed with status {}".format(url, rcode))
+            rdct[k] = rval
+        return rdct
+
+    def get_QAI_dump(self) -> QAIDataset:
+        """Retrieve the complete reagent database as a QAIDataset.
+        """
+        rdct: QAIdct = {}
+        for k, url in self.data_url_lst:
             rcode, rval = self.get_json(url)
             if rcode != HTTP_OK:
                 raise RuntimeError("call for {} ({}) failed".format(k, url))
             rdct[k] = rval
-        return rdct
+        tsdct = self.get_QAI_ChangeData()
+        return QAIDataset(rdct, tsdct)
+
+    def clever_update_QAI_dump(self, qaiDS: QAIDataset) -> QAIUpdatedct:
+        """Using the timestamp keys in tsdct, update those
+        entries in qaidct and tsdct from the server that are out of date.
+        For each dictionary entry (i.e. database table) return a
+        boolean "an update from the server occured"
+        """
+        tsdct = qaiDS.get_timestamp()
+        qaidct = qaiDS.get_data()
+        for tdct in [tsdct, qaidct]:
+            if set(tdct.keys()) != self.qai_key_set:
+                raise RuntimeError("dct has wonky keys {}".format(tdct.keys()))
+        newtsdct = self.get_QAI_ChangeData()
+        retdct: QAIUpdatedct = {}
+        for k, dataurl in self.data_url_lst:
+            new_timestamp = newtsdct[k]
+            do_update = retdct[k] = new_timestamp != tsdct[k]
+            if do_update:
+                # we need to update from the server
+                rcode, rval = self.get_json(dataurl)
+                if rcode != HTTP_OK:
+                    raise RuntimeError("call for {} ({}) failed".format(k, dataurl))
+                qaidct[k] = rval
+                tsdct[k] = new_timestamp
+        return retdct

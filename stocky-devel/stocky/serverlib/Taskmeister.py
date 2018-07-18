@@ -14,7 +14,7 @@ import geventwebsocket.exceptions
 
 from webclient.commonmsg import CommonMSG
 
-import serverlib.QAILib as QAILib
+import serverlib.qai_helper as qai_helper
 
 
 class BaseTaskMeister:
@@ -135,7 +135,7 @@ class WebSocketReader(BaseReader):
         if msg is None:
             retmsg = None
         else:
-            dct = QAILib.safe_fromjson(msg)
+            dct = qai_helper.safe_fromjson(msg)
             if dct is None:
                 self.logger.warn("malformed json string, got '{}'".format(msg))
                 retmsg = None

@@ -30,7 +30,7 @@ all-coverage: ## run the unit tests of the server code, then show the test cover
 	coverage run -m py.test serverlib
 	coverage report -m --omit="serverlib/tests/*","serverlib/__init__.py"
 #--
-qai-test: ## run the unit tests that access the test QAI
+qai-test: ## run the unit tests that access the test QAI webserver
 	pytest -v serverlib --with_qai --ff --maxfail=1 -k test_qai_helper
 	# pytest -vvv serverlib --with_qai --ff  -k test_qai_helper
 	# pytest -vvv serverlib --with_qai -k test_qai_helper
@@ -38,6 +38,9 @@ qai-test: ## run the unit tests that access the test QAI
 qai-coverage: ## show test coverage of code accessing the test QAI server
 	coverage run -m py.test serverlib --with_qai -k test_qai_helper
 	coverage report  -m --include="serverlib/qai_helper.py"
+#--
+chemstock-test: ## run the unit tests that access a local chemstocks YAML file
+	pytest -v serverlib --with_chemstock --ff --maxfail=1 -k test_ChemStock
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py serverlib
 pep8: ## analyse the server code for compliance with pep8 using codestyle

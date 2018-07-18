@@ -15,35 +15,6 @@ import serverlib.yamlutil as yamlutil
 logger = logging.Logger('QAILib')
 
 
-def tojson(data) -> str:
-    """Convert the data structure to json.
-    see https://docs.python.org/3.4/library/json.html
-    """
-    try:
-        retstr = json.dumps(data, separators=(',', ':'), default=str)
-    except TypeError as e:
-        logger.warn("problem converting to json '{}'".format(data))
-        raise e
-    return retstr
-
-
-def fromjson(data_bytes: bytes) -> typing.Any:
-    """Convert bytes into a data struct which we return.
-    This routine will raise an exception of there is an error in json.loads
-    """
-    return json.loads(data_bytes)
-
-
-def safe_fromjson(data_bytes: bytes) -> typing.Optional[typing.Any]:
-    """Convert bytes into a data struct which we return.
-    This routine will return None if the conversion from json fails.
-    """
-    try:
-        return json.loads(data_bytes)
-    except json.decoder.JSONDecodeError:
-        return None
-
-
 def raw_get_json_data(url: str) -> typing.Any:
     """Perform a http request to the provided url.
     Convert the returned json string into a python data structure

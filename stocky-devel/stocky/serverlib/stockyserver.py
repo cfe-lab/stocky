@@ -6,7 +6,9 @@ from gevent.queue import Queue
 from geventwebsocket import websocket
 import serverlib.timelib as timelib
 import serverlib.TLSAscii as TLSAscii
-import serverlib.QAILib as QAILib
+# import serverlib.QAILib as QAILib
+import serverlib.qai_helper as qai_helper
+import serverlib.ChemStock as ChemStock
 import serverlib.Taskmeister as Taskmeister
 import serverlib.serverconfig as serverconfig
 
@@ -49,28 +51,23 @@ class serverclass:
         self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl, AVENUM)
         self.BT_init_reader()
 
+        # now: set up our channel to QAI
+        self.qai_url = self.cfg_dct['STOCK_LIST_URL']
+        self.qai_file = self.cfg_dct['STOCK_LIST_FILE']
+        self.logger.info("QAI info URL: '{}', file: '{}'".format(self.qai_url, self.qai_file))
+        self.qaisession = qai_helper.Session()
+        self.stockdb = ChemStock.ChemStockDB(self.qai_file)
         # now: get our current stock list from QAI
-        qai_url = self.cfg_dct['STOCK_LIST_URL']
-        qai_file = self.cfg_dct['STOCK_LIST_FILE']
-        self.logger.info("QAI info URL: '{}', file: '{}'".format(qai_url, qai_file))
-        self.qaidata = QAILib.QAIdata(qai_url, qai_file)
-        qai_has_data = self.qaidata.has_qai_data()
-        self.logger.info("Before pull: QAI has data: {}".format(qai_has_data))
-        if not qai_has_data:
-            if not self.qaidata.pull_qai_data():
-                raise RuntimeError("Failed to pull stock list from QAI")
-            # we have the data from QAI, dump it for later use
-            self.qaidata.dumpfileQAIdata()
-        self.logger.info("After pull: QAI has data: {}".format(qai_has_data))
 
         # create a timer tick for use in radar mode
         self.timerTM = Taskmeister.TickGenerator(self.msgQ, self.logger, 1, 'radartick')
         self.timerTM.set_active(False)
 
+
     def send_WS_msg(self, msg: CommonMSG) -> None:
         """Send a command to the web client over websocket in a standard JSON format."""
         if self.ws is not None:
-            self.ws.send(QAILib.tojson(msg.as_dict()))
+            self.ws.send(qai_helper.tojson(msg.as_dict()))
 
     def BT_init_reader(self):
         """Initialise the RFID reader. Raise an exception if this fails."""

@@ -4,7 +4,7 @@
 import typing
 import serial
 
-import serverlib.QAILib as QAILib
+import serverlib.qai_helper as qai_helper
 
 OK_RESP = 'OK'
 ER_RESP = 'ER'
@@ -174,7 +174,7 @@ class BaseCommLink:
         """
         # NOTE: the leading space in the format string is required
         return " {}{}{}".format(BaseCommLink.DCT_START_CHAR,
-                                QAILib.tojson(d),
+                                qai_helper.tojson(d),
                                 BaseCommLink.DCT_STOP_CHAR)
 
     @staticmethod
@@ -187,7 +187,7 @@ class BaseCommLink:
         if hash_ndx == -1 or ampers_ndx == -1:
             return None
         dict_str = s[hash_ndx+1:ampers_ndx]
-        return QAILib.safe_fromjson(bytes(dict_str, 'utf-8'))
+        return qai_helper.safe_fromjson(bytes(dict_str, 'utf-8'))
 
     @staticmethod
     def RC_string(ret_code: TLSRetCode) -> str:

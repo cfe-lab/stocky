@@ -309,7 +309,7 @@ class Test_creation(SimpleQAItester):
         retval = self.s.is_logged_in()
         assert isinstance(retval, bool), "bool expected"
         assert retval, "expected true"
-        # r = self.s._scoget(PATH_REAGENT_LIST_SUPPLIERS)
+        # r = self.s._rawget(PATH_REAGENT_LIST_SUPPLIERS)
         print("COOKIES {}".format(self.s.cookies.items()))
         # assert False, "force fail"
 
@@ -414,7 +414,7 @@ class Test_creation(SimpleQAItester):
         pdct = {'location_id': test_locid, 'rfids': rfidlst}
         print("RECEIVE: {}".format(pdct))
         # assert False, "force fail"
-        r = self.s._scoget(PATH_REAGENT_RECEIVE, params=pdct)
+        r = self.s._rawget(PATH_REAGENT_RECEIVE, params=pdct)
         url = r.url
         print("the URL IS {}".format(url))
         # assert False, "force fail"
@@ -612,10 +612,6 @@ class Test_qai_helper_get(DATAQAItester):
             for dat, fn in [(reagent_show, "./reagentshow.yaml")]:
                 yamlutil.writeyamlfile(dat, fn)
 
-    def BLAtest_reagent_receive01(self):
-        """"Uploading RFID tags to specific items should be possible."""
-        pass
-
     # The tests below this line perform get, put and patch operations (i.e. the test
     # database is modified)
 
@@ -767,12 +763,22 @@ class Test_qai_helper_get(DATAQAItester):
             reag_id = reagent_dct['id']
             assert reag_id in ritm_dct, "key {} is missing".format(reag_id)
 
+    def test_changedata(self):
+        d = self.s.get_QAI_ChangeData()
+        assert isinstance(d, dict), "dict expected"
+        print("BLA {}".format(d))
+        # assert False, "force fail"
+
+    def test_cleverdump01(self):
+        # d = self.s.clever_update_QAI_dump(inchange, qaidct)
+        pass
+
     @pytest.mark.skip(reason="Takes too long")
     def test_qai_dump(self):
         lverb = True
-        d = self.s.get_QAI_dump()
-        assert isinstance(d, dict), "dict expected"
-        print("BLA {}".format(d.keys()))
+        ds = self.s.get_QAI_dump()
+        assert isinstance(ds, qai_helper.QAIDataset), "QAIDataset expected"
+        # print("BLA {}".format(ds.keys()))
         # assert False, "force fail"
         if lverb:
-            yamlutil.writeyamlfile(d, "./qaidump.yaml")
+            yamlutil.writeyamlfile(ds, "./qaidump.yaml")

@@ -5,7 +5,7 @@ import geventwebsocket.exceptions
 import logging
 
 import serverlib.Taskmeister as Taskmeister
-import serverlib.QAILib as QAILib
+import serverlib.qai_helper as qai_helper
 
 from webclient.commonmsg import CommonMSG
 
@@ -32,7 +32,7 @@ class DummyWebsocket:
         self._set_data(data)
 
     def _set_data(self, data: typing.Any=None) -> None:
-        self.retdat: typing.Optional[bytes] = None if data is None else bytes(QAILib.tojson(data), 'utf-8')
+        self.retdat: typing.Optional[bytes] = None if data is None else bytes(qai_helper.tojson(data), 'utf-8')
 
     def _set_json_val(self, newjson: bytes) -> None:
         assert isinstance(newjson, bytes), 'set_json must be bytes'

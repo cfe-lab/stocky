@@ -105,9 +105,15 @@ class User(Base):
 # {email: wscott@cfenet.ubc.ca, id: 10018, initials: WS, login: wscott}
 
 
+# for each table above, keep a time of when it was last updated on the QAI server.
+class TableChange(Base):
+    __tablename__ = 'tabchange'
+    table_name = sql.Column(sql.String, primary_key=True)
+    stamp = sql.Column(sql.String)
+
+
 class ChemStockDB:
     def __init__(self,
-                 qaidct: qai_helper.QAIdct,
                  locQAIfname: typing.Optional[str]) -> None:
         """
         This stock information is stored to a local file locQAIfname as an sqlite3 databse
@@ -124,8 +130,15 @@ class ChemStockDB:
         Base.metadata.create_all(self._engine)
         Session = orm.sessionmaker(bind=self._engine)
 
-        s = self._sess = Session()
+        self._sess = Session()
 
+    def loadQAI_data(self, qaiDS: qai_helper.QAIDataset) -> bool:
+        """Replace the database contents with the data contained in qaidct.
+        Return := 'the update was successful'
+        """
+        s = self._sess
+        # first, add the data....
+        qaidct = qaiDS.get_data()
         for idname, classname in [(qai_helper.QAISession.QAIDCT_LOCATIONS, Location),
                                   (qai_helper.QAISession.QAIDCT_USERS, User),
                                   (qai_helper.QAISession.QAIDCT_REAITEM_COMPOSITION, Reagent_Item_Composition),
@@ -136,3 +149,17 @@ class ChemStockDB:
                 # print("BLA {}".format(r_dct))
                 s.add(classname(**r_dct))
             s.commit()
+        # now add the timestamps
+        tsdct = qaiDS.get_timestamp()
+        for k, val in tsdct.items():
+            tdct = dict(table_name=k, stamp=val)
+            s.add(TableChange(**tdct))
+        s.commit()
+        return True
+
+    def load_TS_data(self) -> qai_helper.QAIChangedct:
+        """Retrieve the current timestamp data from the database."""
+        rdct: qai_helper.QAIChangedct = {}
+        for tc in self._sess.query(TableChange):
+            rdct[tc.table_name] = tc.stamp
+        return rdct
