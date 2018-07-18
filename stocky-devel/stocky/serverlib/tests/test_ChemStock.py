@@ -12,13 +12,15 @@ class Test_Chemstock:
 
     @classmethod
     def setup_class(cls) -> None:
-        qaidct = yamlutil.readyamlfile("./qaidump.yaml")
-        cls.locdbname = "bli.sqlite"
-        cls.locdbname = None
-        cls.csdb = ChemStock.ChemStockDB(qaidct, cls.locdbname)
+        # qaidct = yamlutiLscopy3
+        .readyamlfile("./qaidump.yaml")
+        # cls.locdbname = "bli.sqlite"
+        # cls.locdbname = None
+        # cls.csdb = ChemStock.ChemStockDB(qaidct, cls.locdbname)
 
-        print("DB NAME: {}".format(cls.csdb._locQAIfname))
+        # print("DB NAME: {}".format(cls.csdb._locQAIfname))
         # assert False, "force fail"
+        pass
 
     def test_dummy01(self):
         pass
