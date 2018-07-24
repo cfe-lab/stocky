@@ -29,12 +29,21 @@ class CommonMSG:
     # the server wants to send a generic command directly to the RFID reader
     MSG_SV_GENERIC_COMMAND = 'SV_GENERIC_CMD'
 
+    # the server is providing some config data (QAI_URL,...)
+    MSG_SV_CONFIG_DATA = 'SV_CONFIG'
+
     # the web client is performing a stock check
     # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
     MSG_WC_STOCK_CHECK = 'WC_STOCK_MODE'
 
+    # the web client is sending a QAI cookie
+    MSG_WC_QAI_AUTH = 'WC_AUTH_INFO'
+
     # the web client has set a stock checking location
     MSG_WC_SET_STOCK_LOCATION = 'WC_STOCK_SET_LOC'
+
+    # the web client wants some server config info
+    MSG_WC_CONFIG_REQUEST = 'WC_CONFIG_REQ'
 
     # the web client is searching for a specific item ('radar mode')
     MSG_WC_RADAR_MODE = 'WC_RADAR_MODE'
@@ -48,13 +57,20 @@ class CommonMSG:
     # the RFID reader has produced a command response
     MSG_RF_CMD_RESP = 'RF_CMD_RESP'
 
-    # NOTE: because of transcrypt, we cannot use a set..
-    valid_msg_lst = [MSG_SV_RAND_NUM, MSG_SV_TIMER_TICK, MSG_SV_USB_STATE_CHANGE,
-                     MSG_SV_NEW_STOCK_LIST, MSG_SV_GENERIC_COMMAND,
-                     MSG_WC_STOCK_CHECK, MSG_WC_SET_STOCK_LOCATION, MSG_WC_RADAR_MODE,
-                     MSG_RF_STOCK_DATA, MSG_RF_RADAR_DATA, MSG_RF_CMD_RESP]
+    @classmethod
+    def _init_class(cls):
+        # NOTE: because of transcrypt, we cannot use a set..
+        # nor can we seem to be able to define these are class variables.
+        # instead, use a class method which is called upon import below
+        cls.valid_msg_lst = [cls.MSG_SV_RAND_NUM, cls.MSG_SV_TIMER_TICK,
+                             cls.MSG_SV_USB_STATE_CHANGE,
+                             cls.MSG_SV_NEW_STOCK_LIST, cls.MSG_SV_GENERIC_COMMAND,
+                             cls.MSG_SV_CONFIG_DATA, cls.MSG_WC_STOCK_CHECK, cls.MSG_WC_QAI_AUTH,
+                             cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_CONFIG_REQUEST,
+                             cls.MSG_WC_RADAR_MODE, cls.MSG_RF_STOCK_DATA, cls.MSG_RF_RADAR_DATA,
+                             cls.MSG_RF_CMD_RESP]
 
-    valid_msg_dct = dict([(k, 1) for k in valid_msg_lst])
+        cls.valid_msg_dct = dict([(k, 1) for k in cls.valid_msg_lst])
 
     def __init__(self, msg: str, data: typing.Any) -> None:
         if not isinstance(msg, str):
@@ -65,7 +81,13 @@ class CommonMSG:
         self.data = data
 
     def as_dict(self) -> dict:
-        return dict(msg=self.msg, data=self.data)
+        """return this class as a dict.
+        NOTE: under transcrypt, there might be a spurious entry '__kwargtrans__'. If so, delete it
+        """
+        d = dict(msg=self.msg, data=self.data)
+        # if '__kwargtrans__' in d:
+        #    del d['__kwargtrans__']
+        return d
 
     def __str__(self) -> str:
         return "CommonMSG({}, {})".format(self.msg, self.data)
@@ -78,3 +100,6 @@ class CommonMSG:
 
     def is_from_rfid_reader(self) -> bool:
         return self.msg.startswith('RF_')
+
+
+CommonMSG._init_class()

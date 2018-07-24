@@ -137,22 +137,25 @@ class WebSocketReader(BaseReader):
         else:
             dct = qai_helper.safe_fromjson(msg)
             if dct is None:
-                self.logger.warn("malformed json string, got '{}'".format(msg))
+                self.logger.error("malformed json string, got '{}'".format(msg))
                 retmsg = None
             elif isinstance(dct, dict):
-                exp_keys = frozenset(['msg', 'data'])
+                need_keys = frozenset(['msg', 'data'])
                 got_keys = set(dct.keys())
-                if got_keys == exp_keys:
+                if need_keys <= got_keys:
                     # now make sure we have a legal msg field
                     try:
                         retmsg = CommonMSG(dct['msg'], dct['data'])
                     except (ValueError, TypeError) as e:
-                        self.logger.warn("illegal msgtype= '{}'".format(dct['msg']))
+                        self.logger.error("illegal msgtype= '{}'".format(dct['msg']))
                         retmsg = None
+                    xtra_keys = got_keys - need_keys
+                    if xtra_keys:
+                        self.logger.warn("unexpected extra dict keys, got '{}'".format(got_keys))
                 else:
-                    self.logger.warn("unexpected dict keys, got '{}'".format(got_keys))
+                    self.logger.error("unknown keys in {}".format(got_keys))
                     retmsg = None
             else:
-                self.logger.warn("expected a single dict in json message , but got '{}'".format(dct))
+                self.logger.error("expected a single dict in json message , but got '{}'".format(dct))
                 retmsg = None
         return retmsg

@@ -228,6 +228,10 @@ class generic_element(base_element):
             print("element._clickfunc: '{}' creating onclick event".format(self._idstr))
             self.sndMsg(base.MSGD_BUTTON_CLICK, msgdat)
 
+    def _addEventListener(self, event_name: str, cbfunc) -> None:
+        # self._el.addEventListener("click", self._clickfunc, False)
+        self._el.addEventListener(event_name, cbfunc, False)
+
     def setAttribute(self, k: str, v) -> None:
         if k.startswith('*'):
             self._locattrdct[k] = v
@@ -375,18 +379,6 @@ class Img(img):
         super().__init__(parent, idstr, attrdct, jsel)
 
 
-class form(element):
-
-    def __init__(self, parent: base_element,
-                 idstr: str,
-                 attrdct: typing.Optional[dict],
-                 jsel) -> None:
-        generic_element.__init__(self, 'form', parent, idstr, attrdct, jsel)
-
-    def submit(self):
-        self._el.submit()
-
-
 # tables and table elements
 class table(element):
     """A table element. With the appropriate HTML definitions, clicking on the
@@ -528,6 +520,19 @@ class li(element):
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'li', parent, idstr, attrdct, jsel)
+
+
+class label(element):
+    """A label element"""
+
+    def __init__(self,
+                 parent: base_element,
+                 idstr: str,
+                 attrdct: dict,
+                 labeltext: str,
+                 jsel) -> None:
+        generic_element.__init__(self, 'label', parent, idstr, attrdct, jsel)
+        self.setInnerHTML(labeltext)
 
 
 class select(element):

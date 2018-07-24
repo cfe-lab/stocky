@@ -4,10 +4,20 @@ import qailib.common.base as base
 import qailib.common.serversocketbase as serversocketbase
 import qailib.common.crosstest as crosstest
 
-# import qailib.common.tests.formbasetest as formbasetest
+from webclient.commonmsg import CommonMSG
 
-# , CRUD_create, CRUD_delete, CRUD_update
-import qailib.common.dataelements as dataelements
+
+class T1:
+    A = 'Astring'
+    B = 'Bstring'
+    C = 'Cstring'
+
+    @classmethod
+    def do_init(cls) -> None:
+        cls.L = [cls.A, cls.B, cls.C]
+
+
+T1.do_init()
 
 
 class testserver_socket(serversocketbase.base_server_socket):
@@ -39,16 +49,25 @@ class Tester(crosstest.CrossTestCase):
         super().__init__()
         self.run()
 
-    def test_hello_01(self):
-        print('hello world 01')
-        username = 'Jane'
-        ws = testserver_socket("bla-idstr", username)
-        try:
-            self.dc = dataelements.data_cache("datacache", ws)
-            assert self.dc is not None, "data_cache is None"
-        except:
-            print("DC NO GOOD!")
-            self.fail_test('datacache failed to instantiate!')
+    def test_classvar01(self) -> None:
+        # c = T1()
+        print("A is {}".format(T1.A))
+        print("L is {}".format(T1.L))
+
+    def test_commonmsg01(self) -> None:
+        c = CommonMSG(CommonMSG.MSG_SV_RAND_NUM, 10)
+        assert c.msg == CommonMSG.MSG_SV_RAND_NUM, "wrong msg"
+        assert c.data == 10, "wrong data"
+        ll = CommonMSG.valid_msg_lst
+        assert ll, "msg_lst expected"
+        print("lst is {}".format(ll))
+        #
+        # ll = CommonMSG.bla
+        # print("lst is {}".format(ll))
+        # assert ll, "ll is empty"
+        dd = CommonMSG.valid_msg_dct
+        assert dd, "msg_dct expected"
+        print("dct is {}".format(dd))
 
     def DO_NOT_test_sets_01(self):
         """Have been having problems testing for sets of strings in javascript -python.

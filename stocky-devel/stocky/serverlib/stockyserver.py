@@ -6,7 +6,6 @@ from gevent.queue import Queue
 from geventwebsocket import websocket
 import serverlib.timelib as timelib
 import serverlib.TLSAscii as TLSAscii
-# import serverlib.QAILib as QAILib
 import serverlib.qai_helper as qai_helper
 import serverlib.ChemStock as ChemStock
 import serverlib.Taskmeister as Taskmeister
@@ -50,10 +49,11 @@ class serverclass:
         self.logger.info("Commlink is alive and idents as '{}'".format(idstr))
         self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl, AVENUM)
         self.BT_init_reader()
+        self.logger.info("Bluetooth init OK")
 
         # now: set up our channel to QAI
-        self.qai_url = self.cfg_dct['STOCK_LIST_URL']
-        self.qai_file = self.cfg_dct['STOCK_LIST_FILE']
+        self.qai_url = self.cfg_dct['QAI_URL']
+        self.qai_file = self.cfg_dct['LOCAL_STOCK_DB_FILE']
         self.logger.info("QAI info URL: '{}', file: '{}'".format(self.qai_url, self.qai_file))
         self.qaisession = qai_helper.Session()
         self.stockdb = ChemStock.ChemStockDB(self.qai_file)
@@ -62,7 +62,7 @@ class serverclass:
         # create a timer tick for use in radar mode
         self.timerTM = Taskmeister.TickGenerator(self.msgQ, self.logger, 1, 'radartick')
         self.timerTM.set_active(False)
-
+        self.logger.info("End of serverclass.__init__")
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
         """Send a command to the web client over websocket in a standard JSON format."""
@@ -83,6 +83,7 @@ class serverclass:
 
     def server_handle_msg(self, msg: CommonMSG) -> None:
         """Handle this message to me..."""
+        self.logger.debug("server handling msg...")
         if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
             # the server is sending a list of all stock locations
             # in response to a MSG_WC_STOCK_CHECK
@@ -92,11 +93,20 @@ class serverclass:
         elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
             self.logger.debug("server in RADAR mode...")
             self.timerTM.set_active(True)
-        elif CommonMSG.MSG_SV_TIMER_TICK:
+        elif msg.msg == CommonMSG.MSG_SV_TIMER_TICK:
             self.logger.debug("server received tick...")
             # print("MY logger is called '{}'".format(get_logger_name(self.logger)))
             if self.tls.is_in_radarmode():
                 self.tls.RadarGet()
+        elif msg.msg == CommonMSG.MSG_WC_CONFIG_REQUEST:
+            self.logger.debug("server received CONFIG request...")
+            # send the QAI_URL to the webclient
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_CONFIG_DATA,
+                                       dict(qai_url=self.qai_url)))
+        elif msg.msg == CommonMSG.MSG_WC_QAI_AUTH:
+            self.logger.debug("server received auth info...")
+            cookie = msg.data
+            self.logger.debug("server got cookie {}...".format(cookie))
         else:
             self.logger.debug("server not handling message {}".format(msg))
 
@@ -114,7 +124,10 @@ class serverclass:
 
         # the set of messages the server should handle itself.
         MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
+                                    CommonMSG.MSG_WC_QAI_AUTH,
                                     CommonMSG.MSG_WC_RADAR_MODE,
+                                    CommonMSG.MSG_WC_CONFIG_REQUEST,
+                                    CommonMSG.MSG_WC_SET_STOCK_LOCATION,
                                     CommonMSG.MSG_SV_TIMER_TICK])
 
         self.ws = ws
@@ -142,4 +155,4 @@ class serverclass:
                 is_handled = True
                 self.server_handle_msg(msg)
             if not is_handled:
-                self.logger.error("mainloop NOT handling msgtype '{}'".format(msg.msg))
+                self.logger.error("mainloop DID NOT handle msgtype '{}'".format(msg.msg))

@@ -23,8 +23,8 @@ VERSION_FLT = 1.0
 
 # these are the kyes that must be on file
 known_set = frozenset(['VERSION', 'RFID_REGION_CODE', 'TIME_ZONE',
-                       'RFID_READER_DEVNAME', 'STOCK_LIST_URL',
-                       'STOCK_LIST_FILE'])
+                       'RFID_READER_DEVNAME', 'QAI_URL',
+                       'LOCAL_STOCK_DB_FILE'])
 
 # these are the keys on file PLUS the ones added after reading the yaml file
 valid_keys = known_set | frozenset(['TZINFO'])

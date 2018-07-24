@@ -191,3 +191,8 @@ NOTE: these arrows are currently not clever, i.e. do not change with the sorted 
 }
 
  
+ /* these are for classes defined in forms.py  */
+.scoform { display: table; }
+.scoformdiv { display: table-row; }
+.scoformlabel { display: table-cell; }
+.scoforminput { display: table-cell; }

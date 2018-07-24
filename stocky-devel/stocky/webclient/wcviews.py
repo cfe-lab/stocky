@@ -3,6 +3,7 @@
 # define specific view for the webcloient here
 
 import typing
+from org.transcrypt.stubs.browser import window
 # import qailib.common.base as base
 
 # import qailib.transcryptlib.htmlelements as html
@@ -87,3 +88,30 @@ class RadarView(widgets.BasicView):
         blu_colorstr = '#6600ff'
         svg.rect(xleft, ytop, w_rect, h_rect, red_colorstr)
         svg.text(xleft, ytop, blu_colorstr, epc)
+
+
+class AddNewStockView(widgets.BasicView):
+    def __init__(self, contr: widgets.base_controller,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 attrdct: dict,
+                 jsel) -> None:
+        attrdct = attrdct or {}
+        attrdct['height'] = attrdct['width'] = '100%'
+        attrdct['class'] = 'switchview-cls'
+        super().__init__(contr, parent, idstr, attrdct, jsel)
+        print("AddNewStockView!!!")
+        # self.qai_url: typing.Optional[str] = None
+        # self.win = None
+
+    def BLAset_qai_url(self, q: str) -> None:
+        self.qai_url = q
+        print("AddNewStockView: {}".format(self.qai_url))
+        # self.redirect()
+
+    def BLAredirect(self) -> None:
+        # this does indeed replace the current window
+        # window.location = self.qai_url
+        # this opens a new tab or window
+        if self.win is None:
+            self.win = window.open(self.qai_url)

@@ -8,23 +8,27 @@ import qailib.transcryptlib.genutils as genutils
 import qailib.common.serversocketbase as serversocketbase
 import qailib.transcryptlib.serversocket as serversock
 import qailib.transcryptlib.htmlelements as html
+import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.widgets as widgets
 import qailib.transcryptlib.handlebars as handlebars
 
 
 from commonmsg import CommonMSG
 import wcviews
+# import QAIauth
 
 log = genutils.log
 
 LST_NUM = 10
 
-LIST_VIEW_NAME = 'addstock'
+ADDSTOCK_VIEW_NAME = 'addstock'
 CHECK_STOCK_VIEW_NAME = 'checkstock'
 RADAR_VIEW_NAME = 'radar'
 
+# NOTE: if these entries have no 'viewclass' entry, a BasicView is used (see init_view)
 menulst = [
-    {'name': LIST_VIEW_NAME,
+    {'name': ADDSTOCK_VIEW_NAME,
+     'viewclass': wcviews.AddNewStockView,
      'button': {'label': 'Add New Stock',
                 'title': "Add new new stock to the QAI",
                 'id': 'BV1'}
@@ -53,9 +57,32 @@ menulst = [
     ]
 
 
+def sco_submit():
+    log("SCOSUBMIIIT")
+
+
+class scologinform:
+    def __init__(self):
+        self.username = dict(label='BLALOGIN', val='dunno')
+        self.password = dict(label='BLAPW', val='dunnoPW')
+        self.id = "ScoIIID"
+        self.callme = 'webclient.scologinform.check_submit("ScoIIID")'
+
+    def render(self) -> str:
+        strval = handlebars.evalTemplate("scologin-template", {"form": self})
+        if strval is None:
+            log('LOGIN TEMPLATE FAILED')
+        return strval
+
+    @classmethod
+    def check_submit(cls, id: str):
+        log("SUBMIIIT {}".format(id))
+
+
 class stocky_mainprog(widgets.base_controller):
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
         super().__init__(myname)
+        self.qai_url: typing.Optional[str] = None
         self._ws = ws
         ws.addObserver(self, base.MSGD_SERVER_MSG)
         ws.addObserver(self, base.MSGD_COMMS_ARE_UP)
@@ -210,7 +237,25 @@ class stocky_mainprog(widgets.base_controller):
             log('TEMPLATE FAILED')
         else:
             # log("TEMPLATE {}".format(strval))
-            self.switch.getView(LIST_VIEW_NAME).setInnerHTML(strval)
+            self.switch.getView(ADDSTOCK_VIEW_NAME).setInnerHTML(strval)
+
+    def OLD_try_login(self) -> None:
+        """Let the user try an log in."""
+        log('TRY_LOGIN')
+        theview = self.switch.getView(ADDSTOCK_VIEW_NAME)
+        lform = scologinform()
+        strval = lform.render()
+        if strval is not None:
+            # log("TEMPLATE {}".format(strval))
+            theview.setInnerHTML(strval)
+
+    def try_login(self) -> None:
+        """Let the user try an log in."""
+        log('TRY_LOGIN')
+        theview = self.switch.getView(ADDSTOCK_VIEW_NAME)
+        popup = forms.modaldiv(theview, "loginpopup", {}, None)
+        popbutton = popup.get_show_button(theview, "Press Me Now!")
+        lform = forms.loginform(popup.get_content_element(), "scoLLLogin", None)
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
@@ -247,8 +292,10 @@ class stocky_mainprog(widgets.base_controller):
                 self.setstockdata(val)
             elif cmd == CommonMSG.MSG_RF_RADAR_DATA:
                 self.setradardata(val)
+            elif cmd == CommonMSG.MSG_SV_CONFIG_DATA:
+                self.try_login()
             else:
-                print("unrecognised command {}".format(msgdat))
+                print("unrecognised server command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:
             print("webclient GOT BUTTON CLICK")
             if msgdat is None:
@@ -277,6 +324,11 @@ class stocky_mainprog(widgets.base_controller):
             else:
                 print('webclient: unrecognised cmd')
                 return
+        elif msgdesc == base.MSGD_COMMS_ARE_UP:
+            print("sending config request to server")
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_CONFIG_REQUEST, 1))
+        else:
+            print("unhandled message {}".format(msgdesc))
 
 
 # this is the main program that runs when the page is loaded

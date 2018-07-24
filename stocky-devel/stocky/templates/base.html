@@ -49,11 +49,14 @@
       {{/each}}
     </ul>
   </script>
+  <script id="scologin-template" type="text/x-handlebars-template">
+    <form id={{form.id}} method="POST" onsubmit="{{form.callme}}; return false;">
+      <div>{{ form.username.label }}: {{ form.username.val }}</div>
+      <div>{{ form.password.label }}: {{ form.password.val }}</div>
+      <div><input type="submit" value="Log in"></div>
+    </form>
+  </script>  
 {% endraw %}  
   </body>
-  <script src="{{ url_for('static', filename='handlebars-v4.0.11.js') }}" charset="UTF-8" type="text/javascript"></script>
-  <script src="{{ url_for('static', filename='handlebars-helpers.js') }}" charset="UTF-8" type="text/javascript"></script>
-  <script src="{{ url_for('static', filename='w3.js') }}" charset="UTF-8" type="text/javascript"></script>
-  <script src="{{ url_for('static', filename='svg.min.js') }}" charset="UTF-8" type="text/javascript"></script>
-  <script src="/webclient/__javascript__/webclient.js" charset="UTF-8" type="text/javascript"></script>
+  {% block scriptcontent %}{% endblock %}
 </html>
