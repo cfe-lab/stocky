@@ -1,7 +1,7 @@
-
 # import typing
 import flask
 
+import gevent
 from gevent.queue import Queue
 from geventwebsocket import websocket
 import serverlib.timelib as timelib
@@ -69,6 +69,9 @@ class serverclass:
         if self.ws is not None:
             self.ws.send(qai_helper.tojson(msg.as_dict()))
 
+    def sleep(self, secs: int) -> None:
+        gevent.sleep(secs)
+
     def BT_init_reader(self):
         """Initialise the RFID reader. Raise an exception if this fails."""
         # set RFID region
@@ -98,17 +101,24 @@ class serverclass:
             # print("MY logger is called '{}'".format(get_logger_name(self.logger)))
             if self.tls.is_in_radarmode():
                 self.tls.RadarGet()
-        elif msg.msg == CommonMSG.MSG_WC_CONFIG_REQUEST:
-            self.logger.debug("server received CONFIG request...")
-            # send the QAI_URL to the webclient
-            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_CONFIG_DATA,
-                                       dict(qai_url=self.qai_url)))
+        elif msg.msg == CommonMSG.MSG_WC_LOGIN_TRY:
+            self.logger.debug("server received LOGIN request...")
+            # try to log in and send back the response
+            un = msg.data.get('username', None)
+            pw = msg.data.get('password', None)
+            login_resp = self.qaisession.login_try(self.qai_url, un, pw)
+            # self.sleep(3)
+            if not isinstance(login_resp, dict):
+                raise RuntimeError("fatal login try error")
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOGIN_RES, login_resp))
+            # dict(ok=False, msg="User unknown", data=msg.data)))
         elif msg.msg == CommonMSG.MSG_WC_QAI_AUTH:
             self.logger.debug("server received auth info...")
             cookie = msg.data
             self.logger.debug("server got cookie {}...".format(cookie))
         else:
-            self.logger.debug("server not handling message {}".format(msg))
+            self.logger.error("server not handling message {}".format(msg))
+            raise RuntimeError("unhandled message")
 
     def mainloop(self, ws: websocket):
         # the set of messages we simply pass on to the web client.
@@ -126,7 +136,7 @@ class serverclass:
         MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
                                     CommonMSG.MSG_WC_QAI_AUTH,
                                     CommonMSG.MSG_WC_RADAR_MODE,
-                                    CommonMSG.MSG_WC_CONFIG_REQUEST,
+                                    CommonMSG.MSG_WC_LOGIN_TRY,
                                     CommonMSG.MSG_WC_SET_STOCK_LOCATION,
                                     CommonMSG.MSG_SV_TIMER_TICK])
 

@@ -48,18 +48,53 @@ class Session(requests.Session):
         super().__init__()
         self._islogged_in = False
 
+    def _login_resp(self, qai_path: str, qai_user: str, password: str) -> requests.Response:
+        self.qai_path = qai_path
+        return self.post(qai_path + "/account/login",
+                         data={'user_login': qai_user,
+                               'user_password': password})
+
     def login(self, qai_path: str, qai_user: str, password: str) -> None:
         """ Login to QAI before calling post_json or get_json.
-
         @raise RuntimeError: when the QAI server rejects the user and password.
         """
-        self.qai_path = qai_path
-        response = self.post(qai_path + "/account/login",
-                             data={'user_login': qai_user,
-                                   'user_password': password})
+        response = self._login_resp(qai_path, qai_user, password)
         if response.status_code == requests.codes.forbidden:  # @UndefinedVariable
             raise RuntimeError("Login failed for QAI user '{}'.".format(qai_user))
         self._islogged_in = True
+
+    def login_try(self, qai_path: str, qai_user: str, password: str) -> dict:
+        """Try to login. Do not raise any exceptions, byt return a dict with information
+        that can be shown to the user.
+        The dict returned must have:
+        "username": return the name of the user
+        "ok" boolean
+        if not ok:
+          msg = "error message for the user"
+        """
+        if qai_user is None:
+            return dict(ok=False, msg="Configuration error: empty username")
+        if password is None:
+            return dict(ok=False, msg="Configuration error: empty password")
+        try:
+            response = self._login_resp(qai_path, qai_user, password)
+        except requests.exceptions.InvalidURL:
+            return dict(ok=False, msg="Configuration error: invalid QAI URL {}".format(qai_path))
+        except requests.exceptions.HTTPError:
+            return dict(ok=False, msg="Configuration error: HTTP Protocol error")
+        except Exception:
+            # the QAI could not be contacted (exceeded number of attempts)
+            return dict(ok=False,
+                        msg="Login unsuccessful: The QAI system at {} cannot be contacted".format(qai_path))
+        retstat = response.status_code
+        if retstat == requests.codes.forbidden:
+            return dict(ok=False,
+                        msg="Login unsuccessful: The QAI system refused access for user {}".format(qai_user))
+        # finally -- things seem to have worked out
+        self._islogged_in = True
+        return dict(ok=True,
+                    msg="Access granted for user {}".format(qai_user),
+                    username=qai_user)
 
     def is_logged_in(self):
         return self._islogged_in

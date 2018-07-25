@@ -1,4 +1,4 @@
-# handle QAI auntentication logic
+# handle QAI authentication logic
 
 import typing
 
@@ -21,6 +21,11 @@ class qaiauth:
         self.win = None
         self._my_cookie = None
 
+    def is_logged_in(self) -> bool:
+        """Return 'user is logged in'"""
+        pass
+
+    
     def get_auth_cookie(self) -> typing.Optional[str]:
         """Provide User authentication to QAI.
         Return None if this failed.

@@ -24,6 +24,12 @@ pagecontainer
 */
 
 
+/* doesn't seem to work
+.errortext {
+    color: #FF0000;
+}
+
+*/
 
 #pagecontainer {
    min-height:100%;

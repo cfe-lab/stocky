@@ -29,8 +29,12 @@ class CommonMSG:
     # the server wants to send a generic command directly to the RFID reader
     MSG_SV_GENERIC_COMMAND = 'SV_GENERIC_CMD'
 
-    # the server is providing some config data (QAI_URL,...)
-    MSG_SV_CONFIG_DATA = 'SV_CONFIG'
+    # the web client is sending uname, password info so
+    # that server can try to authenticate
+    MSG_WC_LOGIN_TRY = 'WC_LOGIN_TRY'
+
+    # the server is providing the result of a login attempt sent by MSG_WC_LOGIN_TRY
+    MSG_SV_LOGIN_RES = 'SV_LOGIN_RES'
 
     # the web client is performing a stock check
     # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
@@ -41,9 +45,6 @@ class CommonMSG:
 
     # the web client has set a stock checking location
     MSG_WC_SET_STOCK_LOCATION = 'WC_STOCK_SET_LOC'
-
-    # the web client wants some server config info
-    MSG_WC_CONFIG_REQUEST = 'WC_CONFIG_REQ'
 
     # the web client is searching for a specific item ('radar mode')
     MSG_WC_RADAR_MODE = 'WC_RADAR_MODE'
@@ -65,8 +66,8 @@ class CommonMSG:
         cls.valid_msg_lst = [cls.MSG_SV_RAND_NUM, cls.MSG_SV_TIMER_TICK,
                              cls.MSG_SV_USB_STATE_CHANGE,
                              cls.MSG_SV_NEW_STOCK_LIST, cls.MSG_SV_GENERIC_COMMAND,
-                             cls.MSG_SV_CONFIG_DATA, cls.MSG_WC_STOCK_CHECK, cls.MSG_WC_QAI_AUTH,
-                             cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_CONFIG_REQUEST,
+                             cls.MSG_SV_LOGIN_RES, cls.MSG_WC_STOCK_CHECK, cls.MSG_WC_QAI_AUTH,
+                             cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_LOGIN_TRY,
                              cls.MSG_WC_RADAR_MODE, cls.MSG_RF_STOCK_DATA, cls.MSG_RF_RADAR_DATA,
                              cls.MSG_RF_CMD_RESP]
 

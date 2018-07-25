@@ -4,6 +4,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='w3.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='leds.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='font-awesome-4.7.0/css/font-awesome.min.css') }}">
     <title>Stocky - {% block pagetitle %}{% endblock %}</title>
   </head>
   <body>
@@ -49,13 +50,6 @@
       {{/each}}
     </ul>
   </script>
-  <script id="scologin-template" type="text/x-handlebars-template">
-    <form id={{form.id}} method="POST" onsubmit="{{form.callme}}; return false;">
-      <div>{{ form.username.label }}: {{ form.username.val }}</div>
-      <div>{{ form.password.label }}: {{ form.password.val }}</div>
-      <div><input type="submit" value="Log in"></div>
-    </form>
-  </script>  
 {% endraw %}  
   </body>
   {% block scriptcontent %}{% endblock %}

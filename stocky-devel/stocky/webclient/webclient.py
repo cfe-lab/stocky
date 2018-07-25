@@ -61,24 +61,6 @@ def sco_submit():
     log("SCOSUBMIIIT")
 
 
-class scologinform:
-    def __init__(self):
-        self.username = dict(label='BLALOGIN', val='dunno')
-        self.password = dict(label='BLAPW', val='dunnoPW')
-        self.id = "ScoIIID"
-        self.callme = 'webclient.scologinform.check_submit("ScoIIID")'
-
-    def render(self) -> str:
-        strval = handlebars.evalTemplate("scologin-template", {"form": self})
-        if strval is None:
-            log('LOGIN TEMPLATE FAILED')
-        return strval
-
-    @classmethod
-    def check_submit(cls, id: str):
-        log("SUBMIIIT {}".format(id))
-
-
 class stocky_mainprog(widgets.base_controller):
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
         super().__init__(myname)
@@ -149,6 +131,16 @@ class stocky_mainprog(widgets.base_controller):
         switch.switchTo(0)
         self._curlocndx = None
 
+        # initialise the authentication machinery
+        theview = self.switch.getView(ADDSTOCK_VIEW_NAME)
+        popup = forms.modaldiv(theview, "loginpopup", "Log In to QAI", {}, "w3-teal")
+        self.popbutton = popup.get_show_button(theview, "Press Me Now!")
+        lf = self.loginform = forms.loginform(popup.get_content_element(),
+                                              "scoLLLogin",
+                                              popup,
+                                              None)
+        lf.addObserver(self, base.MSGD_FORM_SUBMIT)
+        
     def setstockdata(self, stockdct: dict) -> None:
         # now, prepare the individual views if required
         self._stockloc_lst = stockdct['loclist']
@@ -239,23 +231,11 @@ class stocky_mainprog(widgets.base_controller):
             # log("TEMPLATE {}".format(strval))
             self.switch.getView(ADDSTOCK_VIEW_NAME).setInnerHTML(strval)
 
-    def OLD_try_login(self) -> None:
-        """Let the user try an log in."""
-        log('TRY_LOGIN')
-        theview = self.switch.getView(ADDSTOCK_VIEW_NAME)
-        lform = scologinform()
-        strval = lform.render()
-        if strval is not None:
-            # log("TEMPLATE {}".format(strval))
-            theview.setInnerHTML(strval)
-
-    def try_login(self) -> None:
-        """Let the user try an log in."""
-        log('TRY_LOGIN')
-        theview = self.switch.getView(ADDSTOCK_VIEW_NAME)
-        popup = forms.modaldiv(theview, "loginpopup", {}, None)
-        popbutton = popup.get_show_button(theview, "Press Me Now!")
-        lform = forms.loginform(popup.get_content_element(), "scoLLLogin", None)
+    def set_login_status(self, resdct: dict) -> None:
+        """Display the login status in the window"""
+        is_loggedin = resdct['ok']
+        # if not is_logged_in:
+        self.loginform.set_login_response(resdct)
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
@@ -292,8 +272,8 @@ class stocky_mainprog(widgets.base_controller):
                 self.setstockdata(val)
             elif cmd == CommonMSG.MSG_RF_RADAR_DATA:
                 self.setradardata(val)
-            elif cmd == CommonMSG.MSG_SV_CONFIG_DATA:
-                self.try_login()
+            elif cmd == CommonMSG.MSG_SV_LOGIN_RES:
+                self.set_login_status(val)
             else:
                 print("unrecognised server command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:
@@ -325,8 +305,15 @@ class stocky_mainprog(widgets.base_controller):
                 print('webclient: unrecognised cmd')
                 return
         elif msgdesc == base.MSGD_COMMS_ARE_UP:
-            print("sending config request to server")
-            self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_CONFIG_REQUEST, 1))
+            pass
+            # print("sending config request to server")
+            # self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_CONFIG_REQUEST, 1))
+        elif msgdesc == base.MSGD_FORM_SUBMIT:
+            # the login form has sent us a login request. pass this to the server
+            # for verification
+            print("webclient GOT FORM SUBMIT".format(msgdat))
+            dd = {'username': msgdat['username'], 'password': msgdat['password']}
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGIN_TRY, dd))
         else:
             print("unhandled message {}".format(msgdesc))
 

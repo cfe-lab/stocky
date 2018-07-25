@@ -161,6 +161,32 @@ class base_element(base.base_obj):
 
 # my_handles=set(['onclick'])
 
+class textnode(base_element):
+    def __init__(self, parent: base_element, text: str) -> None:
+        text = text or ""
+        self._el = document.createTextNode(text)
+        if parent is not None:
+            parent.appendChild(self)
+
+    def set_text(self, newtext: str) -> None:
+        self._el.nodeValue = newtext
+        # print("newtextset to '{}'".format(newtext))
+
+
+def create_elementstring(parent: base_element, idstr: str, attrdct: dict,
+                         elementclass, text: str) -> "element":
+    """Helper function to create a specified HTML element of class 'elementclass'
+    with a textnode in it.
+    The element created is returned.
+    Example of use:
+    title_el = html.create_elementstring(view, 'dashtitle', None,
+                                         html.h1, "User Dashboard")
+    This creates an html.h1 element in the provided view with the text 'User Dashboard'
+    """
+    el = elementclass(parent, idstr, attrdct)
+    textnode(el, text)
+    return el
+
 
 class generic_element(base_element):
     def __init__(self,
@@ -281,6 +307,13 @@ class button(element):
         generic_element.__init__(self, 'button', parent, idstr, attrdct, jsel)
 
 
+class textbutton(button):
+    """A predefined button with text content"""
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, buttontext: str) -> None:
+        button.__init__(self, parent, idstr, attrdct, None)
+        self._textnode = textnode(self, buttontext)
+
+
 class h1(element):
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'h1', parent, idstr, attrdct, jsel)
@@ -289,6 +322,15 @@ class h1(element):
 class h2(element):
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'h2', parent, idstr, attrdct, jsel)
+
+
+class h2text(h2):
+    """A predefined h2 text element."""
+    def __init__(self, parent: base_element, h2text: str) -> None:
+        idstr = ""
+        # NOTE: 2018-07-24: for some reason, cannot use super() here --> javascript error.
+        h2.__init__(self, parent, idstr, {}, None)
+        self._textnode = textnode(self, h2text)
 
 
 class h3(element):
@@ -313,6 +355,18 @@ class span(element):
     """A span element."""
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'span', parent, idstr, attrdct, jsel)
+
+
+class header(element):
+    """A header element."""
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+        generic_element.__init__(self, 'header', parent, idstr, attrdct, jsel)
+
+
+class footer(element):
+    """A footer element."""
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+        generic_element.__init__(self, 'footer', parent, idstr, attrdct, jsel)
 
 
 class spantext(element):
@@ -345,7 +399,7 @@ class spanerrortext(spantext):
     sheets (the html class is set to 'errortext').
     """
     def __init__(self, parent: base_element, helptext: str) -> None:
-        super().__init__('errortext', parent, helptext)
+        super().__init__('w3-pink', parent, helptext)
 
 
 class a(element):
@@ -595,33 +649,6 @@ class input_button(input):
 class input_submit(input):
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         super().__init__(parent, idstr, 'submit', attrdct, jsel)
-
-
-class textnode(base_element):
-    def __init__(self, parent: base_element, text: str) -> None:
-        text = text or ""
-        self._el = document.createTextNode(text)
-        if parent is not None:
-            parent.appendChild(self)
-
-    def set_text(self, newtext: str) -> None:
-        self._el.nodeValue = newtext
-        # print("newtextset to '{}'".format(newtext))
-
-
-def create_elementstring(parent: base_element, idstr: str, attrdct: dict,
-                         elementclass, text: str) -> element:
-    """Helper function to create a specified HTML element of class 'elementclass'
-    with a textnode in it.
-    The element created is returned.
-    Example of use:
-    title_el = html.create_elementstring(view, 'dashtitle', None,
-                                         html.h1, "User Dashboard")
-    This creates an html.h1 element in the provided view with the text 'User Dashboard'
-    """
-    el = elementclass(parent, idstr, attrdct)
-    textnode(el, text)
-    return el
 
 
 class LEDElement(div):
