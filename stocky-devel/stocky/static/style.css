@@ -23,13 +23,31 @@ pagecontainer
   pagefoot
 */
 
+/* NOTE: padding generates space INSIDE an elements borders 
+margin creates space OUTSIDE an element.
 
-/* doesn't seem to work
-.errortext {
-    color: #FF0000;
-}
+NOTE: colours, use symbolic names, defined here:
+https://www.w3schools.com/colors/colors_names.asp
+
 
 */
+
+
+
+/* define what the status panel (with login and bluetooth status_ looks like */
+/*     
+    border: 1px solid #544E4E;
+    background-color: #716B6B;
+*/
+.statuspanel {
+    position:relative;
+    display: inline-block;
+    overflow: hidden;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-shadow: 1px 1px 11px #330033;
+    background-color: DarkGray;
+}
 
 #pagecontainer {
    min-height:100%;
@@ -41,6 +59,7 @@ pagecontainer
 #pagehead {
    background:#ff0;
    padding:10px;
+   box-shadow: 1px 1px 11px #330033;
 }
 
 #pagecontent {

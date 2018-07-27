@@ -11,6 +11,7 @@ import qailib.transcryptlib.htmlelements as html
 import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.widgets as widgets
 import qailib.transcryptlib.handlebars as handlebars
+import qailib.transcryptlib.simpletable as simpletable
 
 
 from commonmsg import CommonMSG
@@ -24,6 +25,8 @@ LST_NUM = 10
 ADDSTOCK_VIEW_NAME = 'addstock'
 CHECK_STOCK_VIEW_NAME = 'checkstock'
 RADAR_VIEW_NAME = 'radar'
+
+STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 
 # NOTE: if these entries have no 'viewclass' entry, a BasicView is used (see init_view)
 menulst = [
@@ -61,6 +64,132 @@ def sco_submit():
     log("SCOSUBMIIIT")
 
 
+class WCstatus:
+    """Visualise and store the webclient's bluetooth and logged-in status"""
+    RFID_ROW = 0
+    QAI_ROW = 1
+
+    LED_COL = 0
+    INFO_COL = 1
+
+    def __init__(self, mainprog: "stocky_mainprog", login_popup: forms.modaldiv) -> None:
+        """Initialise the status bar (bluetooth and logged-in status)
+        We build everything into a predefined div called state-div.
+        """
+        self.mainprog = mainprog
+        self.login_popup = login_popup
+        self.statediv = statediv = html.getPyElementById("state-div")
+        if statediv is None:
+            log('STATE DIV MISSSING')
+            return
+        else:
+            log("STATE DIV OK")
+        tabattrdct = {}
+        mytab = self.mytab = simpletable.simpletable(statediv, "statetable", tabattrdct, 2, 2)
+
+        self.ledlst = []
+        for title, rownum in [("RFID Scanner Status", WCstatus.RFID_ROW),
+                              ("Click to log in to QAI", WCstatus.QAI_ROW)]:
+            ledattrdct = {"title": title}
+            cell = mytab.getcell(rownum, WCstatus.LED_COL)
+            if cell is not None:
+                newled = html.LEDElement(cell,
+                                         'statusled',
+                                         ledattrdct,
+                                         None,
+                                         html.LEDElement.RED)
+                self.ledlst.append(newled)
+            else:
+                log("cell table error 1")
+                return
+            #
+            mytab.set_alignment(rownum, WCstatus.INFO_COL, "center")
+        # the login led is an opener for the login form
+        login_popup.attach_opener(self.ledlst[WCstatus.QAI_ROW])
+
+        # Set up the information for the QAI user name
+        cell = mytab.getcell(WCstatus.QAI_ROW, WCstatus.INFO_COL)
+        if cell is not None:
+            txt = self.uname_text = html.spantext(cell,
+                                                  "unametext",
+                                                  {'class': "w3-tag w3-red",
+                                                   "title": "Click here to log in"},
+                                                  "not logged in")
+            # the login led is an opener for the login form
+            login_popup.attach_opener(txt)
+        else:
+            log("cell table error 2")
+            self.uname_text = None
+            return
+
+        # set up the RFID activity spinner
+        cell = mytab.getcell(WCstatus.RFID_ROW, WCstatus.INFO_COL)
+        if cell is not None:
+            self.actspinner = forms.spinner(cell,
+                                            "rfidspin",
+                                            {},
+                                            forms.spinner.SPN_COG, 20)
+        else:
+            self.actspinner = None
+            log("cell table error 3")
+            return
+
+    def set_login_response(self, resdct: dict) -> None:
+        """Set the QAI logged in status according to resdct."""
+        statusled = self.ledlst[WCstatus.QAI_ROW]
+        is_logged_in = resdct['ok']
+        in_col = "w3-green"
+        out_col = "w3-red"
+        txt = self.uname_text
+        if is_logged_in:
+            # success:
+            uname = labtext = resdct.get('username', 'unknown')
+            statusled.setcolour(html.LEDElement.GREEN)
+            statusled.setAttribute("title", "Not '{}'? Click here to log in".format(uname))
+
+            txthelptext = "Logged in to QAI. Click here to log out"
+            txt.removeClass(out_col)
+            txt.addClass(in_col)
+            txt.setAttribute(STARATTR_ONCLICK, {'cmd': 'logout'})
+            # the username text is NOT an opener for the login form
+            self.login_popup.remove_opener(txt)
+            txt.addObserver(self.mainprog, base.MSGD_BUTTON_CLICK)
+        else:
+            # error:
+            labtext = "not logged in"
+            txthelptext = "Click here to log in"
+            statusled.setcolour(html.LEDElement.RED)
+            statusled.setAttribute("title", txthelptext)
+
+            txt.removeClass(in_col)
+            txt.addClass(out_col)
+            txt.setAttribute(STARATTR_ONCLICK, dict(msg=forms.modaldiv._OPN_MSG))
+            # the username text is an opener for the login form
+            self.login_popup.attach_opener(txt)
+            txt.remObserver(self.mainprog, base.MSGD_BUTTON_CLICK)
+
+        txt.set_text(labtext)
+        txt.setAttribute("title", txthelptext)
+
+    def set_logout_status(self) -> None:
+        """Set the visual status to 'logged out'"""
+        self.set_login_response(dict(ok=False))
+
+    def set_RFID_state(self, on: bool) -> None:
+        """Set the RFID LED state to on (green) or off (red)"""
+        statusled = self.ledlst[WCstatus.RFID_ROW]
+        if on:
+            # set to green
+            statusled.setcolour(html.LEDElement.GREEN)
+        else:
+            # set to red
+            statusled.setcolour(html.LEDElement.RED)
+
+    def set_rfid_activity(self, on: bool) -> None:
+        """set the RFID spinner on/off """
+        self.actspinner.set_spin(on)
+
+
 class stocky_mainprog(widgets.base_controller):
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
         super().__init__(myname)
@@ -82,7 +211,7 @@ class stocky_mainprog(widgets.base_controller):
         else:
             log('topdoc MISSING')
         self.topdoc = topdoc
-        # main mebu
+        # main menu
         menudiv = html.getPyElementById("main-menu-div")
         if menudiv is None:
             log('MENU DIV MISSSING')
@@ -92,18 +221,6 @@ class stocky_mainprog(widgets.base_controller):
         switchattrdct = {"class": "switchview-cls"}
         self.switch = switch = widgets.SwitchView(self, topdoc, "switchview", switchattrdct, None)
 
-        statediv = html.getPyElementById("state-div")
-        if statediv is None:
-            log('STATE DIV MISSSING')
-        else:
-            log("STATE DIV OK")
-        self.statediv = statediv
-        ledattrdct = {"title": "Scanner Status"}
-        self.status_led = html.LEDElement(statediv,
-                                          'statusled',
-                                          ledattrdct,
-                                          None,
-                                          html.LEDElement.RED)
         # now make switchviews and menubuttons from the menulst
         for mvdct in menulst:
             # add the view
@@ -115,11 +232,11 @@ class stocky_mainprog(widgets.base_controller):
             h1 = html.h1(view, '{}-h1'.format(viewname), None, None)
             html.textnode(h1, "This is View '{}'".format(viewname))
 
-            # add the menu button
+            # add the menu button for this view...
             butdct = mvdct['button']
             butattdct = {'title': butdct['title'],
-                         '*buttonpressmsg': {'cmd': 'viewswitch',
-                                             'target': viewname},
+                         STARATTR_ONCLICK: {'cmd': 'viewswitch',
+                                            'target': viewname},
                          "class": "w3-bar-item w3-button"
                          }
             idstr = butdct['id']
@@ -134,13 +251,16 @@ class stocky_mainprog(widgets.base_controller):
         # initialise the authentication machinery
         theview = self.switch.getView(ADDSTOCK_VIEW_NAME)
         popup = forms.modaldiv(theview, "loginpopup", "Log In to QAI", {}, "w3-teal")
-        self.popbutton = popup.get_show_button(theview, "Press Me Now!")
+        # self.popbutton = popup.get_show_button(theview, "Press Me Now!")
         lf = self.loginform = forms.loginform(popup.get_content_element(),
                                               "scoLLLogin",
                                               popup,
                                               None)
         lf.addObserver(self, base.MSGD_FORM_SUBMIT)
-        
+
+        # status bar (top right)
+        self.wcstatus = WCstatus(self, popup)
+
     def setstockdata(self, stockdct: dict) -> None:
         # now, prepare the individual views if required
         self._stockloc_lst = stockdct['loclist']
@@ -197,7 +317,7 @@ class stocky_mainprog(widgets.base_controller):
         self._curlocndx = sel_ndx
         check_view.setInnerHTML(newstrval)
         selattdct = {'title': 'Select the stock location you want to verify',
-                     '*buttonpressmsg': {'cmd': 'roomswitch'},
+                     STARATTR_ONCLICK: {'cmd': 'roomswitch'},
                      "class": "w3-select locbutton-cls"
                      }
         self.lb = lb = typing.cast(html.select,
@@ -233,16 +353,16 @@ class stocky_mainprog(widgets.base_controller):
 
     def set_login_status(self, resdct: dict) -> None:
         """Display the login status in the window"""
-        is_loggedin = resdct['ok']
         # if not is_logged_in:
         self.loginform.set_login_response(resdct)
+        self.wcstatus.set_login_response(resdct)
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         lverb = True
         if lverb:
-            print("rcvMsg: {}: {}".format(msgdesc, msgdat))
+            print("{}.rcvMsg: {}: {} from {}".format(self._idstr, msgdesc, msgdat, whofrom._idstr))
         if msgdesc == base.MSGD_SERVER_MSG:
             # message from the server.
             if msgdat is None:
@@ -251,13 +371,11 @@ class stocky_mainprog(widgets.base_controller):
             cmd = msgdat.get("msg", None)
             val = msgdat.get("data", None)
             if cmd == CommonMSG.MSG_SV_USB_STATE_CHANGE:
-                print("GOT state {}".format(val))
-                if val:
-                    # set to green
-                    self.status_led.setcolour(html.LEDElement.GREEN)
-                else:
-                    # set to red
-                    self.status_led.setcolour(html.LEDElement.RED)
+                print("GOT USB state {}".format(val))
+                self.wcstatus.set_RFID_state(val)
+            elif cmd == CommonMSG.MSG_SV_RFID_STATREP:
+                print("GOT RFID state {}".format(val))
+                self.wcstatus.set_RFID_state(val)
             elif cmd == CommonMSG.MSG_SV_RAND_NUM:
                 # print("GOT number {}".format(val))
                 newnum = val
@@ -274,10 +392,14 @@ class stocky_mainprog(widgets.base_controller):
                 self.setradardata(val)
             elif cmd == CommonMSG.MSG_SV_LOGIN_RES:
                 self.set_login_status(val)
+            elif cmd == CommonMSG.MSG_SV_LOGOUT_RES:
+                self.wcstatus.set_logout_status()
+            elif cmd == CommonMSG.MSG_SV_RFID_ACTIVITY:
+                self.wcstatus.set_rfid_activity(val)
             else:
                 print("unrecognised server command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:
-            print("webclient GOT BUTTON CLICK")
+            print("webclient GOT BUTTON CLICK msgdat={}".format(msgdat))
             if msgdat is None:
                 print("msgdat is None")
                 return
@@ -301,6 +423,9 @@ class stocky_mainprog(widgets.base_controller):
                 se_ndx, se_val = self.lb.get_selected()
                 print("showchecklist: got LOCKY VBAL '{}'  '{}'".format(se_ndx, se_val))
                 self.showchecklist(se_ndx)
+            elif cmd == 'logout':
+                # the logout button was pressed
+                self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGOUT_TRY, 1))
             else:
                 print('webclient: unrecognised cmd')
                 return

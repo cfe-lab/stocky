@@ -163,3 +163,18 @@ class ChemStockDB:
         for tc in self._sess.query(TableChange):
             rdct[tc.table_name] = tc.stamp
         return rdct
+
+    def generate_webclient_stocklist(self) -> dict:
+        """Generate the stock list in a form required by the web client
+        the dict returned has the following entries:
+        loclst: a list of dicts containing the stock locations, e.g.
+        [{'id': 10000, 'name': 'SPH'}, {'id': 10001, 'name': 'SPH\\638'}, ... ]
+
+
+
+        """
+        # NOTE: as we want dicts and not Location instances, we go directly to
+        # the 'SQL level' (session.execute() and not the 'ORM level' (session.query())
+        # of sqlquery.
+        ll = [dict(row) for row in self._sess.execute(Location.__table__.select())]
+        return {"loclst": ll}

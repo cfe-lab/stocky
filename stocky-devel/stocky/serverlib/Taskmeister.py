@@ -17,6 +17,27 @@ from webclient.commonmsg import CommonMSG
 import serverlib.qai_helper as qai_helper
 
 
+class DelayTaskMeister:
+    """Put a designated message on the queue after a specified delay
+    every time the class is triggered.
+    """
+    def __init__(self, msgQ: gevent.queue.Queue,
+                 logger,
+                 sec_interval: float,
+                 msg_tosend: CommonMSG) -> None:
+        self.msgQ = msgQ
+        self.logger = logger
+        self._sec_sleep = sec_interval
+        self.msg_tosend = msg_tosend
+
+    def trigger(self) -> None:
+        gevent.spawn(self._worker_one_shot)
+
+    def _worker_one_shot(self) -> None:
+        gevent.sleep(self._sec_sleep)
+        self.msgQ.put(self.msg_tosend)
+
+
 class BaseTaskMeister:
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
@@ -32,7 +53,7 @@ class BaseTaskMeister:
         self._isactive = is_active
 
     def _worker_loop(self) -> None:
-        """The Taskmeister even generation loop.
+        """The Taskmeister event generation loop.
         If we are active, we put non-None messages onto the provided message queue
         that self.generate_msg() has created, then sleep for the required time.
         """

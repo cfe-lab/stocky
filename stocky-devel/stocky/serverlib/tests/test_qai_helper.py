@@ -164,10 +164,28 @@ class Test_qai_log_in:
         with pytest.raises(requests.exceptions.ConnectionError):
             self.s.login("http://localhost", auth_uname, auth_password)
 
-    def test_is_logged_in01(self):
+    def test_is_logged_in01(self) -> None:
         retval = self.s.is_logged_in()
         assert isinstance(retval, bool), "bool expected"
         assert not retval, "expected false"
+
+    def test_logout01(self) -> None:
+        """Make sure we can login and out."""
+        s = self.s
+        isin = s.is_logged_in()
+        assert isinstance(isin, bool), "bool epxected"
+        assert not isin, "not isin expected"
+        s.login(qai_url, auth_uname, auth_password)
+        # should have been successful
+        isin = s.is_logged_in()
+        assert isinstance(isin, bool), "bool epxected"
+        assert isin, "isin expected"
+
+        # now logout again
+        s.logout()
+        isin = s.is_logged_in()
+        assert isinstance(isin, bool), "bool epxected"
+        assert not isin, "isin expected"
 
 
 @withqai
@@ -220,7 +238,7 @@ class SimpleQAItester:
         cls.test_user = fndlst[0]
         cls.test_reagent_item_lot_num = 'testlotAAA'
         cls.test_reagent_item_notes = "A fictitious stock item for software testing purposes"
-        cls.test_itema_rfid = '1111114'
+        cls.test_itema_rfid = '1111118'
         # --- create or retrieve a test reagent
         cls.test_reagent_name = "Whisky-Cola"
         cls.test_reagent_catnum = '9999'
@@ -427,11 +445,12 @@ class Test_creation(SimpleQAItester):
                 self.s.generate_receive_url(test_locid, rfidlst)
 
     def test_gen_receive_url02(self):
-        test_locid = 9999
+        """Create a receive URL for existing and missing loc_ids"""
         rfidlst = ['RFID' + random_string(6) for i in range(2)]
-        urlstr = self.s.generate_receive_url(test_locid, rfidlst)
-        assert isinstance(urlstr, str), "string expected"
-        print("the URL IS {}".format(urlstr))
+        for test_locid in [None, 9999]:
+            urlstr = self.s.generate_receive_url(test_locid, rfidlst)
+            assert isinstance(urlstr, str), "string expected"
+            print("the URL IS {}".format(urlstr))
         # assert False, "force fail"
 
 
@@ -471,6 +490,7 @@ class DATAQAItester(SimpleQAItester):
         if len(fndlst) == 0:
             # if there are items, but not one with the expected RFID, then modify the RFID
             # of a record
+            cls.test_itema_locid = cls.testlocs[0]['id']
             if len(reagitemlst) > 0:
                 print("setting location")
                 cls.setlocation(reagitemlst[0]['id'], cls.test_itema_locid)
@@ -478,7 +498,6 @@ class DATAQAItester(SimpleQAItester):
                 cls.setRFID(reagitemlst[0]['id'], cls.test_itema_rfid)
             else:
                 # create a reagent item
-                cls.test_itema_locid = cls.testlocs[0]['id']
                 print("setting new location to {}".format(cls.test_itema_locid))
                 itema = {'rfid': cls.test_itema_rfid,
                          'qcs_reag_id': cls.test_reagent_id,

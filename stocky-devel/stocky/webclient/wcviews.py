@@ -91,6 +91,12 @@ class RadarView(widgets.BasicView):
 
 
 class AddNewStockView(widgets.BasicView):
+    """This is the view that the user will use to add new stock to the QAI system.
+    a) We allow the user to scan RFID tags and display them.
+    b) Once happy, the user hits a button and is redirected to a QAI window.
+    
+    """
+
     def __init__(self, contr: widgets.base_controller,
                  parent: widgets.base_widget,
                  idstr: str,

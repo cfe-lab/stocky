@@ -24,6 +24,28 @@ AVENUM = 5
 class serverclass:
     """The class that implements the web server. It is instantiated as a singleton."""
 
+    # the set of messages we simply pass on to the web client.
+    MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_SV_RAND_NUM,
+                                CommonMSG.MSG_SV_USB_STATE_CHANGE,
+                                CommonMSG.MSG_RF_STOCK_DATA,
+                                CommonMSG.MSG_RF_RADAR_DATA,
+                                CommonMSG.MSG_SV_RFID_STATREP,
+                                CommonMSG.MSG_SV_RFID_ACTIVITY])
+
+    # the set of messages to send to the TLS class (the RFID reader)
+    MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
+                                  CommonMSG.MSG_SV_GENERIC_COMMAND,
+                                  CommonMSG.MSG_WC_RADAR_MODE])
+
+    # the set of messages the server should handle itself.
+    MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
+                                CommonMSG.MSG_WC_QAI_AUTH,
+                                CommonMSG.MSG_WC_RADAR_MODE,
+                                CommonMSG.MSG_WC_LOGIN_TRY,
+                                CommonMSG.MSG_WC_LOGOUT_TRY,
+                                CommonMSG.MSG_WC_SET_STOCK_LOCATION,
+                                CommonMSG.MSG_SV_TIMER_TICK])
+
     def __init__(self, app: flask.Flask, CommLinkClass, cfgname: str) -> None:
         # must set logging  before anything else...
         self._app = app
@@ -91,7 +113,7 @@ class serverclass:
             # the server is sending a list of all stock locations
             # in response to a MSG_WC_STOCK_CHECK
             self.timerTM.set_active(False)
-            wc_stock_dct = self.qaidata.generate_webclient_stocklist()
+            wc_stock_dct = self.stockdb.generate_webclient_stocklist()
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_NEW_STOCK_LIST, wc_stock_dct))
         elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
             self.logger.debug("server in RADAR mode...")
@@ -112,6 +134,12 @@ class serverclass:
                 raise RuntimeError("fatal login try error")
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOGIN_RES, login_resp))
             # dict(ok=False, msg="User unknown", data=msg.data)))
+        elif msg.msg == CommonMSG.MSG_WC_LOGOUT_TRY:
+            # log out and send back response.
+            self.qaisession.logout()
+            log_state = self.qaisession.is_logged_in()
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOGOUT_RES,
+                                       dict(logstate=log_state)))
         elif msg.msg == CommonMSG.MSG_WC_QAI_AUTH:
             self.logger.debug("server received auth info...")
             cookie = msg.data
@@ -121,27 +149,11 @@ class serverclass:
             raise RuntimeError("unhandled message")
 
     def mainloop(self, ws: websocket):
-        # the set of messages we simply pass on to the web client.
-        MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_SV_RAND_NUM,
-                                    CommonMSG.MSG_SV_USB_STATE_CHANGE,
-                                    CommonMSG.MSG_RF_STOCK_DATA,
-                                    CommonMSG.MSG_RF_RADAR_DATA])
-
-        # the set of messages to send to the TLS class (the RFID reader)
-        MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
-                                      CommonMSG.MSG_SV_GENERIC_COMMAND,
-                                      CommonMSG.MSG_WC_RADAR_MODE])
-
-        # the set of messages the server should handle itself.
-        MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
-                                    CommonMSG.MSG_WC_QAI_AUTH,
-                                    CommonMSG.MSG_WC_RADAR_MODE,
-                                    CommonMSG.MSG_WC_LOGIN_TRY,
-                                    CommonMSG.MSG_WC_SET_STOCK_LOCATION,
-                                    CommonMSG.MSG_SV_TIMER_TICK])
-
+        """This routine is entered into when the webclient has established a
+        websocket connection to the server.
+        """
         self.ws = ws
-        # start a random generator thread
+        # start a random generator thread for testing....
         # self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
         # self.randTM.set_active(True)
 
@@ -149,19 +161,33 @@ class serverclass:
             # create a websocket reader thread
             self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, self.ws)
 
+        # sent the RFID status to the webclient
+        is_up = self.cl.is_alive()
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, is_up))
+
+        rfid_act_on = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, True)
+        rfid_act_off = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, False)
+        # set up the RFID activity delay timer
+        self.rfid_delay_task = Taskmeister.DelayTaskMeister(self.msgQ,
+                                                            self.logger,
+                                                            1.5,
+                                                            rfid_act_off)
         while True:
             msg: CommonMSG = self.msgQ.get()
             self.logger.debug("handling msgtype '{}'".format(msg.msg))
             if msg.is_from_rfid_reader():
                 self.logger.debug("GOT RFID {}".format(msg.as_dict()))
+                self.send_WS_msg(rfid_act_on)
+                self.rfid_delay_task.trigger()
+
             is_handled = False
-            if self.ws is not None and msg.msg in MSG_FOR_WC_SET:
+            if self.ws is not None and msg.msg in serverclass.MSG_FOR_WC_SET:
                 is_handled = True
                 self.send_WS_msg(msg)
-            if msg.msg in MSG_FOR_RFID_SET:
+            if msg.msg in serverclass.MSG_FOR_RFID_SET:
                 is_handled = True
                 self.tls.send_RFID_msg(msg)
-            if msg.msg in MSG_FOR_ME_SET:
+            if msg.msg in serverclass.MSG_FOR_ME_SET:
                 is_handled = True
                 self.server_handle_msg(msg)
             if not is_handled:

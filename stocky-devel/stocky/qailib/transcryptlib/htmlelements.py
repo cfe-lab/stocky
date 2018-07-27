@@ -83,6 +83,11 @@ class base_element(base.base_obj):
     """A class that wraps a javascript html element.
     Each instance also has a unique id string.
     """
+
+    # predefined special attributes that start with a '*'
+    # see generic_element for an example of how this is used.
+    STARATTR_ONCLICK = '*buttonpressmsg'
+
     def __init__(self, jsel, idstr: str) -> None:
         super().__init__(idstr)
         self._el = jsel
@@ -249,10 +254,12 @@ class generic_element(base_element):
             self._el.addEventListener("click", self._clickfunc, False)
 
     def _clickfunc(self):
-        msgdat = self._locattrdct.get('*buttonpressmsg', None)
+        msgdat = self._locattrdct.get(base_element.STARATTR_ONCLICK, None)
         if msgdat is not None:
             print("element._clickfunc: '{}' creating onclick event".format(self._idstr))
             self.sndMsg(base.MSGD_BUTTON_CLICK, msgdat)
+        else:
+            print("element._clickfunc: '{}': got None, ignoring event".format(self._idstr))
 
     def _addEventListener(self, event_name: str, cbfunc) -> None:
         # self._el.addEventListener("click", self._clickfunc, False)
@@ -374,11 +381,9 @@ class spantext(element):
     The visual appearance of the text is determined by HTML style
     sheets (the html class is set to attrclass.
     """
-    def __init__(self, attrclass: str, parent: base_element, helptext: str) -> None:
-        idstr = ""
-        attrdct = {'class': attrclass}
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, text: str) -> None:
         generic_element.__init__(self, 'span', parent, idstr, attrdct, None)
-        self._textnode = textnode(self, helptext)
+        self._textnode = textnode(self, text)
 
     def set_text(self, newtext: str) -> None:
         self._textnode.set_text(newtext)
@@ -389,17 +394,19 @@ class spanhelptext(spantext):
     The visual appearance of the text is determined by HTML style
     sheets (the html class is set to 'helptext').
     """
-    def __init__(self, parent: base_element, helptext: str) -> None:
-        super().__init__('helptext', parent, helptext)
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, helptext: str) -> None:
+        super().__init__(parent, idstr, attrdct, helptext)
+        self.addClass('helptext')
 
 
 class spanerrortext(spantext):
     """A predefined span element used to display error text in forms.
     The visual appearance of the text is determined by HTML style
-    sheets (the html class is set to 'errortext').
+    sheets (the html class is set to 'w3-pink').
     """
-    def __init__(self, parent: base_element, helptext: str) -> None:
-        super().__init__('w3-pink', parent, helptext)
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, errtext: str) -> None:
+        super().__init__(parent, idstr, attrdct, errtext)
+        self.addClass('w3-pink')
 
 
 class a(element):
@@ -436,7 +443,7 @@ class Img(img):
 # tables and table elements
 class table(element):
     """A table element. With the appropriate HTML definitions, clicking on the
-    table headers will sort according to tat column.
+    table headers will sort according to that column.
     """
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
@@ -444,8 +451,8 @@ class table(element):
         self.sort_colnum = None
         self._header_cells: typing.Optional[list] = None
         for colnum, pyth in enumerate(self.get_header_cells()):
-            pyth.setAttribute('*buttonpressmsg', {'cmd': 'tablesort',
-                                                  'colnum': colnum})
+            pyth.setAttribute(base_element.STARATTR_ONCLICK, {'cmd': 'tablesort',
+                                                              'colnum': colnum})
             pyth.addObserver(self, base.MSGD_BUTTON_CLICK)
 
     def get_header_cells(self) -> list:
@@ -617,6 +624,9 @@ class input(element):
 
     def get_stringval(self) -> str:
         return self._el.value
+
+    def set_stringval(self, newstr: str) -> None:
+        self._el.value = newstr
 
     def getIDvaltuple(self) -> typing.Tuple[str, str]:
         # self.getAttribute('value'), always return the

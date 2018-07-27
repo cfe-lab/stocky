@@ -30,11 +30,22 @@ class CommonMSG:
     MSG_SV_GENERIC_COMMAND = 'SV_GENERIC_CMD'
 
     # the web client is sending uname, password info so
-    # that server can try to authenticate
+    # that the stocky server can try to authenticate
     MSG_WC_LOGIN_TRY = 'WC_LOGIN_TRY'
 
     # the server is providing the result of a login attempt sent by MSG_WC_LOGIN_TRY
     MSG_SV_LOGIN_RES = 'SV_LOGIN_RES'
+
+    # the web client wants to log out.
+    MSG_WC_LOGOUT_TRY = "WC_LOGOUT_TRY"
+    # the server acknowledges the logout.
+    MSG_SV_LOGOUT_RES = "SV_LOGOUT_RES"
+
+    # the server is telling the webclient about the status of the RFID reader
+    MSG_SV_RFID_STATREP = "SV_RFID_STATREP"
+
+    # there has been some signal from the RFID reader (trigger has been pressed)
+    MSG_SV_RFID_ACTIVITY = "SV_RFID_ACTIVITY"
 
     # the web client is performing a stock check
     # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
@@ -65,9 +76,11 @@ class CommonMSG:
         # instead, use a class method which is called upon import below
         cls.valid_msg_lst = [cls.MSG_SV_RAND_NUM, cls.MSG_SV_TIMER_TICK,
                              cls.MSG_SV_USB_STATE_CHANGE,
+                             cls.MSG_SV_RFID_STATREP, cls.MSG_SV_RFID_ACTIVITY,
                              cls.MSG_SV_NEW_STOCK_LIST, cls.MSG_SV_GENERIC_COMMAND,
                              cls.MSG_SV_LOGIN_RES, cls.MSG_WC_STOCK_CHECK, cls.MSG_WC_QAI_AUTH,
                              cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_LOGIN_TRY,
+                             cls.MSG_SV_LOGOUT_RES, cls.MSG_WC_LOGOUT_TRY,
                              cls.MSG_WC_RADAR_MODE, cls.MSG_RF_STOCK_DATA, cls.MSG_RF_RADAR_DATA,
                              cls.MSG_RF_CMD_RESP]
 

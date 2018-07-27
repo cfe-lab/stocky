@@ -16,6 +16,8 @@ LIBS =  ${LIBDIR}/transcryptlib/genutils.py \
   ${LIBDIR}/transcryptlib/SVGlib.py \
   ${LIBDIR}/transcryptlib/websocket.py \
   ${LIBDIR}/transcryptlib/widgets.py \
+  ${LIBDIR}/transcryptlib/forms.py \
+  ${LIBDIR}/transcryptlib/simpletable.py \
   wcviews.py\
   commonmsg.py
 

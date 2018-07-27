@@ -31,6 +31,11 @@ MSGD_BUTTON_CLICK = MSGdesc_Type("MSG_BUTTON_CLICK")
 # a input form has verified the input fields successfully and has data ready to pass along.
 MSGD_FORM_SUBMIT = MSGdesc_Type("MSG_FORM_SUBMIT")
 
+# a popup is about to open, and some elements might want to initialise their fields
+# that are about to be displayed.
+MSGD_POPUP_OPENING = MSGdesc_Type("MSG_POPUP_OPENING")
+
+
 # a new data element has been created
 MSGD_CRUD_CREATE = MSGdesc_Type("MSG_CRUD_CREATE")
 MSGD_CRUD_UPDATE = MSGdesc_Type("MSG_CRUD_UPDATE")
@@ -49,7 +54,7 @@ class base_obj:
         self._idstr = idstr or ""
         self._obsdct: typing.Dict[MSGdesc_Type, list] = {}
 
-    def addObserver(self, observer: 'base_obj', msgdesc: MSGdesc_Type):
+    def addObserver(self, observer: 'base_obj', msgdesc: MSGdesc_Type) -> None:
         """ Add an observer object to this class's list of dependent objects.
         When this object sends a message self.sndMsg('msgdesc', msgdata)
         all of the observers who have registered for this kind of msgdesc
@@ -61,6 +66,14 @@ class base_obj:
         obslst = self._obsdct.setdefault(msgdesc, [])
         if observer not in obslst:
             obslst.append(observer)
+
+    def remObserver(self, observer: 'base_obj', msgdesc: MSGdesc_Type) -> None:
+        """Remove a previously added observer
+
+        """
+        obslst = self._obsdct.get(msgdesc, None)
+        if obslst is not None:
+            obslst.remove(observer)
 
     def sndMsg(self, msgdesc: MSGdesc_Type, msgdat: MSGdata_Type) -> None:
         idstr = self._idstr or ""

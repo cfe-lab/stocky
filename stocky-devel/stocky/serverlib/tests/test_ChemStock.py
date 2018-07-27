@@ -48,3 +48,14 @@ class Test_Chemstock:
         assert isinstance(tsdct, dict), "dict expected"
         assert set(tsdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpted dict keys"
         # assert False, " force fail"
+
+    def test_generate_webclient_stocklist01(self):
+        lverb = True
+        rdct = self.csdb.generate_webclient_stocklist()
+        assert isinstance(rdct, dict), "dict expected"
+        if lverb:
+            print("rdct {}".format(rdct))
+        loclst = rdct["loclst"]
+        assert isinstance(loclst, list), "list expected"
+        
+        assert False, " force fail"

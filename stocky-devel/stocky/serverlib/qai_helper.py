@@ -96,6 +96,15 @@ class Session(requests.Session):
                     msg="Access granted for user {}".format(qai_user),
                     username=qai_user)
 
+    def logout(self) -> None:
+        """Perform a logout from QAI."""
+        url = "/account/logout"
+        resp = self._rawget(url)
+        rcode = resp.status_code
+        if rcode != HTTP_OK:
+            raise RuntimeError("call {}  failed with status {}".format(url, rcode))
+        self._islogged_in = False
+
     def is_logged_in(self):
         return self._islogged_in
 
@@ -175,16 +184,18 @@ class Session(requests.Session):
         """
         return self._retry_json(self.post, path, data=data, retries=retries)
 
-    def generate_receive_url(self, locid: int, rfidlst: typing.List[int]) -> str:
+    def generate_receive_url(self, locid: typing.Optional[int], rfidlst: typing.List[int]) -> str:
         """Generate the URL in string form that can be used to generate
         a RFID receive response.
         """
         if rfidlst is None or len(rfidlst) == 0:
             raise RuntimeError("Empty rfidlst")
-        ustr = self.qai_path + PATH_REAGENT_RECEIVE
-        qstr = "?location_id={}".format(locid)
-        rstr = "".join(["&rfids={}".format(rfid) for rfid in rfidlst])
-        return ustr + qstr + rstr
+        ustr = self.qai_path + PATH_REAGENT_RECEIVE + '?'
+        arglst = []
+        if locid is not None:
+            arglst.append("location_id={}".format(locid))
+        arglst.extend(["rfids={}".format(rfid) for rfid in rfidlst])
+        return ustr + "&".join(arglst)
 
     def _rawget(self, path: str, params: dict=None, retries=3) -> requests.Response:
         """Perform a get call to the server, in which we do NOT expect a json response

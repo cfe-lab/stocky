@@ -8,6 +8,8 @@ import qailib.transcryptlib.htmlelements as htmlelements
 
 log = genutils.log
 
+STARATTR_ONCLICK = htmlelements.base_element.STARATTR_ONCLICK
+
 
 INPUT_TEXT = 'text'
 INPUT_PASSWORD = 'password'
@@ -50,12 +52,13 @@ class modaldiv(htmlelements.div):
         # the head has a span with the cancel button
         hspan = htmlelements.span(head, "{}SPAN".format(idstr), {}, None)
         but_attrdct = {'class': "w3-button w3-display-topright",
-                       '*buttonpressmsg': modaldiv._CAN_MSG}
+                       "title": "Cancel",
+                       STARATTR_ONCLICK: dict(msg=modaldiv._CAN_MSG)}
         xbutton = htmlelements.textbutton(hspan, "{}CANCEL".format(idstr), but_attrdct, "X")
         xbutton.addObserver(self, base.MSGD_BUTTON_CLICK)
         self.h2 = htmlelements.h2text(head, headertitle)
         spin_attrdct = {'class': "w3-display-topmiddle"}
-        self.spinner = spinner(hspan, "myspin", spin_attrdct)
+        self.spinner = spinner(hspan, "myspin", spin_attrdct, spinner.SPN_SPINNER, 50)
 
         # the div into which the clients will put content
         cidstr = "{}CONT".format(idstr)
@@ -64,7 +67,7 @@ class modaldiv(htmlelements.div):
         fidstr = "{}FOOT".format(idstr)
         foot = self.foot = htmlelements.footer(tcont, fidstr, cont_attrdct, None)
         self.foot.addClass(headerfooterclass)
-        self.errspan = htmlelements.spanerrortext(foot, "")
+        self.errspan = htmlelements.spanerrortext(foot, "errspan", {}, "")
 
     def set_error_text(self, errtext: str) -> None:
         self.errspan.set_text(errtext)
@@ -73,8 +76,12 @@ class modaldiv(htmlelements.div):
         self.spinner.set_spin(isbusy)
 
     def show(self, on: bool) -> None:
-        """Show the modal on == False: switch it off """
+        """Show the modal on == False: switch it off.
+        NOTE: also clear any error text on opening.
+        """
         if on:
+            self.sndMsg(base.MSGD_POPUP_OPENING, {})
+            self.set_error_text("")
             self._el.style.display = "block"
         else:
             self._el.style.display = "none"
@@ -89,11 +96,22 @@ class modaldiv(htmlelements.div):
         The textbutton will appear in the buttonparent, and show the buttontext.
         """
         idstr = "{}but".format(self._idstr)
-        attrdct = {'*buttonpressmsg': modaldiv._OPN_MSG,
-                   'class': 'w3-button'}
-        self.but = but = htmlelements.textbutton(buttonparent, idstr, attrdct, buttontext)
-        but.addObserver(self, base.MSGD_BUTTON_CLICK)
+        attrdct = {'class': 'w3-button'}
+        but = htmlelements.textbutton(buttonparent, idstr, attrdct, buttontext)
+        self.attach_opener(but)
         return but
+
+    def attach_opener(self, opener: htmlelements.base_element) -> None:
+        """Modify the opener element such that, when it is clicked,
+        The modal dialog opens."""
+        # the opener object will produce an buttonclick event with msgdat=OPN_MSG when
+        # it is clicked.
+        opener.setAttribute(STARATTR_ONCLICK, dict(msg=modaldiv._OPN_MSG))
+        # this class will get this in rcvMsg() and open/close the modal
+        opener.addObserver(self, base.MSGD_BUTTON_CLICK)
+
+    def remove_opener(self, opener: htmlelements.base_element) -> None:
+        opener.remObserver(self, base.MSGD_BUTTON_CLICK)
 
     def rcvMsg(self,
                whofrom: base.base_obj,
@@ -101,9 +119,9 @@ class modaldiv(htmlelements.div):
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         if msgdesc == base.MSGD_BUTTON_CLICK:
             print("form GOT BUTTON CLICK {}".format(msgdat))
-            if msgdat == modaldiv._OPN_MSG:
+            if msgdat.msg == modaldiv._OPN_MSG:
                 self.show(True)
-            elif msgdat == modaldiv._CAN_MSG:
+            elif msgdat.msg == modaldiv._CAN_MSG:
                 self.show(False)
             else:
                 print("not handling {}".format(msgdat))
@@ -145,6 +163,9 @@ class BaseField(htmlelements.div):
     def getIDvaltuple(self) -> typing.Tuple[str, str]:
         return (self._fieldid, self.val.get_stringval())
 
+    def set_stringval(self, newtxt: str) -> None:
+        self.val.set_stringval(newtxt)
+
 
 class spinner(htmlelements.div):
     """Display a spinner which can rotate in order to display a 'busy' state.
@@ -154,22 +175,40 @@ class spinner(htmlelements.div):
     In order to:
     a) make the spinner disappear, remove the 'fa-spinner' class attribute.
     b) remain visible, but not spin, remove the 'w3-spin' attribute.
+
+    NOTE image-name should refer to a font-awesome spinner name on:
+    https://fontawesome.com/icons?d=gallery&c=spinners&m=free
+    Useful examples are
+    (https://www.w3schools.com/icons/fontawesome_icons_spinner.asp )
+    fa-spinner
+    fa-circle-o-notch
+    fa-cog
+    fa-refresh
+    which are defined below.
     """
+    SPN_SPINNER = 'fa-spinner'
+    SPN_O_NOTCH = "fa-circle-o-notch"
+    SPN_COG = 'fa-cog'
+    SPN_REFRESH = 'fa-refresh'
+
     def __init__(self,
                  parent: htmlelements.base_element,
-                 idstr: str, attrdct: dict) -> None:
+                 idstr: str, attrdct: dict,
+                 image_name: str,
+                 pixel_size: int) -> None:
         htmlelements.div.__init__(self, parent, idstr, attrdct, None)
+        self._fa_image = image_name
         self.addClass('fa')
-        self.addClass('fa-spinner')
-        self.setAttribute('style', "font-size:64px")
+        self.addClass(image_name)
+        self.setAttribute('style', "font-size:{}px".format(pixel_size))
 
     def set_visible(self, on: bool) -> None:
         """Make the spinner visible or invisible.
         The default state is on (visible)"""
         if on:
-            self.addClass('fa-spinner')
+            self.addClass(self._fa_image)
         else:
-            self.removeClass('fa-spinner')
+            self.removeClass(self._fa_image)
 
     def set_spin(self, on: bool) -> None:
         """Switch the spinning on or off.
@@ -233,6 +272,20 @@ class loginform(form):
         self.username = BaseField(self, 'username', 'User Name', INPUT_TEXT)
         self.password = BaseField(self, 'password', 'Password', INPUT_PASSWORD)
         self.add_submit_button("Login in", None)
+        my_popup.addObserver(self, base.MSGD_POPUP_OPENING)
+
+    def pre_open_init(self) -> None:
+        """This method is called just before the modal is opened.
+        It can be used to initialise form fields in a form
+        """
+        self.password.set_stringval("")
+
+    def rcvMsg(self,
+               whofrom: base.base_obj,
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if msgdesc == base.MSGD_POPUP_OPENING:
+            self.pre_open_init()
 
     def on_submit(self):
         """This method is envoked when the 'Login In' submit button is pressed."""

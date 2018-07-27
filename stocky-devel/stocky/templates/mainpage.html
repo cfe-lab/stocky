@@ -2,12 +2,13 @@
 {% block pagetitle %}Main Page{% endblock %}
 %
 {% block pagehead %}
+<div id="headsep" class="w3-twothird w3-container">
 <h1>Stocky</h1>
 <a href="#">
   <img class="scologopic-cls" src="{{ url_for('static', filename='lablogo.png') }}">
 </a>
-<div id="state-div" class="led-red"></div>
-<!-- <div id="scannerstate" title="Scanner Status" class="led-red"></div>  -->
+</div>
+<div id="state-div" class="w3-third w3-container statuspanel"></div>
 {% endblock %}
 %
 {% block pagecontent %}
