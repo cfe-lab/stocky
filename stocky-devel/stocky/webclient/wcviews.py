@@ -4,9 +4,11 @@
 
 import typing
 from org.transcrypt.stubs.browser import window
-# import qailib.common.base as base
+import qailib.common.base as base
 
-# import qailib.transcryptlib.htmlelements as html
+import qailib.transcryptlib.htmlelements as html
+import qailib.transcryptlib.forms as forms
+import qailib.transcryptlib.simpletable as simpletable
 import qailib.transcryptlib.widgets as widgets
 import qailib.transcryptlib.SVGlib as SVGlib
 
@@ -14,7 +16,31 @@ import qailib.transcryptlib.SVGlib as SVGlib
 BIG_DISTANCE = 99.0
 
 
-class RadarView(widgets.BasicView):
+class SwitcheeView(widgets.BasicView):
+
+    def rcvMsg(self,
+               whofrom: 'base_obj',
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if msgdesc == base.MSGD_BUTTON_CLICK:
+            if msgdat is None:
+                print("msgdat is None")
+                return
+            cmd = msgdat.get("cmd", None)
+            # val = msgdat.get("target", None)
+            # print("VIEW GOT {} {}".format(cmd, val))
+            if cmd == "viewswitch":
+                self.Redraw()
+
+    def Redraw(self):
+        """This method called whener the view becomes active (because the user
+        has selected the respective view button.
+        Subclasses should set up their pages in here.
+        """
+        print("EMPTY VIEW REDRAW")
+
+
+class RadarView(SwitcheeView):
     def __init__(self, contr: widgets.base_controller,
                  parent: widgets.base_widget,
                  idstr: str,
@@ -90,11 +116,10 @@ class RadarView(widgets.BasicView):
         svg.text(xleft, ytop, blu_colorstr, epc)
 
 
-class AddNewStockView(widgets.BasicView):
+class AddNewStockView(SwitcheeView):
     """This is the view that the user will use to add new stock to the QAI system.
     a) We allow the user to scan RFID tags and display them.
     b) Once happy, the user hits a button and is redirected to a QAI window.
-    
     """
 
     def __init__(self, contr: widgets.base_controller,
@@ -121,3 +146,62 @@ class AddNewStockView(widgets.BasicView):
         # this opens a new tab or window
         if self.win is None:
             self.win = window.open(self.qai_url)
+
+
+class DownloadQAIView(SwitcheeView):
+    """This is the view that the user will use to sync with the QAI system.
+    a) check login status.
+    if logged in:
+       issue download order.
+    else:
+       tell user to log in.
+    """
+
+    def __init__(self, contr: widgets.base_controller,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 attrdct: dict,
+                 jsel) -> None:
+        attrdct = attrdct or {}
+        attrdct['height'] = attrdct['width'] = '100%'
+        attrdct['class'] = 'switchview-cls'
+        super().__init__(contr, parent, idstr, attrdct, jsel)
+        self.wcstatus = contr.wcstatus
+        print("DownloadStockView!!!")
+        self.h1 = html.h1text(self, "QAI Database Download Page")
+        # status label..
+        self.stat = html.spantext(self, "blastr", {}, "NOT LOGGED IN")
+        # spinner
+        spin_attrdct = {'class': "w3-display-middle"}
+        spin = self.spinner = forms.spinner(self, "myspin", spin_attrdct, forms.spinner.SPN_SPINNER, 50)
+        spin.set_visible(False)
+        # prepare a span for the status table
+        self.stat_tab = None
+        
+    def Redraw(self):
+        """Start the download if we are loggged in."""
+        is_logged_in = self.wcstatus.is_QAI_logged_in()
+        print("LOGGED IN {}".format(is_logged_in))
+        if is_logged_in:
+            self._start_download()
+        else:
+            self.stat.set_text("NOT LOGGED IN. Please log in and try again...")
+
+    def _start_download(self) -> None:
+        self.stat.set_text("Downloading QAI data...")
+        spin = self.spinner
+        spin.set_visible(True)
+        spin.set_spin(True)
+        self._contr.start_QAI_download()
+
+    def stop_download(self, resdct: dict) -> None:
+        """ This is called when the server tells us that the QAI download has completed."""
+        self.stat.set_text("Downloading successful...")
+        tmp_dct = resdct.get('db_stats', None)
+        print("SB stats {}".format(tmp_dct))
+        db_stat_dct = dict(tmp_dct)
+        if self.stat_tab is None:
+            self.stat_tab = simpletable.dict_table(self, "stat_tab", {}, list(db_stat_dct.items()))
+        else:
+            self.stat_tab.update_table(db_stat_dct)
+        self.spinner.set_spin(False)

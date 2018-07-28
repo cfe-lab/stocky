@@ -39,8 +39,8 @@ class serverclass:
 
     # the set of messages the server should handle itself.
     MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
-                                CommonMSG.MSG_WC_QAI_AUTH,
                                 CommonMSG.MSG_WC_RADAR_MODE,
+                                CommonMSG.MSG_WC_STOCK_INFO_REQ,
                                 CommonMSG.MSG_WC_LOGIN_TRY,
                                 CommonMSG.MSG_WC_LOGOUT_TRY,
                                 CommonMSG.MSG_WC_SET_STOCK_LOCATION,
@@ -77,8 +77,8 @@ class serverclass:
         self.qai_url = self.cfg_dct['QAI_URL']
         self.qai_file = self.cfg_dct['LOCAL_STOCK_DB_FILE']
         self.logger.info("QAI info URL: '{}', file: '{}'".format(self.qai_url, self.qai_file))
-        self.qaisession = qai_helper.Session()
-        self.stockdb = ChemStock.ChemStockDB(self.qai_file)
+        self.qaisession = qai_helper.QAISession()
+        self.stockdb = ChemStock.ChemStockDB(self.qai_file, self.qaisession)
         # now: get our current stock list from QAI
 
         # create a timer tick for use in radar mode
@@ -140,13 +140,20 @@ class serverclass:
             log_state = self.qaisession.is_logged_in()
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOGOUT_RES,
                                        dict(logstate=log_state)))
-        elif msg.msg == CommonMSG.MSG_WC_QAI_AUTH:
-            self.logger.debug("server received auth info...")
-            cookie = msg.data
-            self.logger.debug("server got cookie {}...".format(cookie))
+        elif msg.msg == CommonMSG.MSG_WC_STOCK_INFO_REQ:
+            # request about chemstock information
+            do_update = msg.data.get('do_update', False)
+            if do_update:
+                self.stockdb.update_from_QAI()
+            self.send_QAI_status()
         else:
             self.logger.error("server not handling message {}".format(msg))
             raise RuntimeError("unhandled message")
+
+    def send_QAI_status(self):
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_STOCK_INFO_RESP,
+                                   dict(upd_time=self.stockdb.get_update_time(),
+                                        db_stats=self.stockdb.get_db_stats())))
 
     def mainloop(self, ws: websocket):
         """This routine is entered into when the webclient has established a
@@ -161,9 +168,12 @@ class serverclass:
             # create a websocket reader thread
             self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, self.ws)
 
-        # sent the RFID status to the webclient
+        # send the RFID status to the webclient
         is_up = self.cl.is_alive()
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, is_up))
+
+        # send the QAI update status to the webclient
+        self.send_QAI_status()
 
         rfid_act_on = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, True)
         rfid_act_off = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, False)

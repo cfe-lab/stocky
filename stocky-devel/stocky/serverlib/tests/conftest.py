@@ -6,3 +6,5 @@ def pytest_addoption(parser):
                      default=False, help="enable tests that access James' test version of QAI")
     parser.addoption('--with_chemstock', action='store_true', dest="with_chemstock",
                      default=False, help="enable tests that access a YAML file containing chemstock data")
+    parser.addoption('--with_cs_qai', action='store_true', dest="with_cs_qai",
+                     default=False, help="enable tests that update chemstock from QAI")

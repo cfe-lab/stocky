@@ -23,6 +23,7 @@ log = genutils.log
 LST_NUM = 10
 
 ADDSTOCK_VIEW_NAME = 'addstock'
+QAI_DOWNLOAD_VIEW_NAME = 'download'
 CHECK_STOCK_VIEW_NAME = 'checkstock'
 RADAR_VIEW_NAME = 'radar'
 
@@ -32,16 +33,19 @@ STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 menulst = [
     {'name': ADDSTOCK_VIEW_NAME,
      'viewclass': wcviews.AddNewStockView,
+     'viewidtext': "This is view Addstock",
      'button': {'label': 'Add New Stock',
                 'title': "Add new new stock to the QAI",
                 'id': 'BV1'}
      },
-    {'name': 'download',
+    {'name': QAI_DOWNLOAD_VIEW_NAME,
+     'viewclass': wcviews.DownloadQAIView,
      'button': {'label': 'Download QAI Stock list',
                 'title': "Get the current stock list from QAI",
                 'id': 'BV2'}
      },
     {'name': CHECK_STOCK_VIEW_NAME,
+     'viewidtext': "This is view Checkstock",
      'button': {'label': 'Perform Stock Check',
                 'title': "Compare scanned items to current stocklist",
                 'id': 'BV3'}
@@ -53,6 +57,7 @@ menulst = [
                 'id': 'BV4'}
      },
     {'name': 'upload',
+     'viewidtext': "This is view Upload",
      'button': {'label': 'Upload QAI Stock list',
                 'title': "Write the current stock list back to QAI",
                 'id': 'BV5'}
@@ -66,16 +71,21 @@ def sco_submit():
 
 class WCstatus:
     """Visualise and store the webclient's bluetooth and logged-in status"""
+    NUM_ROW = 2
+    NUM_COL = 3
+
     RFID_ROW = 0
     QAI_ROW = 1
 
     LED_COL = 0
     INFO_COL = 1
+    QAI_UPD_COL = 2
 
     def __init__(self, mainprog: "stocky_mainprog", login_popup: forms.modaldiv) -> None:
         """Initialise the status bar (bluetooth and logged-in status)
         We build everything into a predefined div called state-div.
         """
+        self._stat_is_loggedin = False
         self.mainprog = mainprog
         self.login_popup = login_popup
         self.statediv = statediv = html.getPyElementById("state-div")
@@ -85,7 +95,9 @@ class WCstatus:
         else:
             log("STATE DIV OK")
         tabattrdct = {}
-        mytab = self.mytab = simpletable.simpletable(statediv, "statetable", tabattrdct, 2, 2)
+        mytab = self.mytab = simpletable.simpletable(statediv, "statetable",
+                                                     tabattrdct, WCstatus.NUM_ROW,
+                                                     WCstatus.NUM_COL)
 
         self.ledlst = []
         for title, rownum in [("RFID Scanner Status", WCstatus.RFID_ROW),
@@ -115,11 +127,25 @@ class WCstatus:
                                                   {'class': "w3-tag w3-red",
                                                    "title": "Click here to log in"},
                                                   "not logged in")
-            # the login led is an opener for the login form
+            # the txt is opener for the login form
             login_popup.attach_opener(txt)
         else:
             log("cell table error 2")
             self.uname_text = None
+            return
+
+        # Set up the QAI last update tag
+        cell = mytab.getcell(WCstatus.QAI_ROW, WCstatus.QAI_UPD_COL)
+        if cell is not None:
+            ustr = "The time of last QAI Stock list download. (log in and download stock list to update)"
+            txt = self.qai_upd_text = html.spantext(cell,
+                                                    "unametext",
+                                                    {'class': "w3-tag w3-red",
+                                                     "title": ustr},
+                                                    "unknown")
+        else:
+            log("cell table error 2a")
+            self.qai_upd_text = None
             return
 
         # set up the RFID activity spinner
@@ -127,7 +153,7 @@ class WCstatus:
         if cell is not None:
             self.actspinner = forms.spinner(cell,
                                             "rfidspin",
-                                            {},
+                                            {"title": "RFID Scanner Activity"},
                                             forms.spinner.SPN_COG, 20)
         else:
             self.actspinner = None
@@ -137,7 +163,7 @@ class WCstatus:
     def set_login_response(self, resdct: dict) -> None:
         """Set the QAI logged in status according to resdct."""
         statusled = self.ledlst[WCstatus.QAI_ROW]
-        is_logged_in = resdct['ok']
+        self._stat_is_loggedin = is_logged_in = resdct['ok']
         in_col = "w3-green"
         out_col = "w3-red"
         txt = self.uname_text
@@ -175,6 +201,9 @@ class WCstatus:
         """Set the visual status to 'logged out'"""
         self.set_login_response(dict(ok=False))
 
+    def is_QAI_logged_in(self) -> bool:
+        return self._stat_is_loggedin
+
     def set_RFID_state(self, on: bool) -> None:
         """Set the RFID LED state to on (green) or off (red)"""
         statusled = self.ledlst[WCstatus.RFID_ROW]
@@ -189,11 +218,16 @@ class WCstatus:
         """set the RFID spinner on/off """
         self.actspinner.set_spin(on)
 
+    def set_QAIupdate_state(self, d: dict) -> None:
+        """Set the string describing when the local DB was last with from QAI"""
+        upd_str = d['upd_time']
+        print("UPDATE {}".format(upd_str))
+        self.qai_upd_text.set_text(upd_str)
+
 
 class stocky_mainprog(widgets.base_controller):
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
         super().__init__(myname)
-        self.qai_url: typing.Optional[str] = None
         self._ws = ws
         ws.addObserver(self, base.MSGD_SERVER_MSG)
         ws.addObserver(self, base.MSGD_COMMS_ARE_UP)
@@ -221,6 +255,18 @@ class stocky_mainprog(widgets.base_controller):
         switchattrdct = {"class": "switchview-cls"}
         self.switch = switch = widgets.SwitchView(self, topdoc, "switchview", switchattrdct, None)
 
+        # initialise the authentication machinery
+        popup = forms.modaldiv(topdoc, "loginpopup", "Log In to QAI", {}, "w3-teal")
+        # self.popbutton = popup.get_show_button(theview, "Press Me Now!")
+        lf = self.loginform = forms.loginform(popup.get_content_element(),
+                                              "scoLLLogin",
+                                              popup,
+                                              None)
+        lf.addObserver(self, base.MSGD_FORM_SUBMIT)
+
+        # status bar (top right)
+        self.wcstatus = WCstatus(self, popup)
+
         # now make switchviews and menubuttons from the menulst
         for mvdct in menulst:
             # add the view
@@ -228,9 +274,10 @@ class stocky_mainprog(widgets.base_controller):
             viewclassname = mvdct.get('viewclass', widgets.BasicView)
             view = viewclassname(self, switch, viewname, None, None)
             switch.addView(view, viewname)
-            # add some identifying text...
-            h1 = html.h1(view, '{}-h1'.format(viewname), None, None)
-            html.textnode(h1, "This is View '{}'".format(viewname))
+            # add some identifying text iff required
+            vtext = mvdct.get('viewidtext', None)
+            if vtext is not None:
+                html.h1text(view, vtext)
 
             # add the menu button for this view...
             butdct = mvdct['button']
@@ -244,22 +291,12 @@ class stocky_mainprog(widgets.base_controller):
             menu_button = widgets.text_button(self, menudiv, idstr, butattdct, None, button_text)
             # menu_button click events should go to the switchview
             menu_button.addObserver(switch, base.MSGD_BUTTON_CLICK)
+            # and also to the respective view...
+            menu_button.addObserver(view, base.MSGD_BUTTON_CLICK)
+
         # initialise the individual Views here...
         switch.switchTo(0)
         self._curlocndx = None
-
-        # initialise the authentication machinery
-        theview = self.switch.getView(ADDSTOCK_VIEW_NAME)
-        popup = forms.modaldiv(theview, "loginpopup", "Log In to QAI", {}, "w3-teal")
-        # self.popbutton = popup.get_show_button(theview, "Press Me Now!")
-        lf = self.loginform = forms.loginform(popup.get_content_element(),
-                                              "scoLLLogin",
-                                              popup,
-                                              None)
-        lf.addObserver(self, base.MSGD_FORM_SUBMIT)
-
-        # status bar (top right)
-        self.wcstatus = WCstatus(self, popup)
 
     def setstockdata(self, stockdct: dict) -> None:
         # now, prepare the individual views if required
@@ -357,6 +394,19 @@ class stocky_mainprog(widgets.base_controller):
         self.loginform.set_login_response(resdct)
         self.wcstatus.set_login_response(resdct)
 
+    def start_QAI_download(self):
+        """Tell server to start download of QAI data..."""
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_STOCK_INFO_REQ, dict(do_update=True)))
+
+    def set_qai_update(self, resdct: dict) -> None:
+        """ the server has told us about a new QAI update.
+        ==> tell the wcstatus icons
+        ==? also tell the download view.
+        """
+        self.wcstatus.set_QAIupdate_state(resdct)
+        dnl_view = self.switch.getView(QAI_DOWNLOAD_VIEW_NAME)
+        dnl_view.stop_download(resdct)
+
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
@@ -396,6 +446,8 @@ class stocky_mainprog(widgets.base_controller):
                 self.wcstatus.set_logout_status()
             elif cmd == CommonMSG.MSG_SV_RFID_ACTIVITY:
                 self.wcstatus.set_rfid_activity(val)
+            elif cmd == CommonMSG.MSG_SV_STOCK_INFO_RESP:
+                self.set_qai_update(val)
             else:
                 print("unrecognised server command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:

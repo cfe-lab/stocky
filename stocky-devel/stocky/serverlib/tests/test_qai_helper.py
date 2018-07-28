@@ -26,9 +26,9 @@ withqai = pytest.mark.skipif(not pytest.config.option.with_qai,
                              reason="needs --with_qai option in order to run")
 
 # this is James Nakagawa's test server
-qai_url = "http://192.168.69.170:4567"
-auth_uname = 'wscott'
-auth_password = 'abc123'
+TESTqai_url = "http://192.168.69.170:4567"
+TESTauth_uname = 'wscott'
+TESTauth_password = 'abc123'
 
 # qai_url = "https://qai.cfenet.ubc.ca:3000/qcs_reagents/json_get"
 # rubbish_url = "https://bla.bla.com"
@@ -157,12 +157,12 @@ class Test_qai_log_in:
     def test_wrong_login01(self) -> None:
         """Logging in to the correct host with a wrong password should raises an expection."""
         with pytest.raises(RuntimeError):
-            self.s.login(qai_url, auth_uname, 'blapassword')
+            self.s.login(TESTqai_url, TESTauth_uname, 'blapassword')
 
     def test_wrong_login02(self) -> None:
         "Logging in to a wrong host should raise an exception."""
         with pytest.raises(requests.exceptions.ConnectionError):
-            self.s.login("http://localhost", auth_uname, auth_password)
+            self.s.login("http://localhost", TESTauth_uname, TESTauth_password)
 
     def test_is_logged_in01(self) -> None:
         retval = self.s.is_logged_in()
@@ -175,7 +175,7 @@ class Test_qai_log_in:
         isin = s.is_logged_in()
         assert isinstance(isin, bool), "bool epxected"
         assert not isin, "not isin expected"
-        s.login(qai_url, auth_uname, auth_password)
+        s.login(TESTqai_url, TESTauth_uname, TESTauth_password)
         # should have been successful
         isin = s.is_logged_in()
         assert isinstance(isin, bool), "bool epxected"
@@ -196,7 +196,7 @@ class SimpleQAItester:
         if lverb:
             print("SETUP CLASS {}".format(cls))
         cls.s = TrackerSession()
-        cls.s.login(qai_url, auth_uname, auth_password)
+        cls.s.login(TESTqai_url, TESTauth_uname, TESTauth_password)
         rcode, cls.reagent_list = cls.s.get_json(PATH_REAGENT_LIST_REAGENTS)
         assert rcode == HTTP_OK, "called failed"
         # get list of suppliers

@@ -4,6 +4,7 @@
 import typing
 import logging
 
+import datetime
 import sqlalchemy as sql
 import sqlalchemy.orm as orm
 from sqlalchemy.ext.declarative import declarative_base
@@ -105,7 +106,13 @@ class User(Base):
 # {email: wscott@cfenet.ubc.ca, id: 10018, initials: WS, login: wscott}
 
 
-# for each table above, keep a time of when it was last updated on the QAI server.
+class TimeUpdate(Base):
+    __tablename__ = "lastupdate"
+    id = sql.Column(sql.Integer, primary_key=True)
+    dt = sql.Column(sql.TIMESTAMP(timezone=True), default=datetime.datetime.utcnow)
+
+
+# for each table above, keep a time-stamp of when it was last updated on the QAI server.
 class TableChange(Base):
     __tablename__ = 'tabchange'
     table_name = sql.Column(sql.String, primary_key=True)
@@ -113,12 +120,22 @@ class TableChange(Base):
 
 
 class ChemStockDB:
+
+    _ITM_LIST = [(qai_helper.QAISession.QAIDCT_LOCATIONS, Location),
+                 (qai_helper.QAISession.QAIDCT_USERS, User),
+                 (qai_helper.QAISession.QAIDCT_REAITEM_COMPOSITION, Reagent_Item_Composition),
+                 (qai_helper.QAISession.QAIDCT_REAGENTS, Reagent),
+                 (qai_helper.QAISession.QAIDCT_REAGENT_ITEMS, Reagent_Item),
+                 (qai_helper.QAISession.QAIDCT_REAITEM_STATUS, Reagent_Item_Status)]
+
     def __init__(self,
-                 locQAIfname: typing.Optional[str]) -> None:
+                 locQAIfname: typing.Optional[str],
+                 qaisession: typing.Optional[qai_helper.QAISession]) -> None:
         """
         This stock information is stored to a local file locQAIfname as an sqlite3 databse
         in the server state directory if a name is provided. Otherwise it is stored in memory.
         """
+        self.qaisession = qaisession
         if locQAIfname is None:
             db_name = 'sqlite://'
             self._locQAIfname = None
@@ -132,29 +149,87 @@ class ChemStockDB:
 
         self._sess = Session()
 
-    def loadQAI_data(self, qaiDS: qai_helper.QAIDataset) -> bool:
-        """Replace the database contents with the data contained in qaidct.
+    def _set_update_time(self) -> str:
+        """Set the ChecmDB update time to now
+        and return the current datetime as a string.
+        """
+        s = self._sess
+        tt = s.query(TimeUpdate).first()
+        if tt is None:
+            # make a new record
+            tt = TimeUpdate(id=99)
+            s.add(tt)
+            s.commit()
+        else:
+            tt.dt = datetime.datetime.utcnow()
+            s.merge(tt)
+            s.commit()
+        return self.get_update_time()
+
+    def get_update_time(self) -> str:
+        """Return the ChemDB update time as a string
+        Return 'never' if the databse is empty.
+        """
+        s = self._sess
+        tt = s.query(TimeUpdate).first()
+        if tt is None:
+            return 'never'
+        else:
+            return str(tt.dt)
+
+    def get_db_stats(self) -> dict:
+        """Return the number of each kind of records we have."""
+        s = self._sess
+        rdct = {}
+        for idname, classname in ChemStockDB._ITM_LIST:
+            rdct[idname] = s.query(classname).count()
+        return rdct
+
+    def update_from_QAI(self) -> bool:
+        """Attempt to update the local ChemStock using the qaisession.
+        """
+        qaisession = self.qaisession
+        if qaisession is None or not qaisession.is_logged_in():
+            return False
+        # get the locally stored timestamp data from our database
+        cur_tsdata = self.load_TS_data()
+        newds = qai_helper.QAIDataset(None, cur_tsdata)
+        # load those parts from QAI that are out of date
+        update_dct = qaisession.clever_update_QAI_dump(newds)
+        update_ok = self.loadQAI_data(newds, update_dct)
+        return update_ok
+
+    def loadQAI_data(self,
+                     qaiDS: qai_helper.QAIDataset,
+                     update_dct: typing.Optional[qai_helper.QAIUpdatedct]=None) -> bool:
+        """Replace the database contents with the data contained in qaiDS
+        if update_dct is provided, only update those tables for which
+        update_dct[idname] is True.
         Return := 'the update was successful'
         """
         s = self._sess
         # first, add the data....
         qaidct = qaiDS.get_data()
-        for idname, classname in [(qai_helper.QAISession.QAIDCT_LOCATIONS, Location),
-                                  (qai_helper.QAISession.QAIDCT_USERS, User),
-                                  (qai_helper.QAISession.QAIDCT_REAITEM_COMPOSITION, Reagent_Item_Composition),
-                                  (qai_helper.QAISession.QAIDCT_REAGENTS, Reagent),
-                                  (qai_helper.QAISession.QAIDCT_REAGENT_ITEMS, Reagent_Item),
-                                  (qai_helper.QAISession.QAIDCT_REAITEM_STATUS, Reagent_Item_Status)]:
-            for r_dct in qaidct[idname]:
-                # print("BLA {}".format(r_dct))
-                s.add(classname(**r_dct))
-            s.commit()
+        upd_dct = update_dct or {}
+        for idname, classname in ChemStockDB._ITM_LIST:
+            do_update = upd_dct.get(idname, True)
+            if do_update:
+                # first, empty the table, then reload from scratch
+                s.query(classname).delete()
+                s.commit()
+                for r_dct in qaidct[idname]:
+                    # print("BLA {}".format(r_dct))
+                    s.add(classname(**r_dct))
+                s.commit()
         # now add the timestamps
         tsdct = qaiDS.get_timestamp()
         for k, val in tsdct.items():
-            tdct = dict(table_name=k, stamp=val)
-            s.add(TableChange(**tdct))
+            do_update = upd_dct.get(k, True)
+            if do_update:
+                tc = TableChange(**dict(table_name=k, stamp=val))
+                s.merge(tc)
         s.commit()
+        self._set_update_time()
         return True
 
     def load_TS_data(self) -> qai_helper.QAIChangedct:
@@ -162,6 +237,9 @@ class ChemStockDB:
         rdct: qai_helper.QAIChangedct = {}
         for tc in self._sess.query(TableChange):
             rdct[tc.table_name] = tc.stamp
+        # make sure we have all required keys set to a value...
+        for k in qai_helper.QAISession.qai_key_lst:
+            rdct.setdefault(k, None)
         return rdct
 
     def generate_webclient_stocklist(self) -> dict:
@@ -169,8 +247,6 @@ class ChemStockDB:
         the dict returned has the following entries:
         loclst: a list of dicts containing the stock locations, e.g.
         [{'id': 10000, 'name': 'SPH'}, {'id': 10001, 'name': 'SPH\\638'}, ... ]
-
-
 
         """
         # NOTE: as we want dicts and not Location instances, we go directly to

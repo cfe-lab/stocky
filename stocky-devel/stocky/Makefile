@@ -1,5 +1,7 @@
 # Makefile for the stocky directory -- provide some useful functions for development
 
+# NOTE: eit serverlib/tests/conftest.py if you want to add test flags such
+# as --with_qai
 
 default: help
 
@@ -41,6 +43,8 @@ qai-coverage: ## show test coverage of code accessing the test QAI server
 #--
 chemstock-test: ## run the unit tests that access a local chemstocks YAML file
 	pytest -v serverlib --with_chemstock --ff --maxfail=1 -k test_ChemStock
+chemstock-qai-test: ## run the unit tests (chemstock with access to qai)
+	pytest -v serverlib --with_cs_qai --ff --maxfail=1 -k test_ChemStock
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py serverlib
 pep8: ## analyse the server code for compliance with pep8 using codestyle

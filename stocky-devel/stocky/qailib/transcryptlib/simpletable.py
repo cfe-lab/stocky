@@ -33,3 +33,35 @@ class simpletable(html.element):
         cell = self.td_dct.get((rownum, colnum), None)
         if cell is not None:
             cell.setAttribute('style', "text-align:{}".format(alignstr))
+
+
+class dict_table(simpletable):
+    """Display the contents of a dict (key: val) per row. as text.
+    The order of the rows is provided by the initial tuple list.
+    """
+    def __init__(self,
+                 parent: html.base_element,
+                 idstr: str,
+                 attrdct: dict,
+                 tup_lst) -> None:
+        numrows = len(tup_lst)
+        super().__init__(parent, idstr, attrdct, numrows, 2)
+        self._tabdct = tabdct = {}
+        kattrdct = {'class': "w3-tag w3-red"}
+        vattrdct = {'class': "w3-tag"}
+        for rownum, tup in enumerate(tup_lst):
+            k, v = tup
+            kcell = self.getcell(rownum, 0)
+            html.label(kcell, "", kattrdct, k, None)
+            #
+            vcell = self.getcell(rownum, 1)
+            vtext = "{}".format(v)
+            
+            tabdct[k] = html.spantext(vcell, "", vattrdct, vtext)
+            self.set_alignment(rownum, 1, 'right')
+
+    def update_table(self, new_dct: dict) -> None:
+        """Update the tables values from new_dct"""
+        tabdct = self._tabdct
+        for k, v in new_dct.items():
+            tabdct[k].set_text("{}".format(v))

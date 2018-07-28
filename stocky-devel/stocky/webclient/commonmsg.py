@@ -51,14 +51,19 @@ class CommonMSG:
     # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
     MSG_WC_STOCK_CHECK = 'WC_STOCK_MODE'
 
-    # the web client is sending a QAI cookie
-    MSG_WC_QAI_AUTH = 'WC_AUTH_INFO'
-
     # the web client has set a stock checking location
     MSG_WC_SET_STOCK_LOCATION = 'WC_STOCK_SET_LOC'
 
     # the web client is searching for a specific item ('radar mode')
     MSG_WC_RADAR_MODE = 'WC_RADAR_MODE'
+
+    # the server is sending chemstock 'last update' info
+    MSG_SV_STOCK_INFO_RESP = 'SV_CS_INFO_RESP'
+
+    # the web client wants the server to senf chemstock 'last update' info
+    # optionally, the webclient can also tell the server to update the chemstock
+    # info from QAI.
+    MSG_WC_STOCK_INFO_REQ = 'WC_CS_INFO_REQ'
 
     # the RFID reader has produced some stock taking data
     MSG_RF_STOCK_DATA = 'RF_STOCK_DATA'
@@ -78,7 +83,8 @@ class CommonMSG:
                              cls.MSG_SV_USB_STATE_CHANGE,
                              cls.MSG_SV_RFID_STATREP, cls.MSG_SV_RFID_ACTIVITY,
                              cls.MSG_SV_NEW_STOCK_LIST, cls.MSG_SV_GENERIC_COMMAND,
-                             cls.MSG_SV_LOGIN_RES, cls.MSG_WC_STOCK_CHECK, cls.MSG_WC_QAI_AUTH,
+                             cls.MSG_WC_STOCK_INFO_REQ, cls.MSG_SV_STOCK_INFO_RESP,
+                             cls.MSG_SV_LOGIN_RES, cls.MSG_WC_STOCK_CHECK,
                              cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_LOGIN_TRY,
                              cls.MSG_SV_LOGOUT_RES, cls.MSG_WC_LOGOUT_TRY,
                              cls.MSG_WC_RADAR_MODE, cls.MSG_RF_STOCK_DATA, cls.MSG_RF_RADAR_DATA,

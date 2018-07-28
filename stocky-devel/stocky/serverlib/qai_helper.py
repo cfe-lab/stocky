@@ -270,8 +270,9 @@ QAIUpdatedct = typing.Dict[str, bool]
 
 
 class QAIDataset:
-    def __init__(self, qaidct: QAIdct, tsdct: QAIChangedct) -> None:
-        self._qaidct = qaidct
+    def __init__(self, qaidct: typing.Optional[QAIdct],
+                 tsdct: QAIChangedct) -> None:
+        self._qaidct = qaidct or QAISession.get_empty_QAIdct()
         self._tsdct = tsdct
 
     def get_data(self) -> QAIdct:
@@ -302,6 +303,10 @@ class QAISession(Session):
     timestamp_url_lst = [(k, "%s//scn" % u) for k, u in data_url_lst]
     qai_key_lst = [k for k, u in data_url_lst]
     qai_key_set = frozenset(qai_key_lst)
+
+    @classmethod
+    def get_empty_QAIdct(cls) -> QAIdct:
+        return dict([(k, None) for k in cls.qai_key_lst])
 
     def _get_location_list(self) -> typing.List[dict]:
         """Retrieve a list of all locations.
@@ -380,9 +385,9 @@ class QAISession(Session):
         """
         tsdct = qaiDS.get_timestamp()
         qaidct = qaiDS.get_data()
-        for tdct in [tsdct, qaidct]:
+        for dctname, tdct in [("tsdct", tsdct), ("qaidct", qaidct)]:
             if set(tdct.keys()) != self.qai_key_set:
-                raise RuntimeError("dct has wonky keys {}".format(tdct.keys()))
+                raise RuntimeError("dct {} has wonky keys {}".format(dctname, tdct.keys()))
         newtsdct = self.get_QAI_ChangeData()
         retdct: QAIUpdatedct = {}
         for k, dataurl in self.data_url_lst:

@@ -331,6 +331,15 @@ class h2(element):
         generic_element.__init__(self, 'h2', parent, idstr, attrdct, jsel)
 
 
+class h1text(h2):
+    """A predefined h2 text element."""
+    def __init__(self, parent: base_element, h1text: str) -> None:
+        idstr = ""
+        # NOTE: 2018-07-24: for some reason, cannot use super() here --> javascript error.
+        h1.__init__(self, parent, idstr, {}, None)
+        self._textnode = textnode(self, h1text)
+
+
 class h2text(h2):
     """A predefined h2 text element."""
     def __init__(self, parent: base_element, h2text: str) -> None:
