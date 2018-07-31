@@ -25,6 +25,8 @@ requests>=2.18
 transcrypt>=3.6.27
 #--everything below this line is for testing
 flake8>=3.5.0
-pytest>=3.5.1
+# pytest>=3.5.1
+#pytest 3.7.0 is broken...
+pytest<3.7.0
 coverage>=4.5.1
 pytest-codestyle>=1.2.2
