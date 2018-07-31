@@ -331,11 +331,12 @@ class h2(element):
         generic_element.__init__(self, 'h2', parent, idstr, attrdct, jsel)
 
 
-class h1text(h2):
+# NOTE: 2018-07-30 For some reason, cannot use super() in h1text or h2 text, as this
+# leads to infinite recursion in javascript...
+class h1text(h1):
     """A predefined h2 text element."""
     def __init__(self, parent: base_element, h1text: str) -> None:
         idstr = ""
-        # NOTE: 2018-07-24: for some reason, cannot use super() here --> javascript error.
         h1.__init__(self, parent, idstr, {}, None)
         self._textnode = textnode(self, h1text)
 
@@ -344,7 +345,6 @@ class h2text(h2):
     """A predefined h2 text element."""
     def __init__(self, parent: base_element, h2text: str) -> None:
         idstr = ""
-        # NOTE: 2018-07-24: for some reason, cannot use super() here --> javascript error.
         h2.__init__(self, parent, idstr, {}, None)
         self._textnode = textnode(self, h2text)
 
@@ -605,17 +605,49 @@ class label(element):
         self.setInnerHTML(labeltext)
 
 
+class option(element):
+    """An option element that goes inside a select element."""
+
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+        generic_element.__init__(self, 'option', parent, idstr, attrdct, jsel)
+
+
 class select(element):
-    """A select element"""
+    """A select element. We also keep a list of options (python objects)"""
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'select', parent, idstr, attrdct, jsel)
+        self._optlst: typing.List[option] = []
+        self._optdct: typing.Dict[str, option] = {}
 
     def get_selected(self) -> typing.Tuple[int, str]:
         """Return the currently selected index and value string """
         sel_ndx = self._el.selectedIndex
         val = self._el.options[sel_ndx].value
         return (int(sel_ndx), val)
+
+    def has_option_id(self, idstr: str) -> bool:
+        """Return 'the select element has an option field with a id = idstr' """
+        pass
+
+    def num_options(self) -> int:
+        """Return the number of options"""
+        return len(self._optlst)
+
+    def add_option(self, idstr: str, name: str) -> None:
+        """Add an option to the list."""
+        optattrdct = {'value': idstr}
+        opt = option(self, "locopt{}".format(idstr), optattrdct, None)
+        opt.setInnerHTML(name)
+        self._optlst.append(opt)
+        self._optdct[idstr] = opt
+
+    def add_or_set_option(self, idstr: str, name: str) -> None:
+        opt = self._optdct.get(idstr, None)
+        if opt is None:
+            self.add_option(idstr, name)
+        else:
+            opt.setInnerHTML(name)
 
 
 class input(element):

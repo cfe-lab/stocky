@@ -29,17 +29,17 @@ class serverclass:
                                 CommonMSG.MSG_SV_USB_STATE_CHANGE,
                                 CommonMSG.MSG_RF_STOCK_DATA,
                                 CommonMSG.MSG_RF_RADAR_DATA,
+                                CommonMSG.MSG_RF_CMD_RESP,
                                 CommonMSG.MSG_SV_RFID_STATREP,
                                 CommonMSG.MSG_SV_RFID_ACTIVITY])
 
     # the set of messages to send to the TLS class (the RFID reader)
-    MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
+    MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_SV_STOCK_CHECK_MODE,
                                   CommonMSG.MSG_SV_GENERIC_COMMAND,
                                   CommonMSG.MSG_WC_RADAR_MODE])
 
     # the set of messages the server should handle itself.
-    MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_STOCK_CHECK,
-                                CommonMSG.MSG_WC_RADAR_MODE,
+    MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_RADAR_MODE,
                                 CommonMSG.MSG_WC_STOCK_INFO_REQ,
                                 CommonMSG.MSG_WC_LOGIN_TRY,
                                 CommonMSG.MSG_WC_LOGOUT_TRY,
@@ -109,15 +109,10 @@ class serverclass:
     def server_handle_msg(self, msg: CommonMSG) -> None:
         """Handle this message to me..."""
         self.logger.debug("server handling msg...")
-        if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
-            # the server is sending a list of all stock locations
-            # in response to a MSG_WC_STOCK_CHECK
-            self.timerTM.set_active(False)
-            wc_stock_dct = self.stockdb.generate_webclient_stocklist()
-            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_NEW_STOCK_LIST, wc_stock_dct))
-        elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
-            self.logger.debug("server in RADAR mode...")
-            self.timerTM.set_active(True)
+        if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
+            radar_on = msg.data
+            self.logger.debug("RADAR mode...{}".format(radar_on))
+            self.timerTM.set_active(radar_on)
         elif msg.msg == CommonMSG.MSG_SV_TIMER_TICK:
             self.logger.debug("server received tick...")
             # print("MY logger is called '{}'".format(get_logger_name(self.logger)))
@@ -151,9 +146,11 @@ class serverclass:
             raise RuntimeError("unhandled message")
 
     def send_QAI_status(self):
+        wc_stock_dct = self.stockdb.generate_webclient_stocklist()
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_STOCK_INFO_RESP,
                                    dict(upd_time=self.stockdb.get_update_time(),
-                                        db_stats=self.stockdb.get_db_stats())))
+                                        db_stats=self.stockdb.get_db_stats(),
+                                        stock_dct=wc_stock_dct)))
 
     def mainloop(self, ws: websocket):
         """This routine is entered into when the webclient has established a

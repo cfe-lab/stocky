@@ -569,7 +569,7 @@ class TLSReader(Taskmeister.BaseReader):
         RFID reader device."""
         if not isinstance(msg, CommonMSG):
             raise TypeError('CommonMSG instance expected')
-        if msg.msg == CommonMSG.MSG_WC_STOCK_CHECK:
+        if msg.msg == CommonMSG.MSG_SV_STOCK_CHECK_MODE:
             self.mode = tls_mode.stock
             self.BT_set_stock_check_mode()
         elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:

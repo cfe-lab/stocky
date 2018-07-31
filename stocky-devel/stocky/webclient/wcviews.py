@@ -1,7 +1,5 @@
 
-
-# define specific view for the webcloient here
-
+# define specific views for the webclient here
 import typing
 from org.transcrypt.stubs.browser import window
 import qailib.common.base as base
@@ -12,14 +10,28 @@ import qailib.transcryptlib.simpletable as simpletable
 import qailib.transcryptlib.widgets as widgets
 import qailib.transcryptlib.SVGlib as SVGlib
 
+# NOTE: would like to import this here for typing, but it leads to javascript
+# run time errors because the modules import each other)
+# import wccontroller
+
+import wcstatus
 
 BIG_DISTANCE = 99.0
 
+STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
+
 
 class SwitcheeView(widgets.BasicView):
+    def __init__(self, contr: widgets.base_controller,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 attrdct: dict,
+                 jsel) -> None:
+        super().__init__(contr, parent, idstr, attrdct, jsel)
+        self.wcstatus: wcstatus.WCstatus = contr.wcstatus
 
     def rcvMsg(self,
-               whofrom: 'base_obj',
+               whofrom: 'base.base_obj',
                msgdesc: base.MSGdesc_Type,
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         if msgdesc == base.MSGD_BUTTON_CLICK:
@@ -49,7 +61,7 @@ class RadarView(SwitcheeView):
         attrdct = attrdct or {}
         attrdct['height'] = attrdct['width'] = '100%'
         attrdct['class'] = 'switchview-cls'
-        super().__init__(contr, parent, idstr, attrdct, jsel)
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel)
         # size_tup = ('100%', '100%')
         size_tup = None
         self.svg = SVGlib.svg(self, 'scosvg', attrdct, None, size_tup)
@@ -116,11 +128,50 @@ class RadarView(SwitcheeView):
         svg.text(xleft, ytop, blu_colorstr, epc)
 
 
+class ScanList(simpletable.simpletable):
+    def __init__(self, parent: widgets.base_widget, idstr: str) -> None:
+        attrdct = {}
+        super().__init__(parent, idstr, attrdct, 0, 2)
+        self.reset()
+
+    def reset(self):
+        """Empty the list"""
+        self._tklst = []
+        self._tkdct = {}
+        self.delete_rows()
+
+    def _add_token(self, newtk: str) -> None:
+        """Add a new token string to the list."""
+        if newtk not in self._tkdct:
+            # add the new token...
+            rownum = self.append_row()
+            kcell = self.getcell(rownum, 0)
+            if kcell is not None:
+                kattrdct = {'class': "w3-tag w3-red"}
+                html.label(kcell, "", kattrdct, newtk, None)
+            self._tkdct[newtk] = rownum
+
+    def add_scan(self, newdat: base.MSGdata_Type) -> None:
+        """Add new RFID scan data to the list.
+        The data is of the form:
+        [['CS', '.iv'],
+        ['EP', '000000000000000000001237'],
+        ['RI', '-61'],
+        ['EP', '000000000000000000001239'], ['RI', '-62'], ['EP', '000000000000000000001235']
+        """
+        for ll in newdat:
+            if ll[0] == 'EP':
+                print("Adding TAG {}".format(ll[1]))
+                self._add_token(ll[1])
+
+
 class AddNewStockView(SwitcheeView):
     """This is the view that the user will use to add new stock to the QAI system.
     a) We allow the user to scan RFID tags and display them.
     b) Once happy, the user hits a button and is redirected to a QAI window.
     """
+
+    GO_ADD_NEW_STOCK = 'go_add_new_stock'
 
     def __init__(self, contr: widgets.base_controller,
                  parent: widgets.base_widget,
@@ -130,10 +181,58 @@ class AddNewStockView(SwitcheeView):
         attrdct = attrdct or {}
         attrdct['height'] = attrdct['width'] = '100%'
         attrdct['class'] = 'switchview-cls'
-        super().__init__(contr, parent, idstr, attrdct, jsel)
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel)
         print("AddNewStockView!!!")
+        self.h1 = html.h1text(self, "Receiving: Add New Stock to QAI")
         # self.qai_url: typing.Optional[str] = None
         # self.win = None
+        self.location_sel: typing.Optional[html.select] = None
+        self.gobutton: typing.Optional[html.textbutton] = None
+        self.scanlist: typing.Optional[ScanList] = None
+        self._initelements()
+        contr.addObserver(self, base.MSGD_RFID_CLICK)
+
+    def _initelements(self):
+        if self.location_sel is None:
+            htext = 'Select the stock location you want to add new items to'
+            self.location_sel = self.wcstatus.get_location_selector(self,
+                                                                    "addlocsel",
+                                                                    htext)
+        else:
+            self.wcstatus.update_location_selector(self.location_sel)
+        # list of scanned RFID tags...
+        if self.scanlist is None:
+            self.scanlist = ScanList(self, "scocanlist")
+        else:
+            self.scanlist.reset()
+        # now add a 'GO' button
+        if self.gobutton is None:
+            idstr = "addloc-but"
+            attrdct = {'class': 'w3-button',
+                       'title': "Add selected RFID tags to QAI",
+                       STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_ADD_NEW_STOCK)}
+            buttontext = "Add to QAI"
+            self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
+            self.gobutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
+
+    def Redraw(self):
+        """This method called whener the view becomes active (because the user
+        has selected the respective view button.
+        Subclasses should set up their pages in here.
+        """
+        print("Add New stock REDRAW")
+        self._initelements()
+
+    def rcvMsg(self,
+               whofrom: 'base.base_obj',
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if msgdesc == base.MSGD_RFID_CLICK:
+            print("GOT SCAN DATA {}".format(msgdat))
+            if self.scanlist is not None and msgdat is not None:
+                self.scanlist.add_scan(msgdat)
+        else:
+            super().rcvMsg(whofrom, msgdesc, msgdat)
 
     def BLAset_qai_url(self, q: str) -> None:
         self.qai_url = q
@@ -148,6 +247,8 @@ class AddNewStockView(SwitcheeView):
             self.win = window.open(self.qai_url)
 
 
+#                 contr: wccontroller.stocky_mainprog,
+
 class DownloadQAIView(SwitcheeView):
     """This is the view that the user will use to sync with the QAI system.
     a) check login status.
@@ -157,7 +258,8 @@ class DownloadQAIView(SwitcheeView):
        tell user to log in.
     """
 
-    def __init__(self, contr: widgets.base_controller,
+    def __init__(self,
+                 contr: widgets.base_controller,
                  parent: widgets.base_widget,
                  idstr: str,
                  attrdct: dict,
@@ -165,8 +267,7 @@ class DownloadQAIView(SwitcheeView):
         attrdct = attrdct or {}
         attrdct['height'] = attrdct['width'] = '100%'
         attrdct['class'] = 'switchview-cls'
-        super().__init__(contr, parent, idstr, attrdct, jsel)
-        self.wcstatus = contr.wcstatus
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel)
         print("DownloadStockView!!!")
         self.h1 = html.h1text(self, "QAI Database Download Page")
         # status label..
@@ -176,8 +277,8 @@ class DownloadQAIView(SwitcheeView):
         spin = self.spinner = forms.spinner(self, "myspin", spin_attrdct, forms.spinner.SPN_SPINNER, 50)
         spin.set_visible(False)
         # prepare a span for the status table
-        self.stat_tab = None
-        
+        self.stat_tab: typing.Optional[simpletable.dict_table] = None
+
     def Redraw(self):
         """Start the download if we are loggged in."""
         is_logged_in = self.wcstatus.is_QAI_logged_in()
@@ -192,6 +293,7 @@ class DownloadQAIView(SwitcheeView):
         spin = self.spinner
         spin.set_visible(True)
         spin.set_spin(True)
+        # typing.cast(wccontroller.stocky_mainprog, self._contr).start_QAI_download()
         self._contr.start_QAI_download()
 
     def stop_download(self, resdct: dict) -> None:

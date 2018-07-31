@@ -22,9 +22,15 @@ class CommonMSG:
     # the USB device has changed state (presence/absence)
     MSG_SV_USB_STATE_CHANGE = 'SV_USB_STATE'
 
+    # the server is setting the RFID scanner in stock check mode
+    MSG_SV_STOCK_CHECK_MODE = 'SV_STOCK_CHECK_MODE'
+
     # the server is sending a list of all stock locations
     # in response to a MSG_WC_STOCK_CHECK
-    MSG_SV_NEW_STOCK_LIST = 'SV_NEW_STOCK_LIST'
+    # MSG_SV_NEW_STOCK_LIST = 'SV_NEW_STOCK_LIST'
+    # the web client is performing a stock check
+    # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
+    # MSG_WC_STOCK_CHECK = 'WC_STOCK_MODE'
 
     # the server wants to send a generic command directly to the RFID reader
     MSG_SV_GENERIC_COMMAND = 'SV_GENERIC_CMD'
@@ -46,10 +52,6 @@ class CommonMSG:
 
     # there has been some signal from the RFID reader (trigger has been pressed)
     MSG_SV_RFID_ACTIVITY = "SV_RFID_ACTIVITY"
-
-    # the web client is performing a stock check
-    # -- server should send a list of all locations with MSG_SV_STOCK_LOCATIONS
-    MSG_WC_STOCK_CHECK = 'WC_STOCK_MODE'
 
     # the web client has set a stock checking location
     MSG_WC_SET_STOCK_LOCATION = 'WC_STOCK_SET_LOC'
@@ -82,14 +84,14 @@ class CommonMSG:
         cls.valid_msg_lst = [cls.MSG_SV_RAND_NUM, cls.MSG_SV_TIMER_TICK,
                              cls.MSG_SV_USB_STATE_CHANGE,
                              cls.MSG_SV_RFID_STATREP, cls.MSG_SV_RFID_ACTIVITY,
-                             cls.MSG_SV_NEW_STOCK_LIST, cls.MSG_SV_GENERIC_COMMAND,
+                             cls.MSG_SV_GENERIC_COMMAND,
                              cls.MSG_WC_STOCK_INFO_REQ, cls.MSG_SV_STOCK_INFO_RESP,
-                             cls.MSG_SV_LOGIN_RES, cls.MSG_WC_STOCK_CHECK,
+                             cls.MSG_SV_LOGIN_RES, cls.MSG_SV_STOCK_CHECK_MODE,
                              cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_LOGIN_TRY,
                              cls.MSG_SV_LOGOUT_RES, cls.MSG_WC_LOGOUT_TRY,
                              cls.MSG_WC_RADAR_MODE, cls.MSG_RF_STOCK_DATA, cls.MSG_RF_RADAR_DATA,
                              cls.MSG_RF_CMD_RESP]
-
+        # cls.MSG_WC_STOCK_CHECK,cls.MSG_SV_NEW_STOCK_LIST
         cls.valid_msg_dct = dict([(k, 1) for k in cls.valid_msg_lst])
 
     def __init__(self, msg: str, data: typing.Any) -> None:

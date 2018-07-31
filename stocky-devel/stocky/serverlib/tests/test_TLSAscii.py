@@ -331,7 +331,7 @@ class Test_TLSAscii:
         with pytest.raises(TypeError):
             self.tls.send_RFID_msg('bla')
 
-        cm = CommonMSG(CommonMSG.MSG_WC_STOCK_CHECK, 'bla')
+        cm = CommonMSG(CommonMSG.MSG_SV_STOCK_CHECK_MODE, 'bla')
         self.tls.send_RFID_msg(cm)
         assert self.tls.mode == TLSAscii.tls_mode.stock
 

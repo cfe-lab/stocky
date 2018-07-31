@@ -16,6 +16,11 @@ MSGD_DEFAULT = MSGdesc_Type("MSG_DEFAULT")
 # message from the server has been received. Produced by serversocket.server_socket
 MSGD_SERVER_MSG = MSGdesc_Type("MSG_SERVER_MSG")
 
+
+# the server is passing on some data from the RFID scanner
+MSGD_RFID_CLICK = MSGdesc_Type("MSG_RFID_CLICK")
+
+
 # the websocket communication to the server has come online. Produced by serversocket.server_socket
 MSGD_COMMS_ARE_UP = MSGdesc_Type("MSG_COMMS_ARE_UP")
 MSGD_DATA_CACHE_READY = MSGdesc_Type("MSG_DATA_CACHE_READY")
