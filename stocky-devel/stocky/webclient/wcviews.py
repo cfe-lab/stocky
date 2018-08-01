@@ -30,6 +30,9 @@ class SwitcheeView(widgets.BasicView):
         super().__init__(contr, parent, idstr, attrdct, jsel)
         self.wcstatus: wcstatus.WCstatus = contr.wcstatus
         self.addClass("w3-container")
+        self.addClass('switchview-cls')
+        self.setAttribute('height', '80%')
+        self.setAttribute('width', '100%')
         self.h1 = html.h1text(self, titletext)
         help_attrdct = {'class': 'w3-container'}
         self.helptext = html.spanhelptext(self, "addhelptext", help_attrdct, helptext)
@@ -62,16 +65,16 @@ class RadarView(SwitcheeView):
                  idstr: str,
                  attrdct: dict,
                  jsel) -> None:
-        attrdct = attrdct or {}
-        attrdct['height'] = attrdct['width'] = '100%'
-        attrdct['class'] = 'switchview-cls'
         title_text = "Radar Mode"
         help_text = "Search for a specific RFID tag"
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, help_text)
-        # size_tup = ('100%', '100%')
-        size_tup = None
-        self.svg = SVGlib.svg(self, 'scosvg', attrdct, None, size_tup)
+        size_tup = ('100%', '100%')
+        # size_tup = None
+        svg_attrdct = {'class': 'w3-container',
+                       'width': '100%',
+                       'height': '100%'}
+        self.svg = SVGlib.svg(self, 'scosvg', svg_attrdct, None, size_tup)
         self.reset_radar()
 
     def reset_radar(self):
@@ -140,7 +143,7 @@ class ScanList(simpletable.simpletable):
     _ACTIV_COL = 1
 
     def __init__(self, parent: widgets.base_widget, idstr: str) -> None:
-        attrdct = {}
+        attrdct: typing.Dict[str, str] = {}
         super().__init__(parent, idstr, attrdct, 0, 2)
         self.reset()
 
@@ -205,9 +208,6 @@ class AddNewStockView(SwitcheeView):
                  idstr: str,
                  attrdct: dict,
                  jsel) -> None:
-        attrdct = attrdct or {}
-        attrdct['height'] = attrdct['width'] = '100%'
-        attrdct['class'] = 'switchview-cls'
         title_text = "Receiving: Add New Stock to QAI"
         help_text = """Use the scanner to enter RFID or barcode tags on chemical stock
 items to be added to QAI for the first time."""
@@ -294,9 +294,6 @@ class DownloadQAIView(SwitcheeView):
                  idstr: str,
                  attrdct: dict,
                  jsel) -> None:
-        attrdct = attrdct or {}
-        attrdct['height'] = attrdct['width'] = '100%'
-        attrdct['class'] = 'switchview-cls'
         title_text = "QAI Database Download Page"
         htext = """Update Stocky's Database from the QAI system.
 For this to work, the stocky computer must be plugged in to ethernet and you must first log in."""

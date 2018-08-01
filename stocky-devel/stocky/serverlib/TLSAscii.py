@@ -217,7 +217,7 @@ class tls_mode(Enum):
     """TLS data mode"""
     stock = 'sto'
     radar = 'rad'
-    undef = 'ude'
+    # undef = 'ude'
 
 
 RItuple = typing.Tuple[str, int, float]
@@ -326,7 +326,7 @@ class TLSReader(Taskmeister.BaseReader):
         """Create a class that can talk to the RFID reader via the provided commlink class."""
         super().__init__(msgQ, logger, 0, True)
         self._cl = cl
-        self.mode = tls_mode(tls_mode.undef)
+        self.BT_set_stock_check_mode()
         self.runningave = RunningAve(logger, radar_ave_num)
 
     def _sendcmd(self, cmdstr: str, comment: str=None) -> None:
@@ -363,8 +363,6 @@ class TLSReader(Taskmeister.BaseReader):
             if self.mode == tls_mode.radar:
                 msg_type = CommonMSG.MSG_RF_RADAR_DATA
             elif self.mode == tls_mode.stock:
-                msg_type = CommonMSG.MSG_RF_STOCK_DATA
-            elif self.mode == tls_mode.undef:
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
             else:
                 raise RuntimeError('unknown mode')
@@ -387,14 +385,14 @@ class TLSReader(Taskmeister.BaseReader):
             self.runningave.add_clresp(clresp)
             ret_data = self.runningave.get_runningave()
             self.logger.debug("Returning radar data {}".format(ret_data))
-        elif msg_type == CommonMSG.MSG_RF_STOCK_DATA:
-            if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
-               ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
-                # the scan event failed to return any EPC or barcode data
-                # ->we return an empty list
-                ret_data = []
-            else:
-                ret_data = clresp[commlink.EP_VAL]
+        # elif msg_type == CommonMSG.MSG_RF_STOCK_DATA:
+        #    if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
+        #       ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
+        #        # the scan event failed to return any EPC or barcode data
+        #        # ->we return an empty list
+        #        ret_data = []
+        #    else:
+        #        ret_data = clresp[commlink.EP_VAL]
         elif msg_type == CommonMSG.MSG_RF_CMD_RESP:
             ret_data = clresp.rl
         # do something with ret_data here and return a CommonMSG or None
@@ -536,7 +534,7 @@ class TLSReader(Taskmeister.BaseReader):
         """Issue a command to reset the .iv options to the default ones."""
         self._sendcmd(".iv -x", "IVreset")
 
-    def RadarSetup(self, epc: EPCstring) -> None:
+    def BT_set_radar_mode(self, epc: typing.Optional[EPCstring]) -> None:
         """Set up the reader to search for a tag with a specific Electronic Product Code (EPC).
         by later on issuing RadarGet() commands.
         The 'Radar' functionality allows the user to search for a specific tag, and to determine
@@ -544,8 +542,11 @@ class TLSReader(Taskmeister.BaseReader):
 
         See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
         """
-        if not is_valid_EPC(epc):
-            raise ValueError("radarsetup: illegal EPC: '{}'".format(epc))
+        if epc is not None:
+            if not is_valid_EPC(epc):
+                raise ValueError("radarsetup: illegal EPC: '{}'".format(epc))
+        # NOTE: epc currently not actually used....
+        self.mode = tls_mode.radar
         self.reset_inventory_options()
         cmdstr = ".iv -al off -x -n -fi on -ron -io off -qt b -qs s0 -sa 4 -st s0 -sl 30 -so 0020"
         self._sendcmd(cmdstr, "radarsetup")
@@ -558,6 +559,7 @@ class TLSReader(Taskmeister.BaseReader):
 
     def BT_set_stock_check_mode(self):
         """Set the RFID reader into stock taking mode."""
+        self.mode = tls_mode.stock
         self.reset_inventory_options()
         alert_parms = AlertParams(buzzeron=False, vibrateon=True,
                                   vblen=BuzzViblen('med'),
@@ -569,12 +571,14 @@ class TLSReader(Taskmeister.BaseReader):
         RFID reader device."""
         if not isinstance(msg, CommonMSG):
             raise TypeError('CommonMSG instance expected')
-        if msg.msg == CommonMSG.MSG_SV_STOCK_CHECK_MODE:
-            self.mode = tls_mode.stock
-            self.BT_set_stock_check_mode()
-        elif msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
-            self.mode = tls_mode.radar
-            self.RadarSetup('000000000000000000001237')
+        if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
+            want_radar_on = msg.data
+            is_radar_on = self.is_in_radarmode()
+            if want_radar_on != is_radar_on:
+                if want_radar_on:
+                    self.BT_set_radar_mode(epc=None)
+                else:
+                    self.BT_set_stock_check_mode()
         elif msg.msg == CommonMSG.MSG_SV_GENERIC_COMMAND:
             self.mode = tls_mode.stock
             # self.BT_set_stock_check_mode()
@@ -582,8 +586,8 @@ class TLSReader(Taskmeister.BaseReader):
             # print("BLACMD {}".format(cmdstr))
             self._sendcmd(cmdstr, "radarsetup")
         else:
-            self.mode = tls_mode.undef
             self.logger.warn("TLS skipping msg {}".format(msg))
+            raise RuntimeError("do not know how to handle message")
 
     def write_user_bank(self, epc: EPCstring, data: str) -> None:
         """Select a tag with the provided EPC code and write

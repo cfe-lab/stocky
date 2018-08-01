@@ -67,7 +67,7 @@ class Test_Chemstock_EMPTYDB(commontests):
     @classmethod
     def setup_class(cls) -> None:
         locdbname = None
-        cls.csdb = ChemStock.ChemStockDB(locdbname, None)
+        cls.csdb = ChemStock.ChemStockDB(locdbname, None, 'America/Vancouver')
 
     def test_time_update01(self):
         lverb = True
@@ -101,7 +101,7 @@ class Test_Chemstock_NOQAI(commontests):
     def setup_class(cls) -> None:
         # cls.locdbname = "bli.sqlite"
         cls.locdbname = None
-        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, None)
+        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, None, 'America/Vancouver')
         print("DB NAME: {}".format(cls.csdb._locQAIfname))
         print("loading data from YAML file...")
         qaids = yamlutil.readyamlfile("./qaidump.yaml")
@@ -130,7 +130,7 @@ class Test_Chemstock_WITHQAI(commontests):
 
         # cls.locdbname = "bli.sqlite"
         cls.locdbname = None
-        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, sess)
+        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, sess, 'America/Vancouver')
         print("DB NAME: {}".format(cls.csdb._locQAIfname))
         # assert False, "force fail"
 

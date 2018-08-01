@@ -27,15 +27,14 @@ class serverclass:
     # the set of messages we simply pass on to the web client.
     MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_SV_RAND_NUM,
                                 CommonMSG.MSG_SV_USB_STATE_CHANGE,
-                                CommonMSG.MSG_RF_STOCK_DATA,
+                                # CommonMSG.MSG_RF_STOCK_DATA,
                                 CommonMSG.MSG_RF_RADAR_DATA,
                                 CommonMSG.MSG_RF_CMD_RESP,
                                 CommonMSG.MSG_SV_RFID_STATREP,
                                 CommonMSG.MSG_SV_RFID_ACTIVITY])
 
     # the set of messages to send to the TLS class (the RFID reader)
-    MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_SV_STOCK_CHECK_MODE,
-                                  CommonMSG.MSG_SV_GENERIC_COMMAND,
+    MSG_FOR_RFID_SET = frozenset([CommonMSG.MSG_SV_GENERIC_COMMAND,
                                   CommonMSG.MSG_WC_RADAR_MODE])
 
     # the set of messages the server should handle itself.
@@ -79,7 +78,9 @@ class serverclass:
         self.qai_file = self.cfg_dct['LOCAL_STOCK_DB_FILE']
         self.logger.info("QAI info URL: '{}', file: '{}'".format(qai_url, self.qai_file))
         self.qaisession = qai_helper.QAISession(qai_url)
-        self.stockdb = ChemStock.ChemStockDB(self.qai_file, self.qaisession)
+        self.stockdb = ChemStock.ChemStockDB(self.qai_file,
+                                             self.qaisession,
+                                             self.cfg_dct['TIME_ZONE'])
         # now: get our current stock list from QAI
 
         # create a timer tick for use in radar mode
@@ -106,6 +107,7 @@ class serverclass:
         self.logger.debug("setting RFID date/time to '{}'".format(loc_t))
         self.tls.set_date_time(loc_t.year, loc_t.month, loc_t.day,
                                loc_t.hour, loc_t.minute, loc_t.second)
+        self.tls.BT_set_stock_check_mode()
 
     def server_handle_msg(self, msg: CommonMSG) -> None:
         """Handle this message to me..."""

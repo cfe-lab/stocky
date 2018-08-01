@@ -305,13 +305,13 @@ class stocky_mainprog(widgets.base_controller):
                 # but we have to tell the server what 'mode' we are in so that
                 # it can control the RFID reader appropriately.
                 target_view = msgdat.get('target', None)
+                radar_on = target_view == RADAR_VIEW_NAME
+                self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, radar_on))
                 if target_view is None:
                     print("target_view is None")
                     return
                 if target_view == CHECK_STOCK_VIEW_NAME:
                     self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, False))
-                elif target_view == RADAR_VIEW_NAME:
-                    self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, True))
                 else:
                     print('unknown view target {}'.format(target_view))
             elif cmd == 'roomswitch':

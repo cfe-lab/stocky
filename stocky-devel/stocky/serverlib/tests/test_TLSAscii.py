@@ -49,9 +49,9 @@ class Test_TLSAscii:
 
     def test_radar01(self):
         with pytest.raises(ValueError):
-            self.tls.RadarSetup(self.bad_epc)
+            self.tls.BT_set_radar_mode(self.bad_epc)
         # --
-        self.tls.RadarSetup(self.good_epc)
+        self.tls.BT_set_radar_mode(self.good_epc)
         self.tls.RadarGet()
         # assert isinstance(rssi, int), "int expected"
         # print("GOOT {}".format(rssi))
@@ -169,12 +169,12 @@ class Test_TLSAscii:
                 assert run_ave is not None, "running ave is None for i> ave_len"
 
     def test_deadcl(self):
-        tls = TLSAscii.TLSReader(self.msgQ,
-                                 self.logger,
-                                 self.deadcl,
-                                 self.radar_ave_num)
         with pytest.raises(RuntimeError):
-            tls._sendcmd('hello', 'johnny')
+            TLSAscii.TLSReader(self.msgQ,
+                               self.logger,
+                               self.deadcl,
+                               self.radar_ave_num)
+        # tls._sendcmd('hello', 'johnny')
 
     def test_RI2dist01(self):
         rivals = [(-65, 1.0),
@@ -211,10 +211,14 @@ class Test_TLSAscii:
                 ('RI', '-65'), ('EP', '000000000000000000001235'),
                 ('RI', '-66'), ('EP', '000000000000000000001239'),
                 ('RI', '-59'), ('OK', '')]
+        len_rone = len(rone)
         rtwo = [('CS', '.bc'), ('ME', 'No barcode found'), ('ER', '006')]
+        len_rtwo = len(rtwo)
         rthree = [('CS', '.iv'), ('ME', 'No Transponder found'), ('ER', '005')]
+        len_rthree = len(rthree)
         # rfour: remove RI entries from rone.
         rfour = [t for t in rone if t[0] != 'RI']
+        len_rfour = len(rfour)
         rfive = [('CS', '.iv A{"MSG":"31","CMT":"RAD"}B'),
                  ('EP', '000000000000000000001237'), ('RI', '-63'),
                  ('EP', '000000000000000000001235'), ('RI', '-60'),
@@ -224,32 +228,34 @@ class Test_TLSAscii:
                  ('EP', '000000000000000000001236'), ('RI', '-60'),
                  ('EP', '000000000000000000001242'), ('RI', '-67'),
                  ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
+        len_rfive = len(rfive)
         rsix = [t for t in rfive if t[0] != 'RI']
         radar_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.radar)
         stock_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.stock)
-        undef_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.undef)
+        # undef_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.undef)
 
         rad_dat = CommonMSG.MSG_RF_RADAR_DATA
-        stk_dat = CommonMSG.MSG_RF_STOCK_DATA
+        # stk_dat = CommonMSG.MSG_RF_STOCK_DATA
+        stk_dat = CommonMSG.MSG_RF_CMD_RESP
         cmd_dat = CommonMSG.MSG_RF_CMD_RESP
         testvals = [(rone, radar_mode, rad_dat, 9),
-                    (rone, stock_mode, stk_dat, 9),
-                    (rone, undef_mode, cmd_dat, len(rone)),
+                    (rone, stock_mode, stk_dat, len_rone),
+                    # (rone, undef_mode, cmd_dat, len(rone)),
                     (rtwo, radar_mode, rad_dat, 0),
-                    (rtwo, stock_mode, stk_dat, 0),
-                    (rtwo, undef_mode, cmd_dat, len(rtwo)),
+                    (rtwo, stock_mode, stk_dat, len_rtwo),
+                    # (rtwo, undef_mode, cmd_dat, len(rtwo)),
                     (rthree, radar_mode, rad_dat, 0),
-                    (rthree, stock_mode, stk_dat, 0),
-                    (rthree, undef_mode, cmd_dat, len(rthree)),
+                    (rthree, stock_mode, stk_dat, len_rthree),
+                    # (rthree, undef_mode, cmd_dat, len(rthree)),
                     (rfour, radar_mode, rad_dat, None),
-                    (rfour, stock_mode, stk_dat, 9),
-                    (rfour, undef_mode, cmd_dat, len(rfour)),
+                    (rfour, stock_mode, stk_dat, len_rfour),
+                    # (rfour, undef_mode, cmd_dat, len(rfour)),
                     (rfive, radar_mode, rad_dat, 8),
                     (rfive, stock_mode, rad_dat, 8),
-                    (rfive, undef_mode, rad_dat, 8),
+                    # (rfive, undef_mode, rad_dat, 8),
                     (rsix, radar_mode, rad_dat, None),
-                    (rsix, stock_mode, stk_dat, None),
-                    (rsix, undef_mode, cmd_dat, None)]
+                    (rsix, stock_mode, stk_dat, None)]
+        # (rsix, undef_mode, cmd_dat, None)]
         #
         # pass in messages with a radarsetup comment
         # one OK, one error message
@@ -258,8 +264,8 @@ class Test_TLSAscii:
         rad2 = [('CS', ivcmd),
                 ('EP', '000000000000000000001242'), ('RI', '-67'),
                 ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
-        testvals.append((rad1, undef_mode, cmd_dat, 3))
-        testvals.append((rad2, undef_mode, rad_dat, None))
+        # testvals.append((rad1, undef_mode, cmd_dat, 3))
+        # testvals.append((rad2, undef_mode, rad_dat, None))
 
         #
         # pass in messages with an IVreset comment
@@ -268,8 +274,8 @@ class Test_TLSAscii:
         rad2 = [('CS', ivcmd),
                 ('EP', '000000000000000000001242'), ('RI', '-67'),
                 ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
-        testvals.append((rad1, undef_mode, cmd_dat, 3))
-        testvals.append((rad2, undef_mode, rad_dat, None))
+        # testvals.append((rad1, undef_mode, cmd_dat, 3))
+        # testvals.append((rad2, undef_mode, rad_dat, None))
 
         # pass in messages with an unknown commentstring
         # should return None in both cases
@@ -278,8 +284,8 @@ class Test_TLSAscii:
         rad2 = [('CS', ivcmd),
                 ('EP', '000000000000000000001242'), ('RI', '-67'),
                 ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
-        testvals.append((rad1, undef_mode, cmd_dat, None))
-        testvals.append((rad2, undef_mode, rad_dat, None))
+        # testvals.append((rad1, undef_mode, cmd_dat, None))
+        # testvals.append((rad2, undef_mode, rad_dat, None))
 
         for testlst, test_mode, expected_msg, exp_val in testvals:
             print("\n\n-------------------------")
@@ -314,10 +320,11 @@ class Test_TLSAscii:
                     if not isinstance(dat, list) or len(dat) != exp_val:
                         print("expected data as a list of length exp_val = {}".format(exp_val))
                         print("data is '{}'".format(dat))
-                        print("inp: {},\n mode: {},\n exp_msg: {},\n exp_val(length): {}".format(testlst,
-                                                                                                 test_mode,
-                                                                                                 expected_msg,
-                                                                                                 exp_val))
+                        fmtstr = "inp: {},\n mode: {},\n exp_msg: {},\n exp_val(length): {}, actual length: {}"
+                        print(fmtstr.format(testlst,
+                                            test_mode,
+                                            expected_msg,
+                                            exp_val, len(dat)))
                         raise RuntimeError("unexpected output")
 
         # an illegal TLS mode should raise an exception..
@@ -331,11 +338,11 @@ class Test_TLSAscii:
         with pytest.raises(TypeError):
             self.tls.send_RFID_msg('bla')
 
-        cm = CommonMSG(CommonMSG.MSG_SV_STOCK_CHECK_MODE, 'bla')
+        cm = CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, False)
         self.tls.send_RFID_msg(cm)
         assert self.tls.mode == TLSAscii.tls_mode.stock
 
-        cm = CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, 'bla')
+        cm = CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, True)
         self.tls.send_RFID_msg(cm)
         assert self.tls.mode == TLSAscii.tls_mode.radar
 
@@ -344,8 +351,10 @@ class Test_TLSAscii:
         assert self.tls.mode == TLSAscii.tls_mode.stock
 
         cm = CommonMSG(CommonMSG.MSG_SV_RAND_NUM, 'bla')
-        self.tls.send_RFID_msg(cm)
-        assert self.tls.mode == TLSAscii.tls_mode.undef
+        with pytest.raises(RuntimeError):
+            self.tls.send_RFID_msg(cm)
+        # assert self.tls.mode == TLSAscii.tls_mode.undef
+        # assert self.tls.mode == TLSAscii.tls_mode.stock
 
     def test_is_valid_EPC(self):
         for epc, exp_val in [('bla', False),

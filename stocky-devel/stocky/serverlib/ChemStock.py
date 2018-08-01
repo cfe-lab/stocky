@@ -4,12 +4,12 @@
 import typing
 import logging
 
-import datetime
+# import datetime
 import sqlalchemy as sql
 import sqlalchemy.orm as orm
 from sqlalchemy.ext.declarative import declarative_base
 
-# import serverlib.timelib as timelib
+import serverlib.timelib as timelib
 import serverlib.serverconfig as serverconfig
 import serverlib.yamlutil as yamlutil
 import serverlib.qai_helper as qai_helper
@@ -109,7 +109,8 @@ class User(Base):
 class TimeUpdate(Base):
     __tablename__ = "lastupdate"
     id = sql.Column(sql.Integer, primary_key=True)
-    dt = sql.Column(sql.TIMESTAMP(timezone=True), default=datetime.datetime.utcnow)
+    # dt = sql.Column(sql.TIMESTAMP(timezone=True), default=datetime.datetime.utcnow)
+    dt = sql.Column(sql.TIMESTAMP(timezone=True), default=timelib.utc_nowtime)
 
 
 # for each table above, keep a time-stamp of when it was last updated on the QAI server.
@@ -130,7 +131,8 @@ class ChemStockDB:
 
     def __init__(self,
                  locQAIfname: typing.Optional[str],
-                 qaisession: typing.Optional[qai_helper.QAISession]) -> None:
+                 qaisession: typing.Optional[qai_helper.QAISession],
+                 tz_name: str) -> None:
         """
         This stock information is stored to a local file locQAIfname as an sqlite3 databse
         in the server state directory if a name is provided. Otherwise it is stored in memory.
@@ -146,6 +148,7 @@ class ChemStockDB:
         self._engine = sql.create_engine(db_name)
         Base.metadata.create_all(self._engine)
         Session = orm.sessionmaker(bind=self._engine)
+        timelib.set_local_timezone(tz_name)
 
         self._sess = Session()
 
@@ -161,7 +164,8 @@ class ChemStockDB:
             s.add(tt)
             s.commit()
         else:
-            tt.dt = datetime.datetime.utcnow()
+            # tt.dt = datetime.datetime.utcnow()
+            tt.dt = timelib.utc_nowtime()
             s.merge(tt)
             s.commit()
         return self.get_update_time()
@@ -175,7 +179,7 @@ class ChemStockDB:
         if tt is None:
             return 'never'
         else:
-            return str(tt.dt)
+            return timelib.datetime_to_str(tt.dt, in_local_tz=True)
 
     def get_db_stats(self) -> dict:
         """Return the number of each kind of records we have."""

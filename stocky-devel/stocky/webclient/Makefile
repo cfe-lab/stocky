@@ -18,8 +18,11 @@ LIBS =  ${LIBDIR}/transcryptlib/genutils.py \
   ${LIBDIR}/transcryptlib/widgets.py \
   ${LIBDIR}/transcryptlib/forms.py \
   ${LIBDIR}/transcryptlib/simpletable.py \
+  commonmsg.py\
+  wccontroller.py\
+  wcstatus.py\
   wcviews.py\
-  commonmsg.py
+
 
 
 # these are optios to the transcrypt transpiler

@@ -21,11 +21,18 @@ def utc_nowtime() -> DateTimeType:
 _tzinfo: typing.Optional[TimeZoneType] = None
 
 
-def set_local_timezone(newtzinfo: TimeZoneType) -> None:
-    if not isinstance(newtzinfo, TimeZoneType):
-        raise TypeError("tz must be a tzinfo instance")
+def set_local_timezone(newtzinfo: typing.Union[str, TimeZoneType]) -> None:
+    if isinstance(newtzinfo, TimeZoneType):
+        nnt = newtzinfo
+    elif isinstance(newtzinfo, str):
+        try:
+            nnt = pytz.timezone(newtzinfo)
+        except pytz.exceptions.UnknownTimeZoneError:  # type: ignore
+            raise RuntimeError("unknown timezone '{}'".format(newtzinfo))
+    else:
+        raise TypeError("tz must be a tzinfo instance or a string")
     global _tzinfo
-    _tzinfo = newtzinfo
+    _tzinfo = nnt
 
 
 def loc_nowtime() -> DateTimeType:
@@ -40,9 +47,18 @@ def loc_nowtime() -> DateTimeType:
     return loc_t
 
 
-def datetime_to_str(dt: DateTimeType) -> str:
-    """Convert a date time into a string."""
-    return dt.isoformat()
+def datetime_to_str(dt: DateTimeType, in_local_tz=False) -> str:
+    """Convert a date time into a string.
+    if in_local_tz is True, the string represents the time (dt) in the local
+    timezone (previously set by set_local_timezone())
+    Otherwise, dt is converted as is (i.e. in the the timezoen provided)
+    """
+    my_time = dt
+    if in_local_tz:
+        if _tzinfo is None:
+            raise RuntimeError("Must set the local time zone first")
+        my_time = dt.astimezone(_tzinfo)
+    return my_time.isoformat(sep=' ', timespec='seconds')
 
 
 def str_to_datetime(s: str) -> DateTimeType:
