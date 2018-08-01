@@ -51,8 +51,16 @@ class CommonMSG:
     MSG_SV_RFID_STATREP = "SV_RFID_STATREP"
 
     # there has been some signal from the RFID reader (trigger has been pressed)
+    # this message will include on/off data
     MSG_SV_RFID_ACTIVITY = "SV_RFID_ACTIVITY"
 
+    # the webclient is sending some RFID tags to enter to the stock database
+    MSG_WC_ADD_STOCK_REQ = 'WC_ADD_STOCK_REQ'
+    # the server is sending the URL to add these RFID tags back to the client.
+    MSG_SV_ADD_STOCK_RESP = 'SV_ADD_STOCK_RESP'
+    
+
+    
     # the web client has set a stock checking location
     MSG_WC_SET_STOCK_LOCATION = 'WC_STOCK_SET_LOC'
 
@@ -89,6 +97,7 @@ class CommonMSG:
                              cls.MSG_SV_LOGIN_RES, cls.MSG_SV_STOCK_CHECK_MODE,
                              cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_LOGIN_TRY,
                              cls.MSG_SV_LOGOUT_RES, cls.MSG_WC_LOGOUT_TRY,
+                             cls.MSG_WC_ADD_STOCK_REQ, cls.MSG_SV_ADD_STOCK_RESP,
                              cls.MSG_WC_RADAR_MODE, cls.MSG_RF_STOCK_DATA, cls.MSG_RF_RADAR_DATA,
                              cls.MSG_RF_CMD_RESP]
         # cls.MSG_WC_STOCK_CHECK,cls.MSG_SV_NEW_STOCK_LIST

@@ -44,27 +44,27 @@ def safe_fromjson(data_bytes: bytes) -> typing.Optional[typing.Any]:
 
 class Session(requests.Session):
 
-    def __init__(self) -> None:
+    def __init__(self, qai_path: str) -> None:
         super().__init__()
         self._islogged_in = False
-
-    def _login_resp(self, qai_path: str, qai_user: str, password: str) -> requests.Response:
         self.qai_path = qai_path
-        return self.post(qai_path + "/account/login",
+
+    def _login_resp(self, qai_user: str, password: str) -> requests.Response:
+        return self.post(self.qai_path + "/account/login",
                          data={'user_login': qai_user,
                                'user_password': password})
 
-    def login(self, qai_path: str, qai_user: str, password: str) -> None:
+    def login(self, qai_user: str, password: str) -> None:
         """ Login to QAI before calling post_json or get_json.
         @raise RuntimeError: when the QAI server rejects the user and password.
         """
-        response = self._login_resp(qai_path, qai_user, password)
+        response = self._login_resp(qai_user, password)
         if response.status_code == requests.codes.forbidden:  # @UndefinedVariable
             raise RuntimeError("Login failed for QAI user '{}'.".format(qai_user))
         self._islogged_in = True
 
-    def login_try(self, qai_path: str, qai_user: str, password: str) -> dict:
-        """Try to login. Do not raise any exceptions, byt return a dict with information
+    def login_try(self, qai_user: str, password: str) -> dict:
+        """Try to login. Do not raise any exceptions, but return a dict with information
         that can be shown to the user.
         The dict returned must have:
         "username": return the name of the user
@@ -77,15 +77,15 @@ class Session(requests.Session):
         if password is None:
             return dict(ok=False, msg="Configuration error: empty password")
         try:
-            response = self._login_resp(qai_path, qai_user, password)
+            response = self._login_resp(qai_user, password)
         except requests.exceptions.InvalidURL:
-            return dict(ok=False, msg="Configuration error: invalid QAI URL {}".format(qai_path))
+            return dict(ok=False, msg="Configuration error: invalid QAI URL {}".format(self.qai_path))
         except requests.exceptions.HTTPError:
             return dict(ok=False, msg="Configuration error: HTTP Protocol error")
         except Exception:
             # the QAI could not be contacted (exceeded number of attempts)
             return dict(ok=False,
-                        msg="Login unsuccessful: The QAI system at {} cannot be contacted".format(qai_path))
+                        msg="Login unsuccessful: The QAI system at {} cannot be contacted".format(self.qai_path))
         retstat = response.status_code
         if retstat == requests.codes.forbidden:
             return dict(ok=False,
@@ -184,7 +184,7 @@ class Session(requests.Session):
         """
         return self._retry_json(self.post, path, data=data, retries=retries)
 
-    def generate_receive_url(self, locid: typing.Optional[int], rfidlst: typing.List[int]) -> str:
+    def generate_receive_url(self, locid: typing.Optional[int], rfidlst: typing.List[str]) -> str:
         """Generate the URL in string form that can be used to generate
         a RFID receive response.
         """
@@ -194,7 +194,7 @@ class Session(requests.Session):
         arglst = []
         if locid is not None:
             arglst.append("location_id={}".format(locid))
-        arglst.extend(["rfids={}".format(rfid) for rfid in rfidlst])
+        arglst.append("rfids=" + ",".join(["{}".format(rfid) for rfid in rfidlst]))
         return ustr + "&".join(arglst)
 
     def _rawget(self, path: str, params: dict=None, retries=3) -> requests.Response:

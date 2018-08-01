@@ -234,6 +234,12 @@ class stocky_mainprog(widgets.base_controller):
         """Tell server to start download of QAI data..."""
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_STOCK_INFO_REQ, dict(do_update=True)))
 
+    def addnewstock(self, url: str):
+        """redirect to a new window with the given URL ro allow user to
+        add stock."""
+        vv = self.switch.getView(ADDSTOCK_VIEW_NAME)
+        vv.redirect(url)
+
     def set_qai_update(self, resdct: dict) -> None:
         """ the server has told us about a new QAI update.
         ==> tell the wcstatus icons
@@ -283,6 +289,8 @@ class stocky_mainprog(widgets.base_controller):
                 self.wcstatus.set_rfid_activity(val)
             elif cmd == CommonMSG.MSG_SV_STOCK_INFO_RESP:
                 self.set_qai_update(val)
+            elif cmd == CommonMSG.MSG_SV_ADD_STOCK_RESP:
+                self.addnewstock(val)
             else:
                 print("unrecognised server command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:
@@ -317,7 +325,12 @@ class stocky_mainprog(widgets.base_controller):
                 # the GO button of ad new stock was pressed:
                 # get the selected RFID tags and request an add URL from the server.
                 print("GOT addnewstock GO button!")
-                pass
+                vv = self.switch.getView(ADDSTOCK_VIEW_NAME)
+                if vv.scanlist is not None:
+                    add_rfid_lst = vv.scanlist.get_active_tags()
+                    print("newstock {}".format(add_rfid_lst))
+                    if len(add_rfid_lst) > 0:
+                        self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_ADD_STOCK_REQ, add_rfid_lst))
             else:
                 print('webclient: unrecognised cmd {}'.format(cmd))
                 return

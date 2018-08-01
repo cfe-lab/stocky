@@ -32,6 +32,34 @@ https://www.w3schools.com/colors/colors_names.asp
 
 */
 
+.helptext {
+    display: inline-block;
+    color: #880;
+    font-size: 0.8em;
+    font-style: italic;
+    padding: .5em;
+    /* max-width: 20em;*/
+    /* max-width: 50% ;*/
+}
+
+.helptext a[rel="ctrl"] {
+    color: #888;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+.helptext .fulltext,
+.fulltext.detached {
+    display: none;
+    position: absolute;
+    border: 1px solid #FF9; /* FF9 is superior to both 8 and 10. */
+    background-color: #ffc;
+    color: #880;
+    font-size: .7em;
+    font-style: italic;
+    padding: .5em;
+    max-width: 20em;
+}
 
 
 /* define what the status panel (with login and bluetooth status_ looks like */

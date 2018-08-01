@@ -26,9 +26,13 @@ class SwitcheeView(widgets.BasicView):
                  parent: widgets.base_widget,
                  idstr: str,
                  attrdct: dict,
-                 jsel) -> None:
+                 jsel, titletext: str, helptext: str) -> None:
         super().__init__(contr, parent, idstr, attrdct, jsel)
         self.wcstatus: wcstatus.WCstatus = contr.wcstatus
+        self.addClass("w3-container")
+        self.h1 = html.h1text(self, titletext)
+        help_attrdct = {'class': 'w3-container'}
+        self.helptext = html.spanhelptext(self, "addhelptext", help_attrdct, helptext)
 
     def rcvMsg(self,
                whofrom: 'base.base_obj',
@@ -61,7 +65,10 @@ class RadarView(SwitcheeView):
         attrdct = attrdct or {}
         attrdct['height'] = attrdct['width'] = '100%'
         attrdct['class'] = 'switchview-cls'
-        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel)
+        title_text = "Radar Mode"
+        help_text = "Search for a specific RFID tag"
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
+                              title_text, help_text)
         # size_tup = ('100%', '100%')
         size_tup = None
         self.svg = SVGlib.svg(self, 'scosvg', attrdct, None, size_tup)
@@ -129,6 +136,9 @@ class RadarView(SwitcheeView):
 
 
 class ScanList(simpletable.simpletable):
+    _RFID_COL = 0
+    _ACTIV_COL = 1
+
     def __init__(self, parent: widgets.base_widget, idstr: str) -> None:
         attrdct = {}
         super().__init__(parent, idstr, attrdct, 0, 2)
@@ -143,13 +153,23 @@ class ScanList(simpletable.simpletable):
     def _add_token(self, newtk: str) -> None:
         """Add a new token string to the list."""
         if newtk not in self._tkdct:
+            on_attrdct = {'class': "w3-tag w3-green"}
+            off_attrdct = {'class': "w3-tag w3-red"}
+            on_text = "Add to QAI"
+            off_text = "Ignore"
             # add the new token...
             rownum = self.append_row()
-            kcell = self.getcell(rownum, 0)
+            kcell = self.getcell(rownum, ScanList._RFID_COL)
             if kcell is not None:
                 kattrdct = {'class': "w3-tag w3-red"}
                 html.label(kcell, "", kattrdct, newtk, None)
-            self._tkdct[newtk] = rownum
+            vcell = self.getcell(rownum, ScanList._ACTIV_COL)
+            if vcell is not None:
+                tog_lab = forms.ToggleLabel(vcell, "rfid_lsb{}".format(rownum),
+                                            on_attrdct, on_text,
+                                            off_attrdct, off_text)
+                self._tkdct[newtk] = tog_lab
+            self.set_alignment(rownum, ScanList._ACTIV_COL, "center")
 
     def add_scan(self, newdat: base.MSGdata_Type) -> None:
         """Add new RFID scan data to the list.
@@ -158,11 +178,18 @@ class ScanList(simpletable.simpletable):
         ['EP', '000000000000000000001237'],
         ['RI', '-61'],
         ['EP', '000000000000000000001239'], ['RI', '-62'], ['EP', '000000000000000000001235']
+        OR, in the case of barcode scan data:
+        [['CS', '.bc'], ['BC', '000000000000000000001236'], ['OK', '']]
         """
-        for ll in newdat:
-            if ll[0] == 'EP':
-                print("Adding TAG {}".format(ll[1]))
-                self._add_token(ll[1])
+        for tag, cont in newdat:
+            if tag == 'EP' or tag == 'BC':
+                self._add_token(cont)
+
+    def get_active_tags(self) -> typing.List[str]:
+        """Return the list of RFID tags (in column 0) if the column 1
+        state is OK.
+        """
+        return [k for k, tog in self._tkdct.items() if tog.is_A_state()]
 
 
 class AddNewStockView(SwitcheeView):
@@ -181,11 +208,12 @@ class AddNewStockView(SwitcheeView):
         attrdct = attrdct or {}
         attrdct['height'] = attrdct['width'] = '100%'
         attrdct['class'] = 'switchview-cls'
-        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel)
+        title_text = "Receiving: Add New Stock to QAI"
+        help_text = """Use the scanner to enter RFID or barcode tags on chemical stock
+items to be added to QAI for the first time."""
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
+                              title_text, help_text)
         print("AddNewStockView!!!")
-        self.h1 = html.h1text(self, "Receiving: Add New Stock to QAI")
-        # self.qai_url: typing.Optional[str] = None
-        # self.win = None
         self.location_sel: typing.Optional[html.select] = None
         self.gobutton: typing.Optional[html.textbutton] = None
         self.scanlist: typing.Optional[ScanList] = None
@@ -234,17 +262,19 @@ class AddNewStockView(SwitcheeView):
         else:
             super().rcvMsg(whofrom, msgdesc, msgdat)
 
-    def BLAset_qai_url(self, q: str) -> None:
-        self.qai_url = q
-        print("AddNewStockView: {}".format(self.qai_url))
-        # self.redirect()
-
-    def BLAredirect(self) -> None:
+    def redirect(self, url: str) -> None:
         # this does indeed replace the current window
         # window.location = self.qai_url
         # this opens a new tab or window
-        if self.win is None:
-            self.win = window.open(self.qai_url)
+        # if self.win is not None:
+        #    self.win.close()
+        # NOTE: If I give a name "BLAWIN", then a tab is opened, and subsequently replaced --
+        # just what I want. We call focus() on the window to switch the user's attention to
+        # the new window.
+        # NOTE: this is all native javascript...see
+        # https://www.w3schools.com/jsref/met_win_open.asp
+        newwin = window.open(url, "BLAWIN")
+        newwin.focus()
 
 
 #                 contr: wccontroller.stocky_mainprog,
@@ -267,16 +297,29 @@ class DownloadQAIView(SwitcheeView):
         attrdct = attrdct or {}
         attrdct['height'] = attrdct['width'] = '100%'
         attrdct['class'] = 'switchview-cls'
-        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel)
-        print("DownloadStockView!!!")
-        self.h1 = html.h1text(self, "QAI Database Download Page")
+        title_text = "QAI Database Download Page"
+        htext = """Update Stocky's Database from the QAI system.
+For this to work, the stocky computer must be plugged in to ethernet and you must first log in."""
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
+                              title_text, htext)
+
+        # status label and spinner are in a cell-row (so they appear side-by side)
+        cl_attrdct = {'class': 'w3-cell-row'}
+        cellrow = html.div(self, "cldiv", cl_attrdct, None)
         # status label..
-        self.stat = html.spantext(self, "blastr", {}, "NOT LOGGED IN")
+        # cc_attrdct = {'class': 'w3-container w3-cell'}
+        # self.stat = html.spantext(cellrow, "blastr", cc_attrdct, "NOT LOGGED IN")
         # spinner
-        spin_attrdct = {'class': "w3-display-middle"}
-        spin = self.spinner = forms.spinner(self, "myspin", spin_attrdct, forms.spinner.SPN_SPINNER, 50)
-        spin.set_visible(False)
-        # prepare a span for the status table
+        spin_sz_pixels = 50
+        # span_attrdct = {'height': '{}px'.format(spin_sz_pixels),
+        #                'class': 'w3-container w3-cell'}
+        # spinnerspan = html.span(cellrow, "spinnerspan", span_attrdct, None)
+        # spin_attrdct = {'class': "w3-display-middle"}
+        spin_attrdct = {'title': "Download activity from QAI"}
+        self.spinner = forms.spinner(cellrow, "myspin",
+                                     spin_attrdct, forms.spinner.SPN_SPINNER,
+                                     spin_sz_pixels)
+        # spin.set_visible(False)
         self.stat_tab: typing.Optional[simpletable.dict_table] = None
 
     def Redraw(self):
@@ -285,11 +328,11 @@ class DownloadQAIView(SwitcheeView):
         print("LOGGED IN {}".format(is_logged_in))
         if is_logged_in:
             self._start_download()
-        else:
-            self.stat.set_text("NOT LOGGED IN. Please log in and try again...")
+        # else:
+        #    self.stat.set_text("NOT LOGGED IN. Please log in and try again...")
 
     def _start_download(self) -> None:
-        self.stat.set_text("Downloading QAI data...")
+        # self.stat.set_text("Downloading QAI data...")
         spin = self.spinner
         spin.set_visible(True)
         spin.set_spin(True)
@@ -298,12 +341,15 @@ class DownloadQAIView(SwitcheeView):
 
     def stop_download(self, resdct: dict) -> None:
         """ This is called when the server tells us that the QAI download has completed."""
-        self.stat.set_text("Downloading successful...")
+        # self.stat.set_text("Downloading successful...")
         tmp_dct = resdct.get('db_stats', None)
         print("SB stats {}".format(tmp_dct))
         db_stat_dct = dict(tmp_dct)
         if self.stat_tab is None:
-            self.stat_tab = simpletable.dict_table(self, "stat_tab", {}, list(db_stat_dct.items()))
+            tab_attrdct = {'class': 'w3-container'}
+            self.stat_tab = simpletable.dict_table(self, "stat_tab",
+                                                   tab_attrdct,
+                                                   list(db_stat_dct.items()))
         else:
             self.stat_tab.update_table(db_stat_dct)
         self.spinner.set_spin(False)

@@ -163,8 +163,28 @@ class base_element(base.base_obj):
     def replaceClass(self, oldcls_name: str, newcls_name: str) -> None:
         self._el.classList.replace(oldcls_name, newcls_name)
 
+    def add_attrdct(self, attrdct: dict) -> None:
+        """Try to set all of the attributes in the dict.
+        Remember to to treate class attributes differently"""
+        for k, v in attrdct.items():
+            if k == 'class':
+                for cn in v.split():
+                    self.addClass(cn)
+            else:
+                self.setAttribute(k, v)
+
+    def rem_attrdct(self, attrdct: dict) -> None:
+        """Try to set all of the attributes in the dict.
+        Remember to to treate class attributes differently"""
+        for k, v in attrdct.items():
+            if k == 'class':
+                for cn in v.split():
+                    self.removeClass(cn)
+            else:
+                self.removeAttribute(k)
 
 # my_handles=set(['onclick'])
+
 
 class textnode(base_element):
     def __init__(self, parent: base_element, text: str) -> None:

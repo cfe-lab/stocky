@@ -44,6 +44,7 @@ class serverclass:
                                 CommonMSG.MSG_WC_LOGIN_TRY,
                                 CommonMSG.MSG_WC_LOGOUT_TRY,
                                 CommonMSG.MSG_WC_SET_STOCK_LOCATION,
+                                CommonMSG.MSG_WC_ADD_STOCK_REQ,
                                 CommonMSG.MSG_SV_TIMER_TICK])
 
     def __init__(self, app: flask.Flask, CommLinkClass, cfgname: str) -> None:
@@ -74,10 +75,10 @@ class serverclass:
         self.logger.info("Bluetooth init OK")
 
         # now: set up our channel to QAI
-        self.qai_url = self.cfg_dct['QAI_URL']
+        qai_url = self.cfg_dct['QAI_URL']
         self.qai_file = self.cfg_dct['LOCAL_STOCK_DB_FILE']
-        self.logger.info("QAI info URL: '{}', file: '{}'".format(self.qai_url, self.qai_file))
-        self.qaisession = qai_helper.QAISession()
+        self.logger.info("QAI info URL: '{}', file: '{}'".format(qai_url, self.qai_file))
+        self.qaisession = qai_helper.QAISession(qai_url)
         self.stockdb = ChemStock.ChemStockDB(self.qai_file, self.qaisession)
         # now: get our current stock list from QAI
 
@@ -123,7 +124,7 @@ class serverclass:
             # try to log in and send back the response
             un = msg.data.get('username', None)
             pw = msg.data.get('password', None)
-            login_resp = self.qaisession.login_try(self.qai_url, un, pw)
+            login_resp = self.qaisession.login_try(un, pw)
             # self.sleep(3)
             if not isinstance(login_resp, dict):
                 raise RuntimeError("fatal login try error")
@@ -141,6 +142,12 @@ class serverclass:
             if do_update:
                 self.stockdb.update_from_QAI()
             self.send_QAI_status()
+        elif msg.msg == CommonMSG.MSG_WC_ADD_STOCK_REQ:
+            # get a string for adding RFID labels to QAI.
+            rfidstrlst = msg.data
+            locid = None
+            qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst)
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
         else:
             self.logger.error("server not handling message {}".format(msg))
             raise RuntimeError("unhandled message")

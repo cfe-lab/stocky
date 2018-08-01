@@ -81,8 +81,8 @@ _callset: typing.Set[typing.Tuple[str, str]] = set()
 
 class TrackerSession(qai_helper.QAISession):
     """A session that keeps track of all calls performed."""
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, qai_path: str) -> None:
+        super().__init__(qai_path)
         self._callset = set()
 
     def patch_json(self, path: str, data: typing.Any, params=None, retries=3) -> qai_helper.RequestValue:
@@ -147,7 +147,7 @@ class Test_qai_log_in:
     """These tests are performed before a valid log in has been performed."""
 
     def setup_method(self) -> None:
-        self.s = qai_helper.Session()
+        self.s = qai_helper.Session(TESTqai_url)
 
     def test_nologin(self):
         """Using the API without first logging in raises an exception"""
@@ -157,12 +157,13 @@ class Test_qai_log_in:
     def test_wrong_login01(self) -> None:
         """Logging in to the correct host with a wrong password should raises an expection."""
         with pytest.raises(RuntimeError):
-            self.s.login(TESTqai_url, TESTauth_uname, 'blapassword')
+            self.s.login(TESTauth_uname, 'blapassword')
 
     def test_wrong_login02(self) -> None:
         "Logging in to a wrong host should raise an exception."""
+        ss = qai_helper.Session("http://localhost")
         with pytest.raises(requests.exceptions.ConnectionError):
-            self.s.login("http://localhost", TESTauth_uname, TESTauth_password)
+            ss.login(TESTauth_uname, TESTauth_password)
 
     def test_is_logged_in01(self) -> None:
         retval = self.s.is_logged_in()
@@ -175,7 +176,7 @@ class Test_qai_log_in:
         isin = s.is_logged_in()
         assert isinstance(isin, bool), "bool epxected"
         assert not isin, "not isin expected"
-        s.login(TESTqai_url, TESTauth_uname, TESTauth_password)
+        s.login(TESTauth_uname, TESTauth_password)
         # should have been successful
         isin = s.is_logged_in()
         assert isinstance(isin, bool), "bool epxected"
@@ -195,8 +196,8 @@ class SimpleQAItester:
         lverb = True
         if lverb:
             print("SETUP CLASS {}".format(cls))
-        cls.s = TrackerSession()
-        cls.s.login(TESTqai_url, TESTauth_uname, TESTauth_password)
+        cls.s = TrackerSession(TESTqai_url)
+        cls.s.login(TESTauth_uname, TESTauth_password)
         rcode, cls.reagent_list = cls.s.get_json(PATH_REAGENT_LIST_REAGENTS)
         assert rcode == HTTP_OK, "called failed"
         # get list of suppliers
@@ -349,6 +350,7 @@ class Test_creation(SimpleQAItester):
         print("itema {}".format(itema))
         print("postres '{}'".format(res))
         assert rcode == HTTP_OK, "creation call failed"
+        print("creation OK... now retrieve RFID = {}".format(test_rfid))
         itm_rec = self.get_reagent_item_record(test_rfid, isrfid=True)
         assert itm_rec['qcs_location_id'] == test_itema_locid, " locid mismatch"
         assert itm_rec['rfid'] == test_rfid, "rfid mismatch"
@@ -635,7 +637,7 @@ class Test_qai_helper_get(DATAQAItester):
     # database is modified)
 
     def get_reagent_item(self, item_id):
-        """We want to retrieve the current state of an reagent item.
+        """We want to retrieve the current state of a reagent item.
         we get the items of the test reagent and then select for the item"""
         rcode, itm_lst = self.s.get_json(PATH_REAGITEM_LIST,
                                          params={'reagent_id': self.test_reagent_id})
