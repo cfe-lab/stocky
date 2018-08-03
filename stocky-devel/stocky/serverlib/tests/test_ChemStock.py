@@ -42,13 +42,17 @@ class commontests:
         # assert False, " force fail"
 
     def test_generate_webclient_stocklist01(self):
-        lverb = True
+        lverb = False
         rdct = self.csdb.generate_webclient_stocklist()
         assert isinstance(rdct, dict), "dict expected"
         if lverb:
             print("rdct {}".format(rdct))
-        loclst = rdct["loclst"]
-        assert isinstance(loclst, list), "list expected"
+        for k in ['loclst', 'itmstatlst']:
+            val = rdct["loclst"]
+            assert isinstance(val, list), "list expected"
+        for k in ['locdct', 'reagentdct']:
+            val = rdct[k]
+            assert isinstance(val, dict), "dict expected"
         # assert False, " force fail"
 
     def test_get_stats(self):

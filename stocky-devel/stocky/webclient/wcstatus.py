@@ -82,7 +82,7 @@ class WCstatus(base.base_obj):
             txt = self.uname_text = html.spantext(cell,
                                                   "unametext",
                                                   {'class': "w3-tag w3-red",
-                                                   "title": "Click here to log in"},
+                                                   "title": "Click here to log in to QAI"},
                                                   "not logged in")
             # the txt is opener for the login form
             login_popup.attach_opener(txt)
@@ -140,7 +140,7 @@ class WCstatus(base.base_obj):
         else:
             # error:
             labtext = "not logged in"
-            txthelptext = "Click here to log in"
+            txthelptext = "Click here to log in to QAI"
             statusled.setcolour(html.LEDElement.RED)
             statusled.setAttribute("title", txthelptext)
 

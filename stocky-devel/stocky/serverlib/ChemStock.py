@@ -4,7 +4,7 @@
 import typing
 import logging
 
-# import datetime
+import datetime
 import sqlalchemy as sql
 import sqlalchemy.orm as orm
 from sqlalchemy.ext.declarative import declarative_base
@@ -149,7 +149,7 @@ class ChemStockDB:
         Base.metadata.create_all(self._engine)
         Session = orm.sessionmaker(bind=self._engine)
         timelib.set_local_timezone(tz_name)
-
+        self._current_date = timelib.loc_nowtime().date()
         self._sess = Session()
 
     def _set_update_time(self) -> str:
@@ -246,15 +246,168 @@ class ChemStockDB:
             rdct.setdefault(k, None)
         return rdct
 
+    def calc_final_state(self, slst: typing.List[dict]) -> typing.Tuple[dict, bool, bool]:
+        """ Calculate the final state from this list of states.
+        We return the nominal state record and to booleans:
+        ismissing, hasexpired.
+
+        Strategy: we assign values to the various possible states and sort according
+        to these values.
+        any missing record will be the first one.
+        the exp record is the last one (should exist, check the date with current date)
+        the nominal state is the second to last in the list.
+        """
+        if len(slst) < 2:
+            # raise RuntimeError("state list is too short {}".format(slst))
+            # the list may also contain a single EXPIRED record
+            # or, in legacy cases, a single IN_USE record.
+            nom_state = exp_dict = slst[0]
+            ismissing = False
+            # if exp_dict['status'] != 'EXPIRED':
+            #    raise RuntimeError('exp_dict is not expired {}'.format(exp_dict))
+        else:
+            odct = dict(MISSING=-1, MADE=0, VALIDATED=1, IN_USE=2, USED_UP=5, EXPIRED=6)
+            try:
+                slst.sort(key=lambda a: odct[a['status']])
+            except KeyError:
+                raise RuntimeError("status field missing in state record {}".format(slst))
+            exp_dict = slst[-1]
+            nom_state = slst[-2]
+            ismissing = slst[0]['status'] == 'MISSING'
+        # we could have no expired record, but a used up record instead.
+        if exp_dict['status'] == 'EXPIRED':
+            # Cannot use fromisoformat in 3.6...
+            # expiry_date = datetime.date.fromisoformat(exp_dict['occurred'])
+            # the string is of the form '2011-04-20'
+            expiry_date = datetime.date(*[int(s) for s in exp_dict['occurred'].split('-')])
+            has_expired = expiry_date < self._current_date
+        else:
+            has_expired = False
+        # print("FFF {}".format(slst))
+        rtup = (nom_state, ismissing, has_expired)
+        # print("GGG {}".format(rtup))
+        return rtup
+
     def generate_webclient_stocklist(self) -> dict:
         """Generate the stock list in a form required by the web client
         the dict returned has the following entries:
         loclst: a list of dicts containing the stock locations, e.g.
-        [{'id': 10000, 'name': 'SPH'}, {'id': 10001, 'name': 'SPH\\638'}, ... ]
+            [{'id': 10000, 'name': 'SPH'}, {'id': 10001, 'name': 'SPH\\638'}, ... ]
+
+        the itemlst is a list of dicts containing:
+        {'id': 18478, 'last_seen': None, 'lot_num': '2019AD3EB',
+           'notes': '8 bottles of spare reagents',
+           'qcs_location_id': 10010,
+           'qcs_reag_id': 6297, 'rfid': 'REPLACE ME'},
+        {'id': 18479, 'last_seen': None, 'lot_num': 'INT.BP.17.02',
+           'notes': None, 'qcs_location_id': 10016,
+           'qcs_reag_id': 6217, 'rfid': 'REPLACE ME'}
+
+        the itmstatlst is a list of dicts containing:
+        {'id': 41418, 'occurred': '2021-04-30T07:00:00Z',
+           'qcs_reag_item_id': 18512, 'qcs_user_id': 113, 'status': 'EXPIRED'},
+        {'id': 41419, 'occurred': '2018-06-01T22:54:26Z',
+           'qcs_reag_item_id': 18513, 'qcs_user_id': 112, 'status': 'MADE'},
+        {'id': 41420, 'occurred': '2020-04-03T00:00:00Z',
+           'qcs_reag_item_id': 18513, 'qcs_user_id': 112, 'status': 'EXPIRED'}
+
+        the reagentlst is a list of dicts containing:
+        {'id': 8912, 'name': 'Atazanavir-bisulfate', 'basetype': 'reagent',
+           'catalog_number': None, 'category': 'TDM', 'date_msds_expires': None,
+           'disposed': None, 'expiry_time': None,
+           'hazards': 'Avoid inhalation, skin and eye contact. Wear PPE.',
+           'location': None, 'msds_filename': 'ATV_BS_A790050MSDS.pdf',
+           'needs_validation': None, 'notes': None, 'qcs_document_id': None,
+           'storage': '-20 C', 'supplier': None},
+        {'id': 8932, 'name': 'Triton X-100', 'basetype': 'stockchem',
+           'catalog_number': 'T8787', 'category': 'Other Chemicals',
+           'date_msds_expires': '2020-02-28T00:00:00Z', 'disposed': None,
+           'expiry_time': 2555, 'hazards': None, 'location': None,
+           'msds_filename': None, 'needs_validation': None,
+           'notes': None, 'qcs_document_id': None, 'storage': 'Room Temperature',
+           'supplier': 'Sigma Aldrich'},
+        {'id': 8952, 'name': 'Proviral V3 Primary 1st PCR  mix', 'basetype': 'reagent',
+           'catalog_number': None, 'category': 'PCR',
+           'date_msds_expires': None, 'disposed': None,
+           'expiry_time': None, 'hazards': None,
+           'location': '604', 'msds_filename': None,
+           'needs_validation': None,
+           'notes': None, 'qcs_document_id': None,
+           'storage': '-20 C', 'supplier': None}
 
         """
         # NOTE: as we want dicts and not Location instances, we go directly to
         # the 'SQL level' (session.execute() and not the 'ORM level' (session.query())
         # of sqlquery.
-        ll = [dict(row) for row in self._sess.execute(Location.__table__.select())]
-        return {"loclst": ll}
+        loclst = [dict(row) for row in self._sess.execute(Location.__table__.select())]
+        itmlst = [dict(row) for row in self._sess.execute(Reagent_Item.__table__.select())]
+        itmstat = [dict(row) for row in self._sess.execute(Reagent_Item_Status.__table__.select())]
+
+        # create a Dict[locationid, List[reagentitem]] and a Dict[RFID, reagentitem]
+        dd = {}
+        rfid_reagitem_dct = ff = {}
+        for reag_item in itmlst:
+            loc_id = reag_item.get('qcs_location_id', None)
+            # we will keep a list of items with None locations... should not happen, but does
+            # then we add these to the UNKNOWN list later on
+            dd.setdefault(loc_id, []).append(reag_item)
+            # if loc_id is not None:
+            # else:
+            #    raise RuntimeError("found None location {}".format(reag_item))
+            #
+            rfidstr = reag_item.get('rfid', None)
+            if rfidstr is not None:
+                if rfidstr != 'REPLACE ME':
+                    ff.setdefault(rfidstr, reag_item)
+            else:
+                raise RuntimeError("found None location {}".format(reag_item))
+        # unmangling for None...
+        # find loc_id for 'UNKNOWN'...
+        if None in dd:
+            none_lst = dd[None]
+            del dd[None]
+            flst = [loc for loc in loclst if loc['name'] == 'UNKNOWN']
+            assert len(flst) == 1, "cannot determine 'UNKNOWN' location"
+            unknown_lst = dd.setdefault(flst[0]['id'], [])
+            unknown_lst.extend(none_lst)
+        #
+        # NOW, create a Dict[locationid, Tuple[locrecord, List[reagentitem]]]
+        # which we send to the client
+        locid_reagitem_dct = rr = {}
+        for location in loclst:
+            loc_id = location.get('id', None)
+            rr[loc_id] = (location, dd.get(loc_id, []))
+        assert len(rr) == len(loclst), "problem with location ids!"
+        #
+        # collect the state records for each reagent item...
+        zz = {}
+        for state in itmstat:
+            reag_item_id = state['qcs_reag_item_id']
+            # we want to replace the occurred timedate entry with a simple date
+            # to present to the user, i.e.
+            # 'occurred': '2011-04-20T00:00:00Z'  -> '2011-04-20'
+            dstr = state['occurred']
+            state['occurred'] = dstr.split('T')[0]
+            zz.setdefault(reag_item_id, []).append(state)
+        # and evaluate the 'final state' for each reagent item
+        ritemdct = {}
+        for reag_item in itmlst:
+            reag_item_id = reag_item['id']
+            state_lst = zz.get(reag_item_id, None)
+            state_info = self.calc_final_state(state_lst) if state_lst is not None else None
+            ritemdct[reag_item_id] = (reag_item, state_info)
+        # create a Dict[reagentid, reagent]
+        rl = [dict(row) for row in self._sess.execute(Reagent.__table__.select())]
+        rg = {}
+        for reagent in rl:
+            # delete the legacy location field in reagents...
+            reagent.pop('location', None)
+            reagent_id = reagent.get('id', None)
+            if reagent_id is not None:
+                rg[reagent_id] = reagent
+            else:
+                raise RuntimeError("reagent ID is None")
+        assert len(rg) == len(rl), "problem with reagent ids!"
+        return {"loclst": loclst, "itmstatlst": itmstat,
+                "reagentdct": rg, "locdct": locid_reagitem_dct,
+                "ritemdct": ritemdct, "rfiddct": rfid_reagitem_dct}

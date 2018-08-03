@@ -350,3 +350,67 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
         else:
             self.stat_tab.update_table(db_stat_dct)
         self.spinner.set_spin(False)
+
+
+class CheckStockView(SwitcheeView):
+    """This is the view that the user will use to check the stock at a particular
+    location.
+    a) The user selects a location
+    b) The user scans
+    c) The scanned items are display (expected, unexpected, missing)
+    d) Once, happy, the user confirms the stock state.
+    """
+
+    GO_ADD_NEW_STOCK = 'go_add_new_stock'
+
+    def __init__(self, contr: widgets.base_controller,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 attrdct: dict,
+                 jsel) -> None:
+        title_text = "Check Stock at Specific Locations"
+        help_text = """Use the scanner to verify the presence of stock at a specific location."""
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
+                              title_text, help_text)
+        print("AddNewStockView!!!")
+        self.location_sel: typing.Optional[html.select] = None
+        self.gobutton: typing.Optional[html.textbutton] = None
+        self.scanlist: typing.Optional[ScanList] = None
+        self._initelements()
+        contr.addObserver(self, base.MSGD_RFID_CLICK)
+
+    def rcvMsg(self,
+               whofrom: 'base.base_obj',
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if msgdesc == base.MSGD_RFID_CLICK:
+            print("GOT SCAN DATA {}".format(msgdat))
+            if self.scanlist is not None and msgdat is not None:
+                self.scanlist.add_scan(msgdat)
+        else:
+            super().rcvMsg(whofrom, msgdesc, msgdat)
+
+    def _initelements(self):
+        if self.location_sel is None:
+            htext = 'Select the stock location you want to check.'
+            self.location_sel = self.wcstatus.get_location_selector(self,
+                                                                    "checklocsel",
+                                                                    htext)
+        else:
+            self.wcstatus.update_location_selector(self.location_sel)
+        # here add a table of items at this location...
+
+        # now add a 'GO' button
+        if self.gobutton is None:
+            idstr = "addloc-but"
+            attrdct = {'class': 'w3-button',
+                       'title': "Add selected RFID tags to QAI",
+                       STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_ADD_NEW_STOCK)}
+            buttontext = "Add to QAI"
+            self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
+            self.gobutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
+
+    def Redraw(self):
+        """Start the download if we are loggged in."""
+        print("CHECKSTOCK REDRAW")
+        self._initelements()

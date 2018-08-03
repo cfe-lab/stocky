@@ -40,7 +40,7 @@ menulst = [
                 'id': 'BV1'}
      },
     {'name': CHECK_STOCK_VIEW_NAME,
-     'viewidtext': "This is view Checkstock",
+     'viewclass': wcviews.CheckStockView,
      'button': {'label': 'Perform Stock Check',
                 'title': "Compare scanned items to current stocklist",
                 'id': 'BV3'}
