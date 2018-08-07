@@ -1,5 +1,6 @@
 
-from qailib.transcryptlib.websocket import JSONWebsocket
+# client websocket library...
+from qailib.transcryptlib.websocket import BaseRawWebSocket, JSONWebsocket
 from qailib.common.serversocketbase import base_server_socket
 import qailib.common.base as base
 
@@ -18,19 +19,8 @@ def is_js_array(v):
     return Array.isArray(v)
 
 
-class server_socket(base_server_socket, JSONWebsocket):
-    """A websocket class that generates GUI events whenever a message
-    is received from the server.
-    Communication with the server occurs in JSON form.
-    """
-    def __init__(self, idstr: str, url: str, proto: list) -> None:
-        base_server_socket.__init__(self, idstr)
-        JSONWebsocket.__init__(self, url, proto)
-        print("server_socket", self.is_open())
-        # self._trackingdct: typing.Dict[int, html.base_obj] = {}
-
-    def send(self, data_to_server) -> None:
-        JSONWebsocket.send(self, data_to_server)
+class clientsocket(base_server_socket):
+    """A virtual base class for websockets on the client side of things..."""
 
     def on_open_cb(self, event) -> None:
         """This routine is called whenever the socket is open for communication."""
@@ -45,7 +35,7 @@ class server_socket(base_server_socket, JSONWebsocket):
         """
         # NOTE: we must convert the javascript data into a python dict
         msg_dct = self.pythonify_dct(data_from_server)
-        # log("server says: '{}'".format(msg_dct))
+        print("server says: '{}' AND '{}'".format(data_from_server, msg_dct))
         self.sndMsg(base.MSGD_SERVER_MSG, msg_dct)
 
     def pythonify_dct(self, in_js):
@@ -67,3 +57,18 @@ class server_socket(base_server_socket, JSONWebsocket):
         else:
             retval = in_js
         return retval
+
+
+class JSONserver_socket(clientsocket, JSONWebsocket):
+    """A websocket class that generates GUI events whenever a message
+    is received from the server.
+    Communication with the server occurs in JSON form.
+    """
+    def __init__(self, idstr: str, rawws: BaseRawWebSocket) -> None:
+        clientsocket.__init__(self, idstr)
+        JSONWebsocket.__init__(self, rawws)
+        print("server_socket", self.is_open())
+        # self._trackingdct: typing.Dict[int, html.base_obj] = {}
+
+    def send(self, data_to_server) -> None:
+        JSONWebsocket.send(self, data_to_server)

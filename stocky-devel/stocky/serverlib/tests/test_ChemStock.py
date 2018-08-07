@@ -41,13 +41,15 @@ class commontests:
         assert set(tsdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpted dict keys"
         # assert False, " force fail"
 
+    @pytest.mark.skip(reason="method is in flusx")
     def test_generate_webclient_stocklist01(self):
         lverb = False
         rdct = self.csdb.generate_webclient_stocklist()
         assert isinstance(rdct, dict), "dict expected"
         if lverb:
             print("rdct {}".format(rdct))
-        for k in ['loclst', 'itmstatlst']:
+        for k in ['loclst']:
+            # , 'itmstatlst']:
             val = rdct["loclst"]
             assert isinstance(val, list), "list expected"
         for k in ['locdct', 'reagentdct']:

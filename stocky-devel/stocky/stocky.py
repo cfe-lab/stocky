@@ -6,6 +6,7 @@ from geventwebsocket import websocket
 import serverlib.serverconfig as serverconfig
 import serverlib.commlink as commlink
 import serverlib.stockyserver as stockyserver
+import serverlib.ServerWebSocket as ServerWebSocket
 
 import logging
 import logging.config
@@ -61,7 +62,8 @@ def init_app(cfgname: str):
 # this launches the server main program in response to the webclient program starting
 # in the browser
 @socky.route('/goo')
-def goo(ws: websocket):
+def goo(rawws: websocket):
+    ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
     if the_main is not None:
         the_main.mainloop(ws)
     else:

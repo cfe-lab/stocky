@@ -3,7 +3,8 @@ import flask
 
 import gevent
 from gevent.queue import Queue
-from geventwebsocket import websocket
+
+import serverlib.ServerWebSocket as ServerWebSocket
 import serverlib.timelib as timelib
 import serverlib.TLSAscii as TLSAscii
 import serverlib.qai_helper as qai_helper
@@ -91,7 +92,7 @@ class serverclass:
     def send_WS_msg(self, msg: CommonMSG) -> None:
         """Send a command to the web client over websocket in a standard JSON format."""
         if self.ws is not None:
-            self.ws.send(qai_helper.tojson(msg.as_dict()))
+            self.ws.sendMSG(msg.as_dict())
 
     def sleep(self, secs: int) -> None:
         gevent.sleep(secs)
@@ -157,11 +158,11 @@ class serverclass:
     def send_QAI_status(self):
         wc_stock_dct = self.stockdb.generate_webclient_stocklist()
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_STOCK_INFO_RESP,
-                                   dict(upd_time=self.stockdb.get_update_time(),
-                                        db_stats=self.stockdb.get_db_stats(),
+                                   dict(db_stats=self.stockdb.get_db_stats(),
+                                        upd_time=self.stockdb.get_update_time(),
                                         stock_dct=wc_stock_dct)))
 
-    def mainloop(self, ws: websocket):
+    def mainloop(self, ws: ServerWebSocket.BaseWebSocket):
         """This routine is entered into when the webclient has established a
         websocket connection to the server.
         """

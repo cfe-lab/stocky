@@ -9,12 +9,9 @@ from random import random
 
 import gevent
 import gevent.queue
-from geventwebsocket import websocket
-import geventwebsocket.exceptions
-
 from webclient.commonmsg import CommonMSG
 
-import serverlib.qai_helper as qai_helper
+import serverlib.ServerWebSocket as WS
 
 
 class DelayTaskMeister:
@@ -139,7 +136,7 @@ class WebSocketReader(BaseReader):
 
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
-                 ws: websocket,
+                 ws: WS.BaseWebSocket,
                  sec_interval: float=0.0,
                  do_activate: bool=True) -> None:
         self.ws = ws
@@ -148,35 +145,26 @@ class WebSocketReader(BaseReader):
     def generate_msg(self) -> typing.Optional[CommonMSG]:
         """Block until a command is received from the webclient over websocket.
         Return the JSON string received as a CommonMSG instance."""
-        try:
-            msg = self.ws.receive()
-        except geventwebsocket.exceptions.WebSocketError as e:
-            self.logger.debug("server received a None: {}".format(e))
-            msg = None
-        if msg is None:
+        dct = self.ws.receiveMSG()
+        if dct is None:
+            self.logger.error("received None over ws, returning None")
             retmsg = None
-        else:
-            dct = qai_helper.safe_fromjson(msg)
-            if dct is None:
-                self.logger.error("malformed json string, got '{}'".format(msg))
-                retmsg = None
-            elif isinstance(dct, dict):
-                need_keys = frozenset(['msg', 'data'])
-                got_keys = set(dct.keys())
-                if need_keys <= got_keys:
-                    # now make sure we have a legal msg field
-                    try:
-                        retmsg = CommonMSG(dct['msg'], dct['data'])
-                    except (ValueError, TypeError) as e:
-                        self.logger.error("illegal msgtype= '{}'".format(dct['msg']))
-                        retmsg = None
-                    xtra_keys = got_keys - need_keys
-                    if xtra_keys:
-                        self.logger.warn("unexpected extra dict keys, got '{}'".format(got_keys))
-                else:
-                    self.logger.error("unknown keys in {}".format(got_keys))
+        elif isinstance(dct, dict):
+            need_keys = frozenset(['msg', 'data'])
+            got_keys = set(dct.keys())
+            if need_keys <= got_keys:
+                # now make sure we have a legal msg field
+                try:
+                    retmsg = CommonMSG(dct['msg'], dct['data'])
+                except (ValueError, TypeError) as e:
+                    self.logger.error("illegal msgtype= '{}'".format(dct['msg']))
                     retmsg = None
+                xtra_keys = got_keys - need_keys
+                if xtra_keys:
+                    self.logger.warn("unexpected extra dict keys, got '{}'".format(got_keys))
             else:
-                self.logger.error("expected a single dict in json message , but got '{}'".format(dct))
+                self.logger.error("unknown keys in {}".format(got_keys))
                 retmsg = None
+        else:
+            raise RuntimeError("unexpected message {}".format(dct))
         return retmsg

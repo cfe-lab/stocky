@@ -6,6 +6,7 @@ import logging
 
 import serverlib.Taskmeister as Taskmeister
 import serverlib.qai_helper as qai_helper
+import serverlib.ServerWebSocket as ServerWebSocket
 
 from webclient.commonmsg import CommonMSG
 
@@ -125,7 +126,8 @@ class Test_Taskmeister:
         """ The WebSocketReader must behave sensibly when it reads
         junk from the websocket, and also produce a message on good data.
         """
-        ws = DummyWebsocket(self.sec_interval, None)
+        rawws = DummyWebsocket(self.sec_interval, None)
+        ws = ServerWebSocket.JSONWebSocket(rawws, self.logger)
         wsr = Taskmeister.WebSocketReader(self.msgq,
                                           self.logger,
                                           ws,
@@ -141,10 +143,11 @@ class Test_Taskmeister:
                                             ({'msg': 'hello', 'data': 'dolly'}, True, None),
                                             (ok_dct, True, ok_msg)]:
             if doraw:
-                ws = DummyWebsocket(self.sec_interval, faulty_data)
+                rawws = DummyWebsocket(self.sec_interval, faulty_data)
             else:
-                ws = DummyWebsocket(self.sec_interval, None)
-                ws._set_json_val(faulty_data)
+                rawws = DummyWebsocket(self.sec_interval, None)
+                rawws._set_json_val(faulty_data)
+            ws = ServerWebSocket.JSONWebSocket(rawws, self.logger)
             wsr.ws = ws
             retmsg = wsr.generate_msg()
             print("after sleep exp: {}, got {}".format(exp_val, retmsg))
@@ -154,7 +157,8 @@ class Test_Taskmeister:
         """The WebSocketReader must behave sensibly when wesocket.read()
         raises an exception.
         """
-        ws = ExceptionDummyWebsocket(self.sec_interval, None)
+        rawws = ExceptionDummyWebsocket(self.sec_interval, None)
+        ws = ServerWebSocket.JSONWebSocket(rawws, self.logger)
         wsr = Taskmeister.WebSocketReader(self.msgq,
                                           self.logger,
                                           ws,

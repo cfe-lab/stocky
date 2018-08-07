@@ -88,7 +88,7 @@ class base_server_socket(base.base_obj):
     def __init__(self, idstr):
         super().__init__(idstr)
 
-    def send(self, data_to_server) -> None:
+    def send(self, data_to_server: typing.Any) -> None:
         print("base_server_socket: NOT sending {}".format(data_to_server))
 
     def issueGraphQLQuery(self,
@@ -118,7 +118,4 @@ class base_server_socket(base.base_obj):
         """
         # NOTE: we must convert the javascript data into a python dict
         msg_dct = dict(data_from_server)
-        # msg_dct = self.pythonify_dct(data_from_server)
-        # log("server says: '{}'".format(msg_dct))
         self.sndMsg(base.MSGD_SERVER_MSG, msg_dct)
-        # print("serversocketbase: swallowing server message {}".format(data_from_server))

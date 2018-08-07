@@ -55,6 +55,11 @@ webclient: __javascript__/webclient.js ## compile the web client (from python to
 __javascript__/webclient.js: Makefile webclient.py  ${LIBS} ${COMMON}
 	transcrypt ${OPTS} webclient.py
 
+sockwebby: __javascript__/sockwebby.js ## compile the sockwebby task (from python to javascript)
+
+__javascript__/sockwebby.js: Makefile sockwebby.py  ${LIBS} ${COMMON}
+	transcrypt ${OPTS} -p .none sockwebby.py
+
 typetest:
 	transcrypt ${OPTS} typetest.py
 mypy: ##  analyse the webclient code using mypy

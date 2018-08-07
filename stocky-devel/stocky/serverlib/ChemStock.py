@@ -334,7 +334,6 @@ class ChemStockDB:
            'needs_validation': None,
            'notes': None, 'qcs_document_id': None,
            'storage': '-20 C', 'supplier': None}
-
         """
         # NOTE: as we want dicts and not Location instances, we go directly to
         # the 'SQL level' (session.execute() and not the 'ORM level' (session.query())
@@ -345,7 +344,8 @@ class ChemStockDB:
 
         # create a Dict[locationid, List[reagentitem]] and a Dict[RFID, reagentitem]
         dd = {}
-        rfid_reagitem_dct = ff = {}
+        # rfid_reagitem_dct = ff = {}
+        ff = {}
         for reag_item in itmlst:
             loc_id = reag_item.get('qcs_location_id', None)
             # we will keep a list of items with None locations... should not happen, but does
@@ -408,6 +408,7 @@ class ChemStockDB:
             else:
                 raise RuntimeError("reagent ID is None")
         assert len(rg) == len(rl), "problem with reagent ids!"
-        return {"loclst": loclst, "itmstatlst": itmstat,
-                "reagentdct": rg, "locdct": locid_reagitem_dct,
-                "ritemdct": ritemdct, "rfiddct": rfid_reagitem_dct}
+        # "itmstatlst": itmstat,
+        return {"loclst": loclst, "locdct": locid_reagitem_dct}
+    # "ritemdct": ritemdct, "rfiddct": rfid_reagitem_dct}
+    # "reagentdct": rg,
