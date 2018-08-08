@@ -648,14 +648,17 @@ class select(element):
 
     def has_option_id(self, idstr: str) -> bool:
         """Return 'the select element has an option field with a id = idstr' """
-        pass
+        return self._optdct.get(idstr, None) is not None
 
     def num_options(self) -> int:
         """Return the number of options"""
         return len(self._optlst)
 
     def add_option(self, idstr: str, name: str) -> None:
-        """Add an option to the list."""
+        """Add an option to the list.
+        The HTML value becomes if idstr and the displayed string is 'name'
+
+        """
         optattrdct = {'value': idstr}
         opt = option(self, "locopt{}".format(idstr), optattrdct, None)
         opt.setInnerHTML(name)

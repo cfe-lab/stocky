@@ -21,13 +21,14 @@ class BaseRawWebSocket:
         self.send_raw(data_to_server)
 
     def close(self) -> None:
-        self._ws.close()
+        self._isopen = False
 
     def set_CB_handler(self, cb_handler) -> None:
         self._cbhandler = cb_handler
 
     def on_open_cb(self, event) -> None:
         print('on_open_cb')
+        self._isopen = True
         if self._cbhandler is not None:
             self._cbhandler.on_open_cb(event)
 

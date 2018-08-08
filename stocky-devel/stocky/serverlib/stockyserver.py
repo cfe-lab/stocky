@@ -147,8 +147,9 @@ class serverclass:
             self.send_QAI_status()
         elif msg.msg == CommonMSG.MSG_WC_ADD_STOCK_REQ:
             # get a string for adding RFID labels to QAI.
-            rfidstrlst = msg.data
-            locid = None
+            dct = msg.data
+            rfidstrlst = dct.get('rfids', None)
+            locid = dct.get('location', None)
             qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst)
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
         else:

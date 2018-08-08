@@ -62,6 +62,15 @@ https://www.w3schools.com/colors/colors_names.asp
 }
 
 
+
+/* we have wcview.ScanList (a HTML table which shows scanned RFID tags for receiving) which has a class 'scanlist'. Set */
+/* its appearance here */
+
+.scanlist {
+    border: 1px solid black;
+    box-shadow: 1px 1px 11px #330033;
+}
+
 /* define what the status panel (with login and bluetooth status_ looks like */
 /*     
     border: 1px solid #544E4E;

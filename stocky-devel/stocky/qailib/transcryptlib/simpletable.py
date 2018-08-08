@@ -11,6 +11,7 @@ class simpletable(html.element):
     """ A really simple table class.
     The dimensions of the table are given at instantiation, further rows can be added later.
     Columns cannot be added.
+    The row numbering starts from 0 (the top row).
     """
     def __init__(self,
                  parent: html.base_element,
@@ -22,10 +23,29 @@ class simpletable(html.element):
         self.td_dct: typing.Dict[typing.Tuple[int, int], html.td] = {}
         for nr in range(numrows):
             self.append_row()
+        self._headerrow: typing.Optional[html.tr] = None
+        self.th_dct: typing.Dict[int, html.th] = {}
 
     def numrows(self) -> int:
-        """Return the number of rows in the table"""
+        """Return the number of rows in the table, not including the optional header row"""
         return len(self._rowlst)
+
+    def has_header_row(self) -> bool:
+        return self._headerrow is not None
+
+    def add_header_row(self) -> None:
+        """Add  a header row to the table."""
+        if self._headerrow is None:
+            idstr = self._idstr
+            th_dct = self.th_dct
+            rowattrdct: typing.Dict = {}
+            cellattrdct = rowattrdct
+            self._headerrow = newrow = html.tr(self, "{}-HDR".format(idstr), rowattrdct, None)
+            for nc in range(self.numcols):
+                th_dct[nc] = html.th(newrow, "{}-H{}".format(idstr, nc), cellattrdct, None)
+
+    def getheader(self, colnum: int) -> typing.Optional[html.th]:
+        return self.th_dct.get(colnum, None)
 
     def append_row(self) -> int:
         """Add a new row to the table, and return the new row's number."""
@@ -53,14 +73,20 @@ class simpletable(html.element):
             cell.setAttribute('style', "text-align:{}".format(alignstr))
 
     def delete_rows(self) -> None:
-        """Delete all rows in the table."""
+        """Delete all rows in the table
+        We cannot tell the difference between a header row or a data row...
+        """
+        with_header = self.has_header_row()
         NN = self.numrows()
+        if with_header:
+            NN += 1
         for ndx in range(NN):
             # this is a javascript call...
             self._el.deleteRow(0)
-        # for ndx, r in enumerate(self._rowlst):
-        #    del r
         self._rowlst = []
+        # add back the header iff required
+        if with_header:
+            self.appendChild(self._headerrow)
 
 
 class dict_table(simpletable):

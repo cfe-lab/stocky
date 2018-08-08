@@ -8,10 +8,13 @@ VERSION: 1.0
 # when connected by USB, this is usually something like '/dev/ttyUSB0'
 # when connected by Bluetooth, this is usually something like '/dev/rfcomm0'
 RFID_READER_DEVNAME: '/dev/rfcomm0'
+
 #-- The URL of the QAI server from where stocky gets the current stock status
-STOCK_LIST_URL: "https://qai.cfenet.ubc.ca:3000/qcs_reagents/json_get"
+QAI_URL: "http://192.168.69.170:4567"
+
 # The QAI stock status is stored to a local file in the state directory with this name
-STOCK_LIST_FILE: 'localstock.yaml'
+LOCAL_STOCK_DB_FILE: 'localstock.sqlite'
+
 #-----
 # The region mode of the RFID reader. This defines the operation frequency and power output
 # of the reader. This must be a valid entry according to the TLS ASCII protocol, command ".sr" .

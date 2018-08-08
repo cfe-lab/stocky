@@ -146,6 +146,20 @@ class Test_commlink:
         print("commlink is alive. Ident is {}".format(idstr))
         self.dscl = DummySerialCommLink(cfgdct)
 
+    def test_Hextostr(self):
+        lverb = False
+        for instr, exp_outstr in [('4348454D3130303030000000', "CHEM10000", ),
+                                  ('BLA', 'BLA'),
+                                  ('BLAA', 'BLAA'),
+                                  ('00FA01', '00FA01')]:
+            gotstr = commlink.HexStrtoStr(instr)
+            if lverb:
+                print(" GOT {} --> {}".format(instr, gotstr))
+            assert isinstance(gotstr, str), "string expected"
+            if gotstr != exp_outstr:
+                raise RuntimeError("input {} produced {}, expected {}".format(instr, gotstr, exp_outstr))
+        # assert False, "force fail"
+
     def test_str_read01(self):
         """_str_readline must strip out unwanted characters."""
         cfgdct = {'logger': self.logger}

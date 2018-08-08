@@ -52,10 +52,42 @@ TLSRetCode = int
 # (a negative value, bigger is closer. E.g. -40 is nearer than -75)
 RSSI = int
 
+hextab = dict([(chr(ord('0') + i), i) for i in range(0, 10)] +
+              [(chr(ord('A') + i), i+10) for i in range(0, 6)])
+
+
+def HexStrtoStr(instr: str) -> str:
+    """We receive a string containing hex characters of ASCII chars,
+    Convert these into a string.
+    E.G.:
+    the string '4348454D3130303030000000' is coded as:
+    '43 48 45 4D 31 30 30 30 30 00 00 00'
+      C  H  E  M  1  0  0  0  0
+    where, for example, hexadecimal 43 is the ASCII charachter 'C'.
+    If the conversion fails, return the original string.
+    """
+    if len(instr) % 2 == 1 or len(instr) == 0:
+        return instr
+    # strlst: list of strings of length two representing hex numbers.
+    strlst = [instr[i:i+2] for i in range(0, len(instr), 2)]
+    # numlst: list of integers. if this fails, give up, as we do not have Hex numbers
+    try:
+        numlst = [hextab[hexstr[0]] * 16 + hextab[hexstr[1]] for hexstr in strlst]
+    except KeyError:
+        return instr
+    # NOTE: also return the original string if the leading char is not a 'reasonable' ASCII
+    # char.
+    testchar = chr(numlst[0])
+    charpass = 'A' <= testchar <= 'Z' or 'a' <= testchar <= 'z' or '1' <= testchar <= '9'
+    # NOTE: the string can have multiple trailing zeros...
+    return ''.join([chr(num) for num in numlst if num != 0]) if charpass else instr
+
 
 class CLResponse:
+    """ A class that contains the data that was sent from the RFID reader
+    in response to a TLS command."""
     def __init__(self, rl: ResponseList) -> None:
-        self.rl = rl
+        self.rl = CLResponse._hexify(rl)
         dd: typing.Dict[str, StringList] = {}
         self._mydct = dd
         for resp_code, msg in self.rl:
@@ -69,6 +101,10 @@ class CLResponse:
             cs_string = cslst[0]
             cdict = BaseCommLink.extract_comment_dict(cs_string)
         self._cdict = cdict
+
+    @staticmethod
+    def _hexify(rl: ResponseList) -> ResponseList:
+        return [(EP_VAL, HexStrtoStr(tt[1])) if tt[0] == EP_VAL else tt for tt in rl]
 
     def __getitem__(self, respcode: str) -> typing.Optional[StringList]:
         """Return a list with only those response codes equal to respcode.

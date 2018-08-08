@@ -20,6 +20,8 @@ BIG_DISTANCE = 99.0
 
 STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 
+LOC_NOSEL_ID = wcstatus.WCstatus.LOC_NOSEL_ID
+
 
 class SwitcheeView(widgets.BasicView):
     def __init__(self, contr: widgets.base_controller,
@@ -143,15 +145,23 @@ class ScanList(simpletable.simpletable):
     _ACTIV_COL = 1
 
     def __init__(self, parent: widgets.base_widget, idstr: str) -> None:
-        attrdct: typing.Dict[str, str] = {}
+        attrdct: typing.Dict[str, str] = {'class': 'scanlist'}
         super().__init__(parent, idstr, attrdct, 0, 2)
         self.reset()
 
     def reset(self):
-        """Empty the list"""
+        """Empty the list and display a placeholder..."""
         self._tklst = []
         self._tkdct = {}
         self.delete_rows()
+        if not self.has_header_row():
+            self.add_header_row()
+            kattrdct = {'class': "w3-tag w3-blue"}
+            for colnum, txt in [(ScanList._RFID_COL, "RFID label"),
+                                (ScanList._ACTIV_COL, "Selected?")]:
+                kcell = self.getheader(colnum)
+                if kcell is not None:
+                    html.label(kcell, "", kattrdct, txt, None)
 
     def _add_token(self, newtk: str) -> None:
         """Add a new token string to the list."""
@@ -183,9 +193,11 @@ class ScanList(simpletable.simpletable):
         ['EP', '000000000000000000001239'], ['RI', '-62'], ['EP', '000000000000000000001235']
         OR, in the case of barcode scan data:
         [['CS', '.bc'], ['BC', '000000000000000000001236'], ['OK', '']]
+
+        We only add BC and EP fields, and also only if the tags begin with 'CHEM'
         """
         for tag, cont in newdat:
-            if tag == 'EP' or tag == 'BC':
+            if (tag == 'EP' or tag == 'BC') and cont[:4] == 'CHEM':
                 self._add_token(cont)
 
     def get_active_tags(self) -> typing.List[str]:
@@ -225,9 +237,9 @@ items to be added to QAI for the first time."""
             htext = 'Select the stock location you want to add new items to'
             self.location_sel = self.wcstatus.get_location_selector(self,
                                                                     "addlocsel",
-                                                                    htext)
+                                                                    htext, True)
         else:
-            self.wcstatus.update_location_selector(self.location_sel)
+            self.wcstatus.update_location_selector(self.location_sel, True)
         # list of scanned RFID tags...
         if self.scanlist is None:
             self.scanlist = ScanList(self, "scocanlist")
@@ -262,13 +274,33 @@ items to be added to QAI for the first time."""
         else:
             super().rcvMsg(whofrom, msgdesc, msgdat)
 
+    def get_selection_dct(self) -> typing.Optional[dict]:
+        """Return the current selection on the page.
+        This includes the location if any is selected and
+        the list of actively selected RFID tags.
+        Return None if no tags are currently selected.
+        """
+        if self.scanlist is None:
+            return None
+        add_rfid_lst = self.scanlist.get_active_tags()
+        print("newstock {}".format(add_rfid_lst))
+        if len(add_rfid_lst) == 0:
+            return None
+        # find the location selected...
+        if self.location_sel is None:
+            return None
+        ndx, val = self.location_sel.get_selected()
+        print("LOCKY {} {}".format(ndx, val))
+        locid = None if val == LOC_NOSEL_ID else val
+        return {'rfids': add_rfid_lst, 'location': locid}
+
     def redirect(self, url: str) -> None:
         # this does indeed replace the current window
         # window.location = self.qai_url
         # this opens a new tab or window
         # if self.win is not None:
         #    self.win.close()
-        # NOTE: If I give a name "BLAWIN", then a tab is opened, and subsequently replaced --
+        # NOTE: If I give a name, e.g. "BLAWIN", then a tab is opened, and subsequently replaced --
         # just what I want. We call focus() on the window to switch the user's attention to
         # the new window.
         # NOTE: this is all native javascript...see
@@ -277,7 +309,7 @@ items to be added to QAI for the first time."""
         newwin.focus()
 
 
-#                 contr: wccontroller.stocky_mainprog,
+# contr: wccontroller.stocky_mainprog,
 
 class DownloadQAIView(SwitcheeView):
     """This is the view that the user will use to sync with the QAI system.

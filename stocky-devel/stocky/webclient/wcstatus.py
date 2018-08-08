@@ -32,6 +32,9 @@ class WCstatus(base.base_obj):
     INFO_COL = 1
     QAI_UPD_COL = 2
 
+    LOC_NOSEL_ID = "NOSEL_ID"
+    LOC_NOSEL_NAME = "No Defined Location"
+
     def __init__(self, idstr: str,
                  mainprog: widgets.base_controller,
                  login_popup: forms.modaldiv) -> None:
@@ -201,17 +204,19 @@ class WCstatus(base.base_obj):
     def get_location_selector(self,
                               parent: html.base_element,
                               idstr: str,
-                              helptext: str) -> html.select:
+                              helptext: str,
+                              add_nosel: bool) -> html.select:
         """ Return a selector for the currently available list
         of locations."""
         selattrdct = {'title': helptext,
                       STARATTR_ONCLICK: {'cmd': 'locationswitch'},
                       "class": "w3-select locbutton-cls"}
         sel = html.select(parent, idstr, selattrdct, None)
-        self.update_location_selector(sel)
+        self.update_location_selector(sel, add_nosel)
         return sel
 
-    def update_location_selector(self, sel: html.select) -> None:
+    def update_location_selector(self,
+                                 sel: html.select, add_nosel: bool) -> None:
         """Set the previously created select element to the current
         list of locations"""
         print(" LOCLIST LEN {}".format(len(self._stockloc_lst)))
@@ -219,3 +224,5 @@ class WCstatus(base.base_obj):
             name = locdct['name']
             idstr = locdct['id']
             sel.add_or_set_option(idstr, name)
+        if add_nosel:
+            sel.add_or_set_option(WCstatus.LOC_NOSEL_ID, WCstatus.LOC_NOSEL_NAME)

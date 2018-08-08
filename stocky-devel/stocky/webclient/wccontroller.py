@@ -326,11 +326,9 @@ class stocky_mainprog(widgets.base_controller):
                 # get the selected RFID tags and request an add URL from the server.
                 print("GOT addnewstock GO button!")
                 vv = self.switch.getView(ADDSTOCK_VIEW_NAME)
-                if vv.scanlist is not None:
-                    add_rfid_lst = vv.scanlist.get_active_tags()
-                    print("newstock {}".format(add_rfid_lst))
-                    if len(add_rfid_lst) > 0:
-                        self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_ADD_STOCK_REQ, add_rfid_lst))
+                add_info_dct = vv.get_selection_dct()
+                if add_info_dct is not None:
+                    self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_ADD_STOCK_REQ, add_info_dct))
             else:
                 print('webclient: unrecognised cmd {}'.format(cmd))
                 return

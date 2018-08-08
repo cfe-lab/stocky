@@ -34,18 +34,18 @@ def mainloop(event) -> None:
     """This is the main event loop which is used to talk to the other
     javascript process.
     """
-    msgdct = event.data
+    msgdct = dict(event.data)
     cmd = msgdct.get('cmd', None)
     arg = msgdct.get('arg', None)
     if cmd is None:
-        print("received a None command")
+        print("sockwebby.mainloop received a None command")
         return
     if cmd == 'send':
         mysock.send(arg)
     elif cmd == 'close':
         mysock.close()
     else:
-        print("unknown command {}".format(cmd))
+        print("sockwebby.mainloop unknown command {}".format(cmd))
 
 
 print("Hello from sockwebby!")
