@@ -6,6 +6,7 @@
 
 import typing
 from random import random
+import pathlib
 
 import gevent
 import gevent.queue
@@ -73,9 +74,40 @@ class BaseTaskMeister:
         raise NotImplementedError("generate_msg: not implemented")
 
 
+class FileChecker(BaseTaskMeister):
+    """Check for existence of a given file every X seconds, generating a message
+    when the state changes.
+    """
+    def __init__(self, msgQ: gevent.queue.Queue,
+                 logger,
+                 sec_interval: float,
+                 do_activate: bool, file_to_check: str) -> None:
+        super().__init__(msgQ, logger, sec_interval)
+        self._path = pathlib.Path(file_to_check)
+        self._curstate: typing.Optional[bool] = None
+        if do_activate:
+            self.set_active(True)
+
+    def file_exists(self) -> bool:
+        return self._path.exists()
+
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
+        """Generate a message for this class.
+        This routine may block or take as long as it likes.
+        It may return None if a message is not meant to be passed back onto the queue.
+        Overwrite this method in the subclasses.
+        """
+        newstate = self.file_exists()
+        if self._curstate != newstate:
+            self._curstate = newstate
+            return CommonMSG(CommonMSG.MSG_SV_FILE_STATE_CHANGE, newstate)
+        else:
+            return None
+
+
 class BaseReader(BaseTaskMeister):
     """A BaseReader is a BaseTaskMeister class that is automatically
-    activated upon instantiation, and waits sec_interval=0 seconds in the main loop.
+    activated upon instantiation, and waits sec_interval seconds in the main loop between reads.
     The main purpose of this class is for handling blocking reads (websockets, bluetooth, ...)
     """
     def __init__(self, msgQ: gevent.queue.Queue,

@@ -22,7 +22,7 @@ ENV_OPTS =
 PORTNUM=5000
 
 #NOTE Must run the docker image with --privileged to give the container access to devices
-USB_DIR = /dev/bus/usb
+DEV_DIR = /dev
 
 DOCKER_TESTRUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
 -v ${STOCKY_STATE_DIR}:/stockystate \
@@ -32,7 +32,7 @@ DOCKER_TESTRUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
 DOCKER_RUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
 -v ${STOCKY_STATE_DIR}:/stockystate \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
--v ${USB_DIR}:${USB_DIR} -w /stockysrc ${ENV_OPTS} 
+-v ${DEV_DIR}:${DEV_DIR} -w /stockysrc ${ENV_OPTS} 
 
 
 default: help

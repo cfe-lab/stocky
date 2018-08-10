@@ -27,7 +27,6 @@ class serverclass:
 
     # the set of messages we simply pass on to the web client.
     MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_SV_RAND_NUM,
-                                CommonMSG.MSG_SV_USB_STATE_CHANGE,
                                 # CommonMSG.MSG_RF_STOCK_DATA,
                                 CommonMSG.MSG_RF_RADAR_DATA,
                                 CommonMSG.MSG_RF_CMD_RESP,
@@ -41,6 +40,7 @@ class serverclass:
     # the set of messages the server should handle itself.
     MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_RADAR_MODE,
                                 CommonMSG.MSG_WC_STOCK_INFO_REQ,
+                                CommonMSG.MSG_SV_FILE_STATE_CHANGE,
                                 CommonMSG.MSG_WC_LOGIN_TRY,
                                 CommonMSG.MSG_WC_LOGOUT_TRY,
                                 CommonMSG.MSG_WC_SET_STOCK_LOCATION,
@@ -60,20 +60,10 @@ class serverclass:
         self.name = "Johnny"
         self.msgQ = Queue()
         self.logger.debug("serverclass: instantiating CommLinkClass...")
+        self.filewatcher = Taskmeister.FileChecker(self.msgQ, self.logger, 5, True,
+                                                   self.cfg_dct['RFID_READER_DEVNAME'])
         self.cl = CommLinkClass(self.cfg_dct)
-        if self.cl.is_alive():
-            self.logger.debug("Commlink is alive")
-        else:
-            msg = "Commlink is NOT alive, exiting"
-            self.logger.info(msg)
-            raise RuntimeError(msg)
-        self.logger.debug("serverclass: getting id_string...")
-        idstr = self.cl.id_string()
-        self.logger.info("Commlink is alive and idents as '{}'".format(idstr))
         self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl, AVENUM)
-        self.BT_init_reader()
-        self.logger.info("Bluetooth init OK")
-
         # now: set up our channel to QAI
         qai_url = self.cfg_dct['QAI_URL']
         self.qai_file = self.cfg_dct['LOCAL_STOCK_DB_FILE']
@@ -152,9 +142,31 @@ class serverclass:
             locid = dct.get('location', None)
             qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst)
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
+        elif msg.msg == CommonMSG.MSG_SV_FILE_STATE_CHANGE:
+            self.handleRFIDstatechange(msg.data)
         else:
             self.logger.error("server not handling message {}".format(msg))
-            raise RuntimeError("unhandled message")
+            raise RuntimeError("unhandled message {}".format(msg))
+
+    def handleRFIDstatechange(self, is_online: bool) -> None:
+        """This routine is called whenever the BT connection to the RFID reader
+        comes online/ comes offline.
+        """
+        commlink = self.cl
+        commlink.HandleStateChange(is_online)
+        rfid_is_alive = commlink.is_alive()
+        if rfid_is_alive:
+            self.logger.debug("Commlink is alive")
+            self.logger.debug("serverclass: getting id_string...")
+            idstr = self.cl.id_string()
+            self.logger.info("Commlink idents as '{}'".format(idstr))
+            self.BT_init_reader()
+            self.logger.info("Bluetooth init OK")
+        else:
+            self.logger.info("Commlink is NOT alive...")
+            self.logger.info("Skipping Bluetooth init...")
+        # now tell the webclient...
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, is_online))
 
     def send_QAI_status(self):
         wc_stock_dct = self.stockdb.generate_webclient_stocklist()

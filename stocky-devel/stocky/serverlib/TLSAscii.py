@@ -3,6 +3,7 @@ import typing
 from enum import Enum
 import math
 
+import gevent
 import gevent.queue
 
 import serverlib.commlink as commlink
@@ -217,7 +218,7 @@ class tls_mode(Enum):
     """TLS data mode"""
     stock = 'sto'
     radar = 'rad'
-    # undef = 'ude'
+    undef = 'ude'
 
 
 RItuple = typing.Tuple[str, int, float]
@@ -326,14 +327,18 @@ class TLSReader(Taskmeister.BaseReader):
         """Create a class that can talk to the RFID reader via the provided commlink class."""
         super().__init__(msgQ, logger, 0, True)
         self._cl = cl
-        self.BT_set_stock_check_mode()
+        self.mode = tls_mode.undef
+        if cl.is_alive():
+            self.BT_set_stock_check_mode()
         self.runningave = RunningAve(logger, radar_ave_num)
 
     def _sendcmd(self, cmdstr: str, comment: str=None) -> None:
         cl = self._cl
-        if not cl.is_alive():
-            raise RuntimeError("commlink is not alive")
-        cl.send_cmd(cmdstr, comment)
+        if cl.is_alive():
+            cl.send_cmd(cmdstr, comment)
+        else:
+            self.logger('commlink is not alive')
+            # raise RuntimeError("commlink is not alive")
 
     def is_in_radarmode(self) -> bool:
         return self.mode == tls_mode.radar
@@ -365,7 +370,8 @@ class TLSReader(Taskmeister.BaseReader):
             elif self.mode == tls_mode.stock:
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
             else:
-                raise RuntimeError('unknown mode')
+                self.logger.debug('no comment_str and no mode: returning None')
+                msg_type = None
         elif comment_str == 'radarsetup':
             # the server has previously sent a command to the RFID reader to go into
             # radar mode. We generate a message only if this failed.
@@ -406,11 +412,15 @@ class TLSReader(Taskmeister.BaseReader):
         """Block and return a message to the web server
         Typically, when the user presses the trigger of the RFID reader,
         we will send a message with the scanned data back.
-        NOTE: this method is overrulling the method defined in BaseTaskMeister.
+        NOTE: this method overrules the method defined in BaseTaskMeister.
         """
-        clresp: commlink.CLResponse = self._cl.raw_read_response()
-        # print("INCOMING {}".format(clresp))
-        return self._convert_message(clresp)
+        if self._cl.is_alive():
+            clresp: commlink.CLResponse = self._cl.raw_read_response()
+            print("INCOMING {}".format(clresp))
+            return self._convert_message(clresp)
+        else:
+            gevent.sleep(2)
+            return None
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.

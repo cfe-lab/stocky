@@ -138,7 +138,7 @@ class CLResponse:
         We include an error code zero here to indicate a success.
         """
         if len(self.rl) == 0:
-            raise RuntimeError("return code from empty list")
+            return BaseCommLink.RC_FAULTY
         last_tup = self.rl[-1]
         if last_tup == OK_RESP_TUPLE:
             return BaseCommLink.RC_OK
@@ -164,6 +164,7 @@ class CLResponse:
 class BaseCommLink:
     # Return codes of the RFID reader, see _tlsretcode_dct
     RC_OK = 0
+    RC_FAULTY = 1
 
     RC_NO_TAGS = 5
     RC_NO_BARCODE = 6
@@ -191,6 +192,20 @@ class BaseCommLink:
         # we would not be able to instantiate a BaseCommLink.
         self.logger.warn('BaseCommLink.opendevice() called, which should not happen')
         return None
+
+    def _close_device(self) -> None:
+        pass
+
+    def HandleStateChange(self, is_online: bool) -> None:
+        """This routine is called when the BT link has changed...
+        set out internal state accordingly.
+        """
+        if is_online:
+            self.mydev = self.open_device()
+            self._idstr = None
+        else:
+            self._close_device()
+            self.mydev = None
 
     @staticmethod
     def _line_2_resptup(l: str) -> typing.Optional[ResponseTuple]:
@@ -308,7 +323,8 @@ class BaseCommLink:
                 cur_line = self._str_readline()
             except Exception as e:
                 self.logger.error("readline failed '{}'".format(e))
-                raise
+                # raise
+                cur_line = ""
             self.logger.debug("rr '{}' ({})".format(cur_line, len(cur_line)))
             if len(cur_line) > 0:
                 resp_tup = BaseCommLink._line_2_resptup(cur_line)
@@ -322,8 +338,8 @@ class BaseCommLink:
         self.logger.debug("raw_read got {}...".format(rlst))
         return CLResponse(rlst)
 
-    def is_alive(self, doquick: bool=True) -> bool:
-        raise NotImplementedError("is_alive not defined")
+    def is_alive(self) -> bool:
+        return self.mydev is not None
 
     def id_string(self) -> str:
         raise NotImplementedError("id_string not defined")
@@ -361,6 +377,8 @@ class SerialCommLink(BaseCommLink):
     """Communicate with the RFID reader via a serial device (i.e. USB or Bluetooth)"""
 
     def open_device(self) -> typing.Any:
+        """Try to open a device for IO with the RFID scanner.
+        Return None is this fails."""
         cfgdct = self.cfgdct
         devname = cfgdct['RFID_READER_DEVNAME']
         self.logger.debug("commlink opening '{}'".format(devname))
@@ -378,22 +396,26 @@ class SerialCommLink(BaseCommLink):
         self.logger.debug("serial commlink '{}' OK".format(devname))
         return myser
 
-    def is_alive(self, doquick: bool=True) -> bool:
-        return self.mydev is not None
+    def _close_device(self) -> None:
+        if self.mydev is not None:
+            self.mydev.close()
 
     def id_string(self) -> str:
         if self._idstr is None:
-            cl_resp = self._blocking_cmd('.vr')
-            self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
-            klst = [('Manufacturer', 'MF'),
-                    ('Unit serial number', 'US'),
-                    ('Unit firmware version', 'UF'),
-                    ('Unit bootloader version', 'UB'),
-                    ('Antenna serial number', 'AS'),
-                    ('Radio serial number', 'RS'),
-                    ('Radio firmware version', 'RF'),
-                    ('Radio bootloader version', 'RB'),
-                    ('BT address', 'BA'),
-                    ('Protocol version', 'PV')]
-            self._idstr = ", ".join(["{}: {}".format(title, cl_resp[k]) for title, k in klst])
+            if self.is_alive():
+                cl_resp = self._blocking_cmd('.vr')
+                self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
+                klst = [('Manufacturer', 'MF'),
+                        ('Unit serial number', 'US'),
+                        ('Unit firmware version', 'UF'),
+                        ('Unit bootloader version', 'UB'),
+                        ('Antenna serial number', 'AS'),
+                        ('Radio serial number', 'RS'),
+                        ('Radio firmware version', 'RF'),
+                        ('Radio bootloader version', 'RB'),
+                        ('BT address', 'BA'),
+                        ('Protocol version', 'PV')]
+                self._idstr = ", ".join(["{}: {}".format(title, cl_resp[k]) for title, k in klst])
+            else:
+                self._idstr = "ID string cannot be determined: commlink is down"
         return self._idstr

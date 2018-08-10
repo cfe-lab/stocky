@@ -19,8 +19,9 @@ class CommonMSG:
     # the server has produced a timer event
     MSG_SV_TIMER_TICK = 'SV_TIMER'
 
-    # the USB device has changed state (presence/absence)
-    MSG_SV_USB_STATE_CHANGE = 'SV_USB_STATE'
+    # the device used to communicate with the RFDI scanner has changed state (presence/absence)
+    # This is used to signal that the RFID scanner has come online/ gone offline.
+    MSG_SV_FILE_STATE_CHANGE = 'SV_FILE_STATE'
 
     # the server is setting the RFID scanner in stock check mode
     # MSG_SV_STOCK_CHECK_MODE = 'SV_STOCK_CHECK_MODE'
@@ -88,7 +89,7 @@ class CommonMSG:
         # nor can we seem to be able to define these as class variables.
         # instead, use a class method which is called upon import below
         cls.valid_msg_lst = [cls.MSG_SV_RAND_NUM, cls.MSG_SV_TIMER_TICK,
-                             cls.MSG_SV_USB_STATE_CHANGE,
+                             cls.MSG_SV_FILE_STATE_CHANGE,
                              cls.MSG_SV_RFID_STATREP, cls.MSG_SV_RFID_ACTIVITY,
                              cls.MSG_SV_GENERIC_COMMAND,
                              cls.MSG_WC_STOCK_INFO_REQ, cls.MSG_SV_STOCK_INFO_RESP,
