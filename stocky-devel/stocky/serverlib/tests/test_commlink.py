@@ -230,8 +230,7 @@ class Test_commlink:
     def test_baseCL_notimp(self):
         """The base should raise NotImplemented errors."""
         b = BaseCommLinkClass({'logger': self.logger})
-        for func in [lambda b: b.is_alive(),
-                     lambda b: b.id_string()]:
+        for func in [lambda b: b.id_string()]:
             with pytest.raises(NotImplementedError):
                 func(b)
 

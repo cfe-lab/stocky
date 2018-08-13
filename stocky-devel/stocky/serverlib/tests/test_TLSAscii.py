@@ -169,12 +169,13 @@ class Test_TLSAscii:
                 assert run_ave is not None, "running ave is None for i> ave_len"
 
     def test_deadcl(self):
-        with pytest.raises(RuntimeError):
-            TLSAscii.TLSReader(self.msgQ,
-                               self.logger,
-                               self.deadcl,
-                               self.radar_ave_num)
-        # tls._sendcmd('hello', 'johnny')
+        """this no longer should raise an exception -- we allow for the commlink
+        coming online afterwards..."""
+        # with pytest.raises(RuntimeError):
+        TLSAscii.TLSReader(self.msgQ,
+                           self.logger,
+                           self.deadcl,
+                           self.radar_ave_num)
 
     def test_RI2dist01(self):
         rivals = [(-65, 1.0),
@@ -328,10 +329,13 @@ class Test_TLSAscii:
                         raise RuntimeError("unexpected output")
 
         # an illegal TLS mode should raise an exception..
+        # THis is no longer true... instead we expect None
         testin = commlink.CLResponse(rone)
         self.tls.mode = 'bla'
-        with pytest.raises(RuntimeError):
-            self.tls._convert_message(testin)
+        # with pytest.raises(RuntimeError):
+        resp = self.tls._convert_message(testin)
+        if resp is not None:
+            raise RuntimeError("expected None")
 
     def test_sendRFIDmsg(self):
         # sending an instance other than a CommonMSG should raise an exception

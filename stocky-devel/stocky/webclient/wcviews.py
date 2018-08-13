@@ -348,7 +348,6 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
         self.spinner = forms.spinner(cellrow, "myspin",
                                      spin_attrdct, forms.spinner.SPN_SPINNER,
                                      spin_sz_pixels)
-        # spin.set_visible(False)
         self.stat_tab: typing.Optional[simpletable.dict_table] = None
 
     def Redraw(self):
@@ -357,13 +356,10 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
         print("LOGGED IN {}".format(is_logged_in))
         if is_logged_in:
             self._start_download()
-        # else:
-        #    self.stat.set_text("NOT LOGGED IN. Please log in and try again...")
 
     def _start_download(self) -> None:
         # self.stat.set_text("Downloading QAI data...")
         spin = self.spinner
-        spin.set_visible(True)
         spin.set_spin(True)
         # typing.cast(wccontroller.stocky_mainprog, self._contr).start_QAI_download()
         self._contr.start_QAI_download()

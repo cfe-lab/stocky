@@ -151,6 +151,8 @@ class ChemStockDB:
         timelib.set_local_timezone(tz_name)
         self._current_date = timelib.loc_nowtime().date()
         self._sess = Session()
+        self._haschanged = True
+        self.generate_webclient_stocklist()
 
     def _set_update_time(self) -> str:
         """Set the ChecmDB update time to now
@@ -201,6 +203,8 @@ class ChemStockDB:
         # load those parts from QAI that are out of date
         update_dct = qaisession.clever_update_QAI_dump(newds)
         update_ok = self.loadQAI_data(newds, update_dct)
+        if update_ok:
+            self._haschanged = True
         return update_ok
 
     def loadQAI_data(self,
@@ -288,7 +292,7 @@ class ChemStockDB:
         # print("GGG {}".format(rtup))
         return rtup
 
-    def generate_webclient_stocklist(self) -> dict:
+    def DOgenerate_webclient_stocklist(self) -> dict:
         """Generate the stock list in a form required by the web client
         the dict returned has the following entries:
         loclst: a list of dicts containing the stock locations, e.g.
@@ -343,9 +347,9 @@ class ChemStockDB:
         itmstat = [dict(row) for row in self._sess.execute(Reagent_Item_Status.__table__.select())]
 
         # create a Dict[locationid, List[reagentitem]] and a Dict[RFID, reagentitem]
-        dd = {}
+        dd: typing.Dict[typing.Optional[int], typing.List[dict]] = {}
         # rfid_reagitem_dct = ff = {}
-        ff = {}
+        ff: typing.Dict[str, dict] = {}
         for reag_item in itmlst:
             loc_id = reag_item.get('qcs_location_id', None)
             # we will keep a list of items with None locations... should not happen, but does
@@ -373,14 +377,15 @@ class ChemStockDB:
         #
         # NOW, create a Dict[locationid, Tuple[locrecord, List[reagentitem]]]
         # which we send to the client
-        locid_reagitem_dct = rr = {}
+        rr: typing.Dict[int, typing.Tuple[dict, typing.List[dict]]] = {}
+        locid_reagitem_dct = rr
         for location in loclst:
             loc_id = location.get('id', None)
             rr[loc_id] = (location, dd.get(loc_id, []))
         assert len(rr) == len(loclst), "problem with location ids!"
         #
         # collect the state records for each reagent item...
-        zz = {}
+        zz: typing.Dict[int, list] = {}
         for state in itmstat:
             reag_item_id = state['qcs_reag_item_id']
             # we want to replace the occurred timedate entry with a simple date
@@ -412,3 +417,9 @@ class ChemStockDB:
         return {"loclst": loclst, "locdct": locid_reagitem_dct}
     # "ritemdct": ritemdct, "rfiddct": rfid_reagitem_dct}
     # "reagentdct": rg,
+
+    def generate_webclient_stocklist(self) -> dict:
+        if self._haschanged:
+            self._cachedct = self.DOgenerate_webclient_stocklist()
+            self._haschanged = False
+        return self._cachedct
