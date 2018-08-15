@@ -1,0 +1,11 @@
+
+# copy this file to /etc/systemd/system/.
+# reload the systemd with 'sudo systemctl daemon-reload'
+[Unit]
+Description=Run the rfcomm service to connect the TLS reader to /dev/rfcomm0
+
+[Service]
+ExecStart=/home/wscott/stockygit/stocky-devel/connect-bluetooth.sh
+
+[Install]
+WantedBy=multi-user.target
