@@ -50,9 +50,14 @@ class Session(requests.Session):
         self.qai_path = qai_path
 
     def _login_resp(self, qai_user: str, password: str) -> requests.Response:
+        """In this routine, we call self.post directly.. therefore we
+        should have a timeout that we catch in the calling routines...
+        """
+        TEN_SECONDS = 10
         return self.post(self.qai_path + "/account/login",
                          data={'user_login': qai_user,
-                               'user_password': password})
+                               'user_password': password},
+                         timeout=TEN_SECONDS)
 
     def login(self, qai_user: str, password: str) -> None:
         """ Login to QAI before calling post_json or get_json.
@@ -82,6 +87,8 @@ class Session(requests.Session):
             return dict(ok=False, msg="Configuration error: invalid QAI URL {}".format(self.qai_path))
         except requests.exceptions.HTTPError:
             return dict(ok=False, msg="Configuration error: HTTP Protocol error")
+        except requests.exceptions.Timeout:
+            return dict(ok=False, msg="The Connection timed out")
         except Exception:
             # the QAI could not be contacted (exceeded number of attempts)
             return dict(ok=False,

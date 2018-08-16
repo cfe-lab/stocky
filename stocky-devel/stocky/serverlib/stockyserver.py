@@ -117,6 +117,10 @@ class serverclass:
             # try to log in and send back the response
             un = msg.data.get('username', None)
             pw = msg.data.get('password', None)
+            if un is None or pw is None:
+                self.logger.debug("server received a None with LOGIN request...")
+            else:
+                self.logger.debug("LOGIN request data OK...")
             login_resp = self.qaisession.login_try(un, pw)
             # self.sleep(3)
             if not isinstance(login_resp, dict):
