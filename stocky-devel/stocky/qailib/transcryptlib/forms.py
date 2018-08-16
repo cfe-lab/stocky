@@ -338,6 +338,8 @@ class loginform(form):
         """This method is called just before the modal is opened.
         It can be used to initialise form fields in a form
         """
+        popup = self._mypopup
+        popup.set_busy(False)
         self.password.set_stringval("")
 
     def rcvMsg(self,
@@ -349,7 +351,6 @@ class loginform(form):
 
     def on_submit(self):
         """This method is envoked when the 'Login In' submit button is pressed."""
-
         popup = self._mypopup
         popup.set_busy(True)
         untup = self.username.getIDvaltuple()

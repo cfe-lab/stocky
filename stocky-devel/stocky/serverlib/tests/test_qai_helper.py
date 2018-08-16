@@ -198,6 +198,8 @@ class SimpleQAItester:
             print("SETUP CLASS {}".format(cls))
         cls.s = TrackerSession(TESTqai_url)
         cls.s.login(TESTauth_uname, TESTauth_password)
+        if not cls.s.is_logged_in():
+            raise RuntimeError("login failed")
         rcode, cls.reagent_list = cls.s.get_json(PATH_REAGENT_LIST_REAGENTS)
         assert rcode == HTTP_OK, "called failed"
         # get list of suppliers
@@ -529,13 +531,13 @@ class DATAQAItester(SimpleQAItester):
             itm_rec = cls.get_reagent_item_record(cls.test_itema_id)
             print("Found required item")
             # ensure that the reagent item is MADE, not IN_USE
-            if itm_rec['last_status'] == 'IN_USE':
+            if itm_rec['current_status'] == 'IN_USE':
                 res = cls.s.delete_json(PATH_REAGITEM_STATUS,
                                         params=dict(qcs_reag_item_id=cls.test_itema_id,
                                                     status='IN_USE'))
                 print("got res {}".format(res))
                 itm_rec = cls.get_reagent_item_record(cls.test_itema_id)
-            assert itm_rec['last_status'] == 'MADE', 'made status expected'
+            assert itm_rec['current_status'] == 'MADE', 'made status expected'
             cls.test_itema_locid = itm_rec['loc_id']
             # ensure the RFID is what the tests expected
             # if itm_rec['rfid'] != cls.test_itema_rfid:
@@ -690,6 +692,7 @@ class Test_qai_helper_get(DATAQAItester):
             if lverb:
                 print("POSTreagent save {}".format(res))
 
+    @pytest.mark.skip(reason="this test needs to be reworked: semantics of item status has changed")
     def test_reagent_item_status01(self):
         """It should be possible to update the status of a reagent item.
         post PATH_REAGITEM_STATUS
@@ -704,26 +707,39 @@ class Test_qai_helper_get(DATAQAItester):
         if lverb:
             print("ORG_REC {}".format(org_rec))
         assert org_rec['rfid'] == org_RFID, "unexpected RFID 1"
-        org_state = org_rec['last_status']
-        assert org_state == 'MADE', "reagent item state is expected to be MADE'"
-        new_state = 'IN_USE'
+        org_state = org_rec['current_status']
+        # the state should be MADE, so that we can try to change it....
+        # however, this could be the result of a previous, failed test run...
         change_time = '1956-03-31T10:00:00Z'
+        if org_state != 'MADE':
+            print("reagent item state is expected to be 'MADE'.. resetting")
+            upd_dct = {'rfid': org_RFID,
+                       'status': 'MADE',
+                       'occurred': change_time}
+            rcode, res = self.s.post_json(PATH_REAGITEM_STATUS, data=upd_dct)
+            org_rec = self.get_reagent_item_record(item_id)
+            if lverb:
+                print("ORG_REC 2 {}".format(org_rec))
+        org_state = org_rec['current_status']
+        assert org_state == 'MADE', "reagent item is not MADE...aborting test"
+        new_state = 'IN_USE'
         upd_dct = {'rfid': org_RFID,
                    'status': new_state,
                    'occurred': change_time}
         rcode, res = self.s.post_json(PATH_REAGITEM_STATUS, data=upd_dct)
         if rcode != HTTP_CREATED:
-            print("called failed with rcode={}, {}".format(rcode, requests.codes[rcode]))
+            print("call failed with rcode={}, {}".format(rcode, requests.codes[rcode]))
             print("got post res {}".format(res))
             raise RuntimeError("unexpected rcode")
-        if res['message'] != 'OK':
+        exp_msg = 'Item(s) set as IN_USE'
+        if res['message'] != exp_msg:
             raise RuntimeError("change status failed {}".format(res))
         itm_rec = self.get_reagent_item_record(self.test_itema_id)
-        if itm_rec['last_status'] != new_state:
-            raise RuntimeError("new status {} not set to {}".format(itm_rec['last_status'],
+        if itm_rec['current_status'] != new_state:
+            raise RuntimeError("new status {} not set to {}".format(itm_rec['current_status'],
                                                                     new_state))
-        if itm_rec['last_status_occurred'] != change_time:
-            raise RuntimeError("new change date {} is not expected {}".format(itm_rec['last_status_occurred'],
+        if itm_rec['current_status_occurred'] != change_time:
+            raise RuntimeError("new change date {} is not expected {}".format(itm_rec['current_status_occurred'],
                                                                               change_time))
         if lverb:
             print("AFTER UPD {}".format(itm_rec))
@@ -737,7 +753,7 @@ class Test_qai_helper_get(DATAQAItester):
         if res['message'] != 'OK':
             raise RuntimeError("delete status failed {}".format(res))
         itm_rec = self.get_reagent_item_record(item_id)
-        assert itm_rec['last_status'] == 'MADE', 'made status expected'
+        assert itm_rec['current_status'] == 'MADE', 'made status expected'
         # assert False, "force fail"
 
     def test_verify_location01(self):

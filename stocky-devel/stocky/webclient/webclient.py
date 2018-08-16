@@ -5,7 +5,7 @@
 import qailib.transcryptlib.genutils as genutils
 import qailib.transcryptlib.websocket as websocket
 import qailib.transcryptlib.serversocket as serversock
-import qailib.transcryptlib.WebWorker as WebWorker
+# import qailib.transcryptlib.WebWorker as WebWorker
 import wccontroller
 
 log = genutils.log
