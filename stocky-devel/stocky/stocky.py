@@ -1,6 +1,7 @@
 # The stocky web server main program using Flask socket
 # See the runserver.sh script in this directory for how to launch the program.
 
+import typing
 
 from geventwebsocket import websocket
 import serverlib.serverconfig as serverconfig
@@ -8,9 +9,8 @@ import serverlib.commlink as commlink
 import serverlib.stockyserver as stockyserver
 import serverlib.ServerWebSocket as ServerWebSocket
 
-import logging
+# import logging
 import logging.config
-# import logging.Logger.manager as logman
 import flask
 from flask_sockets import Sockets
 
@@ -39,23 +39,29 @@ def test_logging(l):
     l.critical("critical level")
 
 
+class stockyapp(flask.Flask):
+    def __init__(self):
+        super().__init__(__name__.split('.')[0])
+
+
 logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
-the_main = None
-app = flask.Flask(__name__.split('.')[0])
-test_logging(app.logger)
-socky = Sockets(app)
-# app.logger.debug('hoity toity')
+app: typing.Optional[stockyapp] = stockyapp()
+socky: typing.Optional[Sockets] = Sockets(app)
+the_main: typing.Optional[stockyserver.serverclass] = None
 
 
-def init_app(cfgname: str):
-    """This routine is used a helper in order to launch the serverclass with the
+def init_app(cfgname: str) -> flask.Flask:
+    """This routine is used as a helper in order to launch the serverclass with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
     we would write something like:
     gunicorn -k flask_sockets.worker "stocky:init_app('scoconfig.yaml')" --bind 0.0.0.0:5000
     """
+    print("hello from init_app")
     global the_main
+    # test_logging(app.logger)
     the_main = stockyserver.serverclass(app, commlink.SerialCommLink, cfgname)
     # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
+    print("goodbye from init_app")
     return app
 
 
@@ -64,8 +70,11 @@ def init_app(cfgname: str):
 @socky.route('/goo')
 def goo(rawws: websocket):
     ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
+    print("goo: got a websocket")
     if the_main is not None:
+        print("goo: entering mainloop")
         the_main.mainloop(ws)
+        print("goo: exited mainloop")
     else:
         print('the_main is None!')
 

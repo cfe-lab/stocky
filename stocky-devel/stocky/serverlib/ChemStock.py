@@ -90,6 +90,7 @@ class Reagent_Item_Status(Base):
     qcs_reag_item_id = sql.Column(sql.Integer)
     qcs_user_id = sql.Column(sql.Integer)
     status = sql.Column(sql.String)
+    qcs_validation_id = sql.Column(sql.Integer)
 
 # {id: 10220, occurred: '2011-09-30T00:00:00Z', qcs_reag_item_id: 10063, qcs_user_id: 10000,
 #  status: USED_UP}
@@ -192,7 +193,7 @@ class ChemStockDB:
         return rdct
 
     def update_from_QAI(self) -> bool:
-        """Attempt to update the local ChemStock using the qaisession.
+        """Update the local ChemStock using the qaisession.
         """
         qaisession = self.qaisession
         if qaisession is None or not qaisession.is_logged_in():

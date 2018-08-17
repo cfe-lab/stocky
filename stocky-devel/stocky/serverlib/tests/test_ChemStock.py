@@ -129,9 +129,8 @@ class Test_Chemstock_WITHQAI(commontests):
     @classmethod
     def setup_class(cls) -> None:
         # first, set up a QAIsession and log in
-        cls.qaisession = sess = qai_helper.QAISession()
-        sess.login(test_qai_helper.TESTqai_url,
-                   test_qai_helper.TESTauth_uname,
+        cls.qaisession = sess = qai_helper.QAISession(test_qai_helper.TESTqai_url)
+        sess.login(test_qai_helper.TESTauth_uname,
                    test_qai_helper.TESTauth_password)
 
         # cls.locdbname = "bli.sqlite"
@@ -145,14 +144,13 @@ class Test_Chemstock_WITHQAI(commontests):
         pass
 
     def test_update_from_qai02(self):
-        """Test to actually update our local DB from QAI over the network.."""
+        """Actually update our local DB from QAI over the network.."""
         lverb = True
         csdb = self.csdb
         old_upd = csdb.get_update_time()
         assert isinstance(old_upd, str), "string expected"
         if lverb:
             print("OLD UPDATE {}".format(old_upd))
-
         retval = csdb.update_from_QAI()
         assert isinstance(retval, bool), "bool expected"
         assert retval, "QAI update failed !"

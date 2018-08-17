@@ -254,7 +254,8 @@ class stocky_mainprog(widgets.base_controller):
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         lverb = True
         if lverb:
-            print("{}.rcvMsg: {}: {} from {}".format(self._idstr, msgdesc, msgdat, whofrom._idstr))
+            # print("{}.rcvMsg: {}: {} from {}".format(self._idstr, msgdesc, msgdat, whofrom._idstr))
+            print("{}.rcvMsg: {} from {}".format(self._idstr, msgdesc, whofrom._idstr))
         if msgdesc == base.MSGD_SERVER_MSG:
             # message from the server.
             if msgdat is None:

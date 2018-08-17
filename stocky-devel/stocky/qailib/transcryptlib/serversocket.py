@@ -35,7 +35,8 @@ class clientsocket(base_server_socket):
         """
         # NOTE: we must convert the javascript data into a python dict
         msg_dct = self.pythonify_dct(data_from_server)
-        print("server says: '{}' AND '{}'".format(data_from_server, msg_dct))
+        # print("server says: '{}' AND '{}'".format(data_from_server, msg_dct))
+        print("on_messag_JSON: incoming message..")
         self.sndMsg(base.MSGD_SERVER_MSG, msg_dct)
 
     def pythonify_dct(self, in_js):

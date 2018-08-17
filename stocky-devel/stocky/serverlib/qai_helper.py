@@ -402,9 +402,12 @@ class QAISession(Session):
             do_update = retdct[k] = new_timestamp != tsdct[k]
             if do_update:
                 # we need to update from the server
+                logger.debug('getting {} from QAI {}'.format(k, dataurl))
                 rcode, rval = self.get_json(dataurl)
                 if rcode != HTTP_OK:
                     raise RuntimeError("call for {} ({}) failed".format(k, dataurl))
                 qaidct[k] = rval
                 tsdct[k] = new_timestamp
+            else:
+                logger.debug('skipping QAi {} url {}'.format(k, dataurl))
         return retdct

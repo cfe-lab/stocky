@@ -154,8 +154,9 @@ class Test_Taskmeister:
         # assert False, "force fail"
 
     def test_wsreader02(self):
-        """The WebSocketReader must behave sensibly when wesocket.read()
+        """The WebSocketReader must behave sensibly when websocket.read()
         raises an exception.
+        We expect an EOF message when the underlying websocket raises an exception on read.
         """
         rawws = ExceptionDummyWebsocket(self.sec_interval, None)
         ws = ServerWebSocket.JSONWebSocket(rawws, self.logger)
@@ -164,8 +165,8 @@ class Test_Taskmeister:
                                           ws,
                                           sec_interval=1.0,
                                           do_activate=False)
-        exp_val = None
+        exp_msg_val = CommonMSG.MSG_WC_EOF
         retmsg = wsr.generate_msg()
-        print("after sleep exp: {}, got {}".format(exp_val, retmsg))
-        assert exp_val == retmsg, "unexpected retmsg"
+        print("after sleep exp: {}, got {}".format(exp_msg_val, retmsg))
+        assert exp_msg_val == retmsg.msg, "unexpected retmsg"
         # assert False, "force fail"

@@ -11,3 +11,4 @@ export FLASK_DEBUG=1
 # (cd webclient; make webclient)
 
 gunicorn -k flask_sockets.worker "stocky:init_app('serverconfig.yaml')" --bind 0.0.0.0:5000
+

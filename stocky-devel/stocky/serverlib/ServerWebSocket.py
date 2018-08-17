@@ -4,18 +4,25 @@
 
 
 import typing
+import gevent
 from geventwebsocket import websocket
 import geventwebsocket.exceptions
 
 import serverlib.qai_helper as qai_helper
+from webclient.commonmsg import CommonMSG
 
 WebsocketMSG = typing.Dict[str, typing.Any]
+
+EOF_dct = {"msg": CommonMSG.MSG_WC_EOF, "data": None}
 
 
 class BaseWebSocket:
     def __init__(self, rawws: websocket, logger) -> None:
         self.ws = rawws
         self.logger = logger
+
+    def close(self):
+        self.ws.close()
 
     def receiveMSG(self) -> typing.Optional[WebsocketMSG]:
         """Block until a message is received from the websocket channel,
@@ -25,11 +32,11 @@ class BaseWebSocket:
         try:
             rawmsg = self.ws.receive()
         except geventwebsocket.exceptions.WebSocketError as e:
-            self.logger.debug("server received a None: {}".format(e))
+            mm = "recv except {} : {}".format(self, e)
+            print(mm)
+            self.logger.debug(mm)
             rawmsg = None
-        if rawmsg is None:
-            return None
-        retdct = self._decodeMSG(rawmsg)
+        retdct = self._decodeMSG(rawmsg) if rawmsg is not None else EOF_dct
         if retdct is not None and not isinstance(retdct, dict):
             self.logger.error("expected a single dict in json message , but got '{}'".format(retdct))
             retdct = None

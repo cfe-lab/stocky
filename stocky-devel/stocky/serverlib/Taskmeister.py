@@ -15,6 +15,14 @@ from webclient.commonmsg import CommonMSG
 import serverlib.ServerWebSocket as WS
 
 
+# NOTE: It is important that sec_interval, the time that a task sleeps, is strictly larger
+# than zero. If this is not the case, starvation of other tasks will occur.
+# This can lead to errors that are difficult to find. Specifically, a message
+# that a WebSocket reader passes up the chain by the queue will never be acted on
+# by its consumers because they will not be able to dequeue the message due to starvation.
+MIN_SEC_INTERVAL = 0.01
+
+
 class DelayTaskMeister:
     """Put a designated message on the queue after a specified delay
     every time the class is triggered.
@@ -43,7 +51,8 @@ class BaseTaskMeister:
         self.msgQ = msgQ
         self.logger = logger
         self._isactive = False
-        self._sec_sleep = sec_interval
+        self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
+        self._do_main_loop = True
         gevent.spawn(self._worker_loop)
 
     def set_active(self, is_active: bool) -> None:
@@ -56,14 +65,18 @@ class BaseTaskMeister:
         that self.generate_msg() has created, then sleep for the required time.
         """
         msgq = self.msgQ
-        while True:
+        while self._do_main_loop:
             if self._isactive:
                 msg = self.generate_msg()
                 if msg is not None:
+                    # print("enqueueing {}".format(msg))
                     msgq.put(msg)
             # --
-            if self._sec_sleep > 0.0:
-                gevent.sleep(self._sec_sleep)
+            gevent.sleep(self._sec_sleep)
+
+    def _SetTaskFinished(self) -> None:
+        """Cause the worker loop to terminate."""
+        self._do_main_loop = False
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
         """Generate a message for this class.
@@ -199,4 +212,10 @@ class WebSocketReader(BaseReader):
                 retmsg = None
         else:
             raise RuntimeError("unexpected message {}".format(dct))
+        #
+        if retmsg is not None and retmsg.msg == CommonMSG.MSG_WC_EOF:
+            self._SetTaskFinished()
+        mmm = "WS.generate_msg returning commonmsg {}".format(retmsg)
+        self.logger.debug(mmm)
+        # print(mmm)
         return retmsg
