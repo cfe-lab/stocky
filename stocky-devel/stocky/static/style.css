@@ -96,6 +96,7 @@ https://www.w3schools.com/colors/colors_names.asp
 #pagehead {
    background:#ff0;
    padding:10px;
+   height: 10%;
    box-shadow: 1px 1px 11px #330033;
 }
 
@@ -104,7 +105,7 @@ https://www.w3schools.com/colors/colors_names.asp
    padding-bottom: 60px;   /* Height of the footer */
    min-height:100%;
    width:100%;
-   height: calc(100% - 60px);
+   height: calc(90% - 60px);
    display: block;
 }
 
