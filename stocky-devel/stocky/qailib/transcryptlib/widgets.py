@@ -1,6 +1,8 @@
 
-
-from typing import Dict, List, Tuple, Type, Callable, Optional, Union
+import typing as T
+# 2018-09-07: importing typing in the following way leads to javascript run-time
+# errors. Reported as transcrypt Issue #555
+# from typing import Dict, List, Tuple, Type, Callable, Optional, Union
 
 import qailib.transcryptlib.genutils as genutils
 import qailib.common.base as base
@@ -13,8 +15,8 @@ class base_controller(base.base_obj):
 
     def __init__(self, idstr: str) -> None:
         super().__init__(idstr)
-        self._lktab: Dict[str,
-                          Callable[[base.base_obj, Optional[dict]], None]] = {
+        self._lktab: T.Dict[str,
+                          T.Callable[[base.base_obj, T.Optional[dict]], None]] = {
                               base.MSGD_BUTTON_CLICK: self.button_press,
                               base.MSGD_LOG_MESSAGE: self.log_event,
                               base.MSGD_FORM_SUBMIT: self.form_submit,
@@ -23,7 +25,7 @@ class base_controller(base.base_obj):
     def rcvMsg(self,
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: Optional[base.MSGdata_Type]) -> None:
+               msgdat: T.Optional[base.MSGdata_Type]) -> None:
         # NOTE: msg can be either a str or a python dct
         whofrom_id = whofrom._idstr or "empty-whofrom"
         log("controller.rcvMsg: RCV({}): '{}' from '{}'".format(self._idstr, msgdesc, whofrom_id))
@@ -36,27 +38,27 @@ class base_controller(base.base_obj):
                                                                              whofrom_id))
             super().rcvMsg(whofrom, msgdesc, msgdat)
 
-    def button_press(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
+    def button_press(self, whofrom: base.base_obj, data_in: T.Optional[base.MSGdata_Type]) -> None:
         """This function is called when any button is pressed.
         The whofrom_id is a string (the id string, the widget 'idstr' argument) that identifies
         the button.
         """
         pass
 
-    def form_submit(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
+    def form_submit(self, whofrom: base.base_obj, data_in: T.Optional[base.MSGdata_Type]) -> None:
         """This function is called when a form has verified its input fields
         and has data to provide. This is sent in the data_in argument.
         """
         pass
 
-    def data_cache_ready(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
+    def data_cache_ready(self, whofrom: base.base_obj, data_in: T.Optional[base.MSGdata_Type]) -> None:
         """ This method is called whenever a MSGD_DATA_CACHE_READY message is sent
         to this controller.
         NOTE: the data is provided as a python dictionary.
         """
         pass
 
-    def log_event(self, whofrom: base.base_obj, data_in: Optional[base.MSGdata_Type]) -> None:
+    def log_event(self, whofrom: base.base_obj, data_in: T.Optional[base.MSGdata_Type]) -> None:
         """ This method is called whenever the datacache issues a logging event.
         NOTE: the data is provided as a python dictionary with
         'exitcode' and 'errmsg' keys.
@@ -129,7 +131,7 @@ class base_button(base_widget):
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: Optional[base.MSGdata_Type]) -> None:
+               msgdat: T.Optional[base.MSGdata_Type]) -> None:
         whofrom_id = whofrom._idstr or "empty-whofrom"
         log("basebutton RECV({}): msgdesc {} from {}".format(self._idstr, msgdesc, whofrom_id))
         # self._contr.rcvMsg(self, msg)
@@ -154,7 +156,7 @@ class text_button(base_button):
 #
 #    def rcvMsg(self, whofrom: base.base_obj,
 #               msgdesc: base.MSGdesc_Type,
-#               msgdat: Optional[base.MSGdata_Type]) -> None:
+#               msgdat: T.Optional[base.MSGdata_Type]) -> None:
 #        if msgdesc == base.MSGD_VALUE_CHANGE:
 #            log('text_disp: value change!')
 #            if msgdat is not None:
@@ -192,7 +194,7 @@ class sort_table:
     """Define a table that can sort by columns."""
 
     def __init__(self, parent: html.base_element, idstr: str, attrdct: dict,
-                 coltuple: Tuple[str, str, str], dct_lst: List[Dict[str, str]]) -> None:
+                 coltuple: T.Tuple[str, str, str], dct_lst: T.List[T.Dict[str, str]]) -> None:
         colattr = {'onclick': 'self.doclick()'}
         self._mytab = scodict_table(parent, idstr, attrdct, coltuple, dct_lst, colattr=colattr)
         # header_id = '%s:header_row' % idstr
@@ -216,7 +218,7 @@ class sort_table:
 def writelist(parent: html.base_element, idstr: str, attrdct: dict, iterels, ordered=True):
     """Generate a list of items """
     if ordered:
-        lst_el: Union[html.ol, html.ul] = html.ol(parent, idstr, attrdct, None)
+        lst_el: T.Union[html.ol, html.ul] = html.ol(parent, idstr, attrdct, None)
     else:
         lst_el = html.ul(parent, idstr, attrdct, None)
     for elstr, elattr in iterels:
@@ -227,7 +229,7 @@ def writelist(parent: html.base_element, idstr: str, attrdct: dict, iterels, ord
 def writeNEWlist(parent: html.base_element,
                  idstr: str,
                  attrdct: dict,
-                 iterels: List[Tuple[Type[html.element], dict]],
+                 iterels: T.List[T.Tuple[T.Type[html.element], dict]],
                  ordered=True) -> html.element:
     """Generate a list of items
     idstr: the id of the list element created.
@@ -237,7 +239,7 @@ def writeNEWlist(parent: html.base_element,
     in the list being created.
     """
     if ordered:
-        lst_el: Union[html.ol, html.ul] = html.ol(parent, idstr, attrdct, None)
+        lst_el: T.Union[html.ol, html.ul] = html.ol(parent, idstr, attrdct, None)
     else:
         lst_el = html.ul(parent, idstr, attrdct, None)
     for eltype, elattr_dct in iterels:
@@ -279,7 +281,7 @@ class MenuList(base_widget):
     def rcvMsg(self,
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: Optional[base.MSGdata_Type]) -> None:
+               msgdat: T.Optional[base.MSGdata_Type]) -> None:
         print("menulst: relaying message {}, {}".format(msgdesc, msgdat))
         self.relayMsg(whofrom, msgdesc, msgdat)
 
@@ -310,8 +312,8 @@ class SwitchView(base_widget):
                  idstr: str,
                  attrdct: dict, jsel) -> None:
         super().__init__(contr, parent, idstr, attrdct, jsel)
-        self.view_lst: List[BasicView] = []
-        self.view_dct: Dict[str, BasicView] = {}
+        self.view_lst: T.List[BasicView] = []
+        self.view_dct: T.Dict[str, BasicView] = {}
 
     def addView(self, child_el: BasicView, viewname: str):
         """Add a view into the switchview under a given viewname"""
@@ -319,7 +321,7 @@ class SwitchView(base_widget):
         self.view_dct[viewname] = child_el
         child_el.addObserver(self, base.MSGD_BUTTON_CLICK)
 
-    def getView(self, numorname) -> Optional[BasicView]:
+    def getView(self, numorname) -> T.Optional[BasicView]:
         # find the view which should be 'on'
         on_view = None
         if isinstance(numorname, int):
@@ -352,7 +354,7 @@ class SwitchView(base_widget):
     def rcvMsg(self,
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
-               msgdat: Optional[base.MSGdata_Type]) -> None:
+               msgdat: T.Optional[base.MSGdata_Type]) -> None:
         print("switchview: got message {}, {}".format(msgdesc, msgdat))
         if msgdat is not None:
             cmd = msgdat.get('cmd', None)

@@ -22,11 +22,11 @@ pyserial>=3.4
 # for accessing the QAI server
 requests>=2.18
 # --- client side ---
-transcrypt>=3.6.27
+transcrypt>=3.7.4
 #--everything below this line is for testing
 flake8>=3.5.0
 # pytest>=3.5.1
 #pytest 3.7.0 is broken...
-pytest<3.7.0
+pytest>=3.8.0
 coverage>=4.5.1
-pytest-codestyle>=1.2.2
+pytest-codestyle>=1.3.0

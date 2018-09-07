@@ -10,10 +10,10 @@ import wccontroller
 
 log = genutils.log
 
-sockyWWname = 'webclient/__javascript__/sockwebby.js'
+sockyWWname = 'webclient/__target__/sockwebby.js'
 
 # this is the main program that runs when the page is loaded
-log('hello world')
+print('hello world')
 # ww = WebWorker.WebWorker('webclient/__javascript__/sockwebby.js')
 
 # all we do is open a websocket and start the main program

@@ -60,10 +60,6 @@ menulst = [
     ]
 
 
-def sco_submit():
-    log("SCOSUBMIIIT")
-
-
 class stocky_mainprog(widgets.base_controller):
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
         super().__init__(myname)
@@ -104,11 +100,10 @@ class stocky_mainprog(widgets.base_controller):
                                               None)
         lf.addObserver(self, base.MSGD_FORM_SUBMIT)
         log("LOGINFORM OK")
-
         # status bar (top right)
-        log("TRYING WCSTATUS")
+        print("TRYING WCSTATUS")
         self.wcstatus = wcstatus.WCstatus("WCSTAT", self, popup)
-        log("WCSTATUS OK")
+        print("WCSTATUS OK")
 
         # now make switchviews and menubuttons from the menulst
         for mvdct in menulst:
@@ -263,10 +258,7 @@ class stocky_mainprog(widgets.base_controller):
                 return
             cmd = msgdat.get("msg", None)
             val = msgdat.get("data", None)
-            if cmd == CommonMSG.MSG_SV_USB_STATE_CHANGE:
-                print("GOT USB state {}".format(val))
-                self.wcstatus.set_RFID_state(val)
-            elif cmd == CommonMSG.MSG_SV_RFID_STATREP:
+            if cmd == CommonMSG.MSG_SV_RFID_STATREP:
                 print("GOT RFID state {}".format(val))
                 self.wcstatus.set_RFID_state(val)
             elif cmd == CommonMSG.MSG_SV_RAND_NUM:

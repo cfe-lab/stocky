@@ -1,0 +1,7 @@
+
+On 2018-09-07, after updating to transcrypt 3.7.4, it seems that importing
+the typing module leads to a javascript run-time error, as commands
+from the typing module are being imported. This fails at runtime.
+The typing calls are actually never called, so can be omitted in the javascript coode.
+
+Demonstrate this problem here.

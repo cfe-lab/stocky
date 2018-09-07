@@ -21,7 +21,7 @@ stocky-devel/stocky/.coverage
 flymd.*
 
 # generated caches
-__javascript__/
+__target__/
 __pycache__
 .pytest_cache
 

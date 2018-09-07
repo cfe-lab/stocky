@@ -80,9 +80,9 @@ def goo(rawws: websocket):
 
 
 # this is required to serve the javascript code
-@app.route('/webclient/__javascript__/<path:path>')
+@app.route('/webclient/__target__/<path:path>')
 def send_js(path):
-    return flask.send_from_directory('webclient/__javascript__', path)
+    return flask.send_from_directory('webclient/__target__', path)
 
 
 # serve the main page

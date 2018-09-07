@@ -18,7 +18,7 @@ WORKDIR /stockysrc
 RUN pip install --upgrade pip;\
     pip install --no-cache-dir -r requirements.txt
 
-ENV PYTHONPATH "${PYTHONPATH}:/stockysrc/stocky/serverlib:/stockysrc/stocky:/stockysrc"
+ENV PYTHONPATH "${PYTHONPATH}:/stockysrc:/stockysrc/stocky:/stockysrc/stocky/serverlib"
 
 # mypy (including transcrypt) needs this in order to find all modules
 ENV MYPYPATH="/stockysrc/webqai:/stockysrc:/stockysrc/stocky/serverlib:/stockysrc/stocky"

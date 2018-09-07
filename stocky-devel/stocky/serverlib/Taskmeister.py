@@ -204,7 +204,7 @@ class WebSocketReader(BaseReader):
                     retmsg = None
                 xtra_keys = got_keys - need_keys
                 if xtra_keys:
-                    self.logger.warn("unexpected extra dict keys, got '{}'".format(got_keys))
+                    self.logger.warning("unexpected extra dict keys, got '{}'".format(got_keys))
             else:
                 self.logger.error("unknown keys in {}".format(got_keys))
                 retmsg = None

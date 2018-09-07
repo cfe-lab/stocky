@@ -50,20 +50,20 @@ help: ## Build and test the stocky webclient. Run this from within the running d
 
 # default: webclient
 
-webclient: __javascript__/webclient.js ## compile the web client (from python to javascript)
+webclient: __target__/webclient.js ## compile the web client (from python to javascript)
 
-__javascript__/webclient.js: Makefile webclient.py  ${LIBS} ${COMMON}
-	transcrypt ${OPTS} webclient.py
+__target__/webclient.js: Makefile webclient.py  ${LIBS} ${COMMON}
+	transcrypt ${OPTS} webclient
 
-sockwebby: __javascript__/sockwebby.js ## compile the sockwebby task (from python to javascript)
+sockwebby: __target__/sockwebby.js ## compile the sockwebby task (from python to javascript)
 
-__javascript__/sockwebby.js: Makefile sockwebby.py  ${LIBS} ${COMMON}
-	transcrypt ${OPTS} -p .none sockwebby.py
+__target__/sockwebby.js: Makefile sockwebby.py  ${LIBS} ${COMMON}
+	transcrypt ${OPTS} -p .none sockwebby
 
 typetest:
 	transcrypt ${OPTS} typetest.py
 mypy: ##  analyse the webclient code using mypy
 	mypy --ignore-missing-imports  webclient.py
 force: ## force the compilation of the web client
-	rm -f __javascript__/webclient.js
-	transcrypt ${OPTS} webclient.py
+	rm -f __target__/webclient.js
+	transcrypt ${OPTS} webclient

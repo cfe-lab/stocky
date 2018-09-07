@@ -337,7 +337,7 @@ class TLSReader(Taskmeister.BaseReader):
         if cl.is_alive():
             cl.send_cmd(cmdstr, comment)
         else:
-            self.logger('commlink is not alive')
+            self.logger.error('commlink is not alive')
             # raise RuntimeError("commlink is not alive")
 
     def is_in_radarmode(self) -> bool:
@@ -549,7 +549,6 @@ class TLSReader(Taskmeister.BaseReader):
         by later on issuing RadarGet() commands.
         The 'Radar' functionality allows the user to search for a specific tag, and to determine
         its distance from the reader using the RSS (return signal strength) field.
-
         See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
         """
         if epc is not None:
@@ -596,7 +595,7 @@ class TLSReader(Taskmeister.BaseReader):
             # print("BLACMD {}".format(cmdstr))
             self._sendcmd(cmdstr, "radarsetup")
         else:
-            self.logger.warn("TLS skipping msg {}".format(msg))
+            self.logger.warning("TLS skipping msg {}".format(msg))
             raise RuntimeError("do not know how to handle message")
 
     def write_user_bank(self, epc: EPCstring, data: str) -> None:

@@ -190,7 +190,7 @@ class BaseCommLink:
     def open_device(self) -> typing.Any:
         # NOTE: we do not raise an notimplemented exception here, because otherwise
         # we would not be able to instantiate a BaseCommLink.
-        self.logger.warn('BaseCommLink.opendevice() called, which should not happen')
+        self.logger.warning('BaseCommLink.opendevice() called, which should not happen')
         return None
 
     def _close_device(self) -> None:
