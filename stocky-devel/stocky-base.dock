@@ -1,5 +1,5 @@
 
-FROM python:3.6-stretch
+FROM python:3.7-stretch
 
 MAINTAINER wscott@cfenet.ubc.ca
 
@@ -18,14 +18,10 @@ WORKDIR /stockysrc
 RUN pip install --upgrade pip;\
     pip install --no-cache-dir -r requirements.txt
 
-
 ENV PYTHONPATH "${PYTHONPATH}:/stockysrc/stocky/serverlib:/stockysrc/stocky:/stockysrc"
-# not needed /usr/local/lib/python3.6/site-packages/transcrypt/modules/"
-
 
 # mypy (including transcrypt) needs this in order to find all modules
 ENV MYPYPATH="/stockysrc/webqai:/stockysrc:/stockysrc/stocky/serverlib:/stockysrc/stocky"
-# :/usr/local/lib/python3.6"
 
 
 ENV FLASK_APP=/stockysrc/stocky.py

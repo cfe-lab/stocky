@@ -101,7 +101,7 @@ class Test_Chemstock_EMPTYDB(commontests):
 
 @withchemstock
 class Test_Chemstock_NOQAI(commontests):
-    """tests in which we load some data froma YAML file."""
+    """Tests in which we load some data froma YAML file."""
 
     @classmethod
     def setup_class(cls) -> None:

@@ -47,10 +47,11 @@ class DelayTaskMeister:
 class BaseTaskMeister:
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
-                 sec_interval: float) -> None:
+                 sec_interval: float,
+                 is_active: bool) -> None:
         self.msgQ = msgQ
         self.logger = logger
-        self._isactive = False
+        self._isactive = is_active
         self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
         self._do_main_loop = True
         gevent.spawn(self._worker_loop)
@@ -95,11 +96,9 @@ class FileChecker(BaseTaskMeister):
                  logger,
                  sec_interval: float,
                  do_activate: bool, file_to_check: str) -> None:
-        super().__init__(msgQ, logger, sec_interval)
+        super().__init__(msgQ, logger, sec_interval, do_activate)
         self._path = pathlib.Path(file_to_check)
         self._curstate: typing.Optional[bool] = None
-        if do_activate:
-            self.set_active(True)
 
     def file_exists(self) -> bool:
         return self._path.exists()
@@ -127,9 +126,7 @@ class BaseReader(BaseTaskMeister):
                  logger,
                  sec_interval: float,
                  do_activate: bool) -> None:
-        super().__init__(msgQ, logger, sec_interval)
-        if do_activate:
-            self.set_active(True)
+        super().__init__(msgQ, logger, sec_interval, do_activate)
 
 
 class RandomGenerator(BaseTaskMeister):
@@ -146,7 +143,7 @@ class TickGenerator(BaseTaskMeister):
     """
     def __init__(self, msgQ: gevent.queue.Queue, logger,
                  sec_interval: float, msgid: str) -> None:
-        super().__init__(msgQ, logger, sec_interval)
+        super().__init__(msgQ, logger, sec_interval, False)
         self.msgid = msgid
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
@@ -191,6 +188,7 @@ class WebSocketReader(BaseReader):
         """Block until a command is received from the webclient over websocket.
         Return the JSON string received as a CommonMSG instance."""
         dct = self.ws.receiveMSG()
+        # the return value is either None or a dict.
         if dct is None:
             self.logger.error("received None over ws, returning None")
             retmsg = None
@@ -210,8 +208,6 @@ class WebSocketReader(BaseReader):
             else:
                 self.logger.error("unknown keys in {}".format(got_keys))
                 retmsg = None
-        else:
-            raise RuntimeError("unexpected message {}".format(dct))
         #
         if retmsg is not None and retmsg.msg == CommonMSG.MSG_WC_EOF:
             self._SetTaskFinished()

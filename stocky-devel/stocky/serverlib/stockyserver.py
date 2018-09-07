@@ -1,4 +1,4 @@
-# import typing
+import typing
 import flask
 
 import gevent
@@ -51,8 +51,8 @@ class serverclass:
         # must set logging  before anything else...
         self._app = app
         self.logger = app.logger
-        self.ws = None
-        self.websocketTM = None
+        self.ws: typing.Optional[ServerWebSocket.BaseWebSocket] = None
+        self.websocketTM: typing.Optional[Taskmeister.WebSocketReader] = None
 
         self.logger.info("serverclass: reading config file '{}'".format(cfgname))
         self.cfg_dct = serverconfig.read_server_config(cfgname)

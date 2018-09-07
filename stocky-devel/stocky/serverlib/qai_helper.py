@@ -85,6 +85,8 @@ class Session(requests.Session):
             response = self._login_resp(qai_user, password)
         except requests.exceptions.InvalidURL:
             return dict(ok=False, msg="Configuration error: invalid QAI URL {}".format(self.qai_path))
+        except requests.exceptions.ConnectionError:
+            return dict(ok=False, msg="Configuration error: no route to host: QAI URL {}".format(self.qai_path))
         except requests.exceptions.HTTPError:
             return dict(ok=False, msg="Configuration error: HTTP Protocol error")
         except requests.exceptions.Timeout:

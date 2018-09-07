@@ -3,6 +3,7 @@ import pytest
 import gevent
 import geventwebsocket.exceptions
 import logging
+import tempfile
 
 import serverlib.Taskmeister as Taskmeister
 import serverlib.qai_helper as qai_helper
@@ -60,6 +61,39 @@ class Test_Taskmeister:
         self.logger = logging.Logger("testing")
         self.msgq = DummyQueue()
 
+    def test_delay01(self) -> None:
+        """Perform test of a DelayTaskMeister"""
+        tn = self.msgq.num_messages()
+        if tn != 0:
+            raise RuntimeError("unexpected tn = {}".format(tn))
+        msg = CommonMSG(CommonMSG.MSG_SV_RAND_NUM, 'delaytest')
+        d = Taskmeister.DelayTaskMeister(self.msgq, self.logger,
+                                         self.sec_interval, msg)
+        d.trigger()
+        gevent.sleep(self.test_sleep_time)
+        tn = self.msgq.num_messages()
+        if tn != 1:
+            raise RuntimeError("unexpected tn = {}".format(tn))
+
+    def test_filechecker01(self) -> None:
+        checkfile = tempfile.NamedTemporaryFile()
+        checkfilename = checkfile.name
+        ft = Taskmeister.FileChecker(self.msgq, self.logger,
+                                     self.sec_interval, True, checkfilename)
+        assert ft is not None, "ft is None"
+        gevent.sleep(self.test_sleep_time)
+        tn = self.msgq.num_messages()
+        print("after sleep 1 {}".format(tn))
+        if tn != 1:
+            raise RuntimeError("unexpected tn = {}".format(tn))
+        # now close the checkfile to remove it
+        checkfile.close()
+        gevent.sleep(self.test_sleep_time)
+        tn = self.msgq.num_messages()
+        print("after sleep 2 {}".format(tn))
+        if tn != 2:
+            raise RuntimeError("unexpected tn = {}".format(tn))
+
     def perform_timetest(self, taskmeister: Taskmeister.BaseTaskMeister):
         # with ticker disabled, should be no messages
         gevent.sleep(self.test_sleep_time)
@@ -85,11 +119,11 @@ class Test_Taskmeister:
     def test_random01(self) -> None:
         """RandomGenerator must generate messages when enabled"""
         rand = Taskmeister.RandomGenerator(self.msgq, self.logger,
-                                           self.sec_interval)
+                                           self.sec_interval, False)
         self.perform_timetest(rand)
 
     def test_base01(self) -> None:
-        tt1 = Taskmeister.BaseTaskMeister(self.msgq, self.logger, 1)
+        tt1 = Taskmeister.BaseTaskMeister(self.msgq, self.logger, 1, False)
         tt2 = Taskmeister.BaseReader(self.msgq, self.logger, 1, False)
         for tt in [tt1, tt2]:
             with pytest.raises(NotImplementedError):
@@ -123,7 +157,7 @@ class Test_Taskmeister:
                                              testlist)
 
     def test_wsreader01(self):
-        """ The WebSocketReader must behave sensibly when it reads
+        """The WebSocketReader must behave sensibly when it reads
         junk from the websocket, and also produce a message on good data.
         """
         rawws = DummyWebsocket(self.sec_interval, None)
@@ -135,12 +169,15 @@ class Test_Taskmeister:
                                           do_activate=False)
         assert wsr is not None, "wsr is None!"
         ok_dct = {'msg': CommonMSG.MSG_SV_RAND_NUM, 'data': 'dolly'}
+        extra_dct = {'msg': CommonMSG.MSG_SV_RAND_NUM, 'data': 'dolly', 'extra': 'message'}
         ok_msg = CommonMSG(ok_dct['msg'], ok_dct['data'])
         for faulty_data, doraw, exp_val in [({'bla': 'blu'}, True, None),
                                             ({'msg': 'hello'}, True, None),
                                             ([1, 2, 3], True, None),
                                             (b'[1, 2}', False, None),
                                             ({'msg': 'hello', 'data': 'dolly'}, True, None),
+                                            ([1, 2, 3], True, None),
+                                            (extra_dct, True, ok_msg),
                                             (ok_dct, True, ok_msg)]:
             if doraw:
                 rawws = DummyWebsocket(self.sec_interval, faulty_data)
