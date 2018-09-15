@@ -17,6 +17,7 @@ LIBS =  ${LIBDIR}/transcryptlib/genutils.py \
   ${LIBDIR}/transcryptlib/websocket.py \
   ${LIBDIR}/transcryptlib/widgets.py \
   ${LIBDIR}/transcryptlib/forms.py \
+  ${LIBDIR}/transcryptlib/cleverlabels.py \
   ${LIBDIR}/transcryptlib/simpletable.py \
   commonmsg.py\
   wccontroller.py\
@@ -26,7 +27,7 @@ LIBS =  ${LIBDIR}/transcryptlib/genutils.py \
 
 
 # these are optios to the transcrypt transpiler
-OPTS = -dc -ds -n -b -e6 -s sco_for_TS
+OPTS = -dc -ds -n -b -e6 -m -s sco_for_TS
 
 
 default: help

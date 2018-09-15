@@ -44,7 +44,8 @@ class Reagent(Base):
     notes = sql.Column(sql.String)
     qcs_document_id = sql.Column(sql.Integer)
     storage = sql.Column(sql.String)
-    supplier = sql.Column(sql.String)
+    # supplier = sql.Column(sql.String)
+    supplier_company_id = sql.Column(sql.Integer)
 
 # {basetype: stockchem, catalog_number: TDF, category: Antiviral drugs/stds, date_msds_expires: null,
 #  disposed: t, expiry_time: 2555, hazards: null, id: 6371, location: 605 dessicator,
@@ -119,6 +120,56 @@ class TableChange(Base):
     __tablename__ = 'tabchange'
     table_name = sql.Column(sql.String, primary_key=True)
     stamp = sql.Column(sql.String)
+
+
+class node:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.child_dct: typing.Dict[str, "node"] = {}
+        self.val: typing.Optional[dict] = None
+
+    def addtree(self, dct) -> None:
+        """Add a location dictionary to a leaf in the tree based on its
+        hierarchical name."""
+        namelst = dct['name'].split('\\')
+        # print('nlst {}'.format(namelst))
+        nn = self
+        for curname in namelst:
+            nextlevel = nn.child_dct.get(curname, None)
+            if nextlevel is None:
+                nextlevel = nn.child_dct[curname] = node(curname)
+            nn = nextlevel
+        nn.setval(dct)
+
+    def setval(self, newval) -> None:
+        if self.val is None:
+            self.val = newval
+        else:
+            raise RuntimeError('node value set twice!')
+
+    def getval(self) -> dict:
+        return self.val
+
+    def dfslst(self, topname, lst) -> None:
+        fullname = "{}.{}".format(topname, self.name)
+        val = self.getval()
+        if val is not None:
+            lst.append(val)
+        for child in sorted(self.child_dct.values(), key=lambda a: a.name):
+            child.dfslst(fullname, lst)
+
+
+def sortloclist(orglst: typing.List[dict]) -> typing.List[dict]:
+    """Sort the list of location dicts in a hierarchically sensible order.
+    We add the nodes to a tree based on name, then perform an in-order DFS
+    traversal (children are sorted alphabetically) to sort the list.
+    """
+    root = node('')
+    for dct in orglst:
+        root.addtree(dct)
+    rlst: typing.List[dict] = []
+    root.dfslst("", rlst)
+    return rlst
 
 
 class ChemStockDB:
@@ -253,7 +304,7 @@ class ChemStockDB:
 
     def calc_final_state(self, slst: typing.List[dict]) -> typing.Tuple[dict, bool, bool]:
         """ Calculate the final state from this list of states.
-        We return the nominal state record and to booleans:
+        We return the nominal state record and two booleans:
         ismissing, hasexpired.
 
         Strategy: we assign values to the various possible states and sort according
@@ -400,8 +451,18 @@ class ChemStockDB:
         for reag_item in itmlst:
             reag_item_id = reag_item['id']
             state_lst = zz.get(reag_item_id, None)
-            state_info = self.calc_final_state(state_lst) if state_lst is not None else None
-            ritemdct[reag_item_id] = (reag_item, state_info)
+            if state_lst is None:
+                state_info = None
+            else:
+                state_info = self.calc_final_state(state_lst)
+                # print("BLAAA {} {}".format(reag_item_id, state_info))
+                # we eliminate any reagent item that has a state of 'USED_UP'.
+                dct, ismissing, hasexpired = state_info
+                state_info = None if dct['status'] == 'USED_UP' else state_info
+            if state_info is not None:
+                ritemdct[reag_item_id] = (reag_item, state_info)
+            # else:
+            # print("skipping {}".format(reag_item))
         # create a Dict[reagentid, reagent]
         rl = [dict(row) for row in self._sess.execute(Reagent.__table__.select())]
         rg = {}
@@ -415,8 +476,11 @@ class ChemStockDB:
                 raise RuntimeError("reagent ID is None")
         assert len(rg) == len(rl), "problem with reagent ids!"
         # "itmstatlst": itmstat,
-        return {"loclst": loclst, "locdct": locid_reagitem_dct}
-    # "ritemdct": ritemdct, "rfiddct": rfid_reagitem_dct}
+        # finally, sort the loclst according to a hierarchy
+        loclst = sortloclist(loclst)
+        return {"loclst": loclst, "locdct": locid_reagitem_dct,
+                "ritemdct": ritemdct}
+    # , "rfiddct": rfid_reagitem_dct}
     # "reagentdct": rg,
 
     def generate_webclient_stocklist(self) -> dict:

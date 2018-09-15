@@ -229,56 +229,6 @@ class spinner(htmlelements.div):
         else:
             self.removeClass('w3-spin')
 
-
-class ToggleLabel(htmlelements.label):
-    """A label that can be toggled between two states (alternate text and attrs)
-    The initial state is the A state.
-
-    NOTE: Out strategy to toggle the state on button click is to hijack
-    the htmlelements.generic_element._clickfunc()
-    """
-    _DOTOGGLE = 'dotoggle'
-
-    def __init__(self, parent: htmlelements.base_element,
-                 idstr: str,
-                 attrdctA: typing.Optional[dict],
-                 labeltextA: str,
-                 attrdctB: typing.Optional[dict],
-                 labeltextB: str) -> None:
-        attrdctA = attrdctA or {}
-        attrdctB = attrdctB or {}
-        dd = dict(msg=ToggleLabel._DOTOGGLE)
-        attrdctB[STARATTR_ONCLICK] = attrdctA[STARATTR_ONCLICK] = dd
-        htmlelements.label.__init__(self, parent, idstr, attrdctA, labeltextA, None)
-        self.is_astate = True
-        self.attdct: typing.Dict[bool, dict] = {True: attrdctA, False: attrdctB}
-        self.txtdct = {True: labeltextA, False: labeltextB}
-
-    def set_state(self, toAstate: bool) -> None:
-        """Set the visible state."""
-        if self.is_astate != toAstate:
-            self.toggle_state()
-
-    def toggle_state(self) -> None:
-        oldstate = self.attdct[self.is_astate]
-        self.is_astate = not self.is_astate
-        newstate = self.attdct[self.is_astate]
-        newtext = self.txtdct[self.is_astate]
-        self.rem_attrdct(oldstate)
-        self.add_attrdct(newstate)
-        self.setInnerHTML(newtext)
-
-    def is_A_state(self) -> bool:
-        """Return is A state? """
-        return self.is_astate
-
-    def _clickfunc(self):
-        """This function is called whenever the user clicks on this label"""
-        # print("TOGGLE CLICKFUNC")
-        self.toggle_state()
-        super()._clickfunc()
-
-
 class form(htmlelements.element):
 
     def __init__(self, parent: htmlelements.base_element,

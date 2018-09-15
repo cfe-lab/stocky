@@ -21,7 +21,10 @@ STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 
 
 class WCstatus(base.base_obj):
-    """Visualise and store the webclient's bluetooth and logged-in status"""
+    """Visualise and store the webclient's bluetooth and logged-in status.
+    Also store the stock information on the webclient that was sent
+    from the stocky server.
+    """
     NUM_ROW = 2
     NUM_COL = 3
 
@@ -45,7 +48,11 @@ class WCstatus(base.base_obj):
         """
         super().__init__(idstr)
         self._stat_is_loggedin = False
+        # empty stock information.. these are set in _setstockdata
         self._stockloc_lst: typing.List[dict] = []
+        self._locid_item_dct: dict = {}
+        self._ritemdct: dict = {}
+        #
         self.mainprog = mainprog
         self.login_popup = login_popup
         self.statediv = statediv = html.getPyElementById("state-div")
@@ -94,6 +101,18 @@ class WCstatus(base.base_obj):
             # self.uname_text = None
             return
 
+        # install a general purpose busy spinner
+        cell = mytab.getcell(WCstatus.RFID_ROW, WCstatus.QAI_UPD_COL)
+        if cell is not None:
+            spin_sz_pixels = 50
+            spin_attrdct = {'title': "Server activity"}
+            self.spinner = forms.spinner(cell, "busyspinner",
+                                         spin_attrdct, forms.spinner.SPN_SPINNER,
+                                         spin_sz_pixels)
+        else:
+            log("cell table error 2a")
+            return
+            
         # Set up the QAI last update tag
         cell = mytab.getcell(WCstatus.QAI_ROW, WCstatus.QAI_UPD_COL)
         if cell is not None:
@@ -104,8 +123,7 @@ class WCstatus(base.base_obj):
                                                      "title": ustr},
                                                     "unknown")
         else:
-            log("cell table error 2a")
-            # self.qai_upd_text = None
+            log("cell table error 2b")
             return
 
         # set up the RFID activity spinner
@@ -174,8 +192,12 @@ class WCstatus(base.base_obj):
             # set to red
             statusled.setcolour(html.LEDElement.RED)
 
+    def set_busy(self, isbusy: bool) -> None:
+        """Set the state of the 'busy' spinner"""
+        self.spinner.set_spin(isbusy)
+
     def set_rfid_activity(self, on: bool) -> None:
-        """set the RFID spinner on/off """
+        """Set the RFID spinner on/off """
         self.actspinner.set_spin(on)
 
     def set_QAIupdate_state(self, d: dict) -> None:
@@ -194,10 +216,18 @@ class WCstatus(base.base_obj):
         NOTE: the loclist is a list of dict with id, and name entries:
         {'id': 10031, 'name': 'SPH\604\Research Fridge'},
         {'id': 10032, 'name': 'SPH\638\Freezer 6'}
+
+        NOTE: the stockdct dictionary is built on the server side in
+        ChemStock.DOgenerate_webclient_stocklist() .
+        The keys we use here must obviously match those used there.
+
         """
         self._stockloc_lst = stockdct['loclst']
         # self._stockitm_lst = stockdct['itemlst']
         print(" SETTING LOCLIST LEN {}".format(len(self._stockloc_lst)))
+        self._locid_item_dct = stockdct['locdct']
+        print(" SETTING LOCITEMDCT LEN {}".format(len(self._locid_item_dct)))
+        self._ritemdct = stockdct['ritemdct']
         # self.preparechecklists()
         # self.showchecklist(0)
 
@@ -206,7 +236,7 @@ class WCstatus(base.base_obj):
                               idstr: str,
                               helptext: str,
                               add_nosel: bool) -> html.select:
-        """ Return a selector for the currently available list
+        """Return an html.select element for the currently available list
         of locations."""
         selattrdct = {'title': helptext,
                       STARATTR_ONCLICK: {'cmd': 'locationswitch'},
@@ -226,3 +256,14 @@ class WCstatus(base.base_obj):
             sel.add_or_set_option(idstr, name)
         if add_nosel:
             sel.add_or_set_option(WCstatus.LOC_NOSEL_ID, WCstatus.LOC_NOSEL_NAME)
+
+    def get_location_items(self, locid: str) -> typing.Optional[list]:
+        """Return the list of all reagent items that have been registered as
+        being at this location.
+
+        """
+        retval = self._locid_item_dct.get(locid, None)
+        retval = retval[1] if retval else None
+        # print("getregitems for loc: {}: {}".format(locid, retval))
+        return retval
+    

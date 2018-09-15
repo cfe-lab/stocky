@@ -21,15 +21,24 @@ withchemstockANDqa1 = pytest.mark.skipif(not pytest.config.option.with_cs_qai,
 # csdb = None
 
 
-def OLD_setup_module():
-    qaids = yamlutil.readyamlfile("./qaidump.yaml")
-    locdbname = "bli.sqlite"
-    locdbname = None
-    global csdb
-    csdb = ChemStock.ChemStockDB(locdbname, None)
-    retval = csdb.loadQAI_data(qaids)
-    assert isinstance(retval, bool), "bool expected"
-    assert retval, "loadQAIdata failed"
+class Test_funcs:
+    """Test a number of helper functions in the ChemStock module,
+    These functions do not depend on ChemStockDB
+    """
+    def test_sortloclist01(self) -> None:
+        """ """
+        olst = [{'name': 'SPH\West wing'},
+                {'name': 'SPH\West wing\dog house'},
+                {'name': 'SPH\East Wing'},
+                {'name': 'SPH\West wing\cat house'},
+                {'name': 'SPH'},
+                {'name': 'SPH\East Wing\Aviary'}]
+
+        sortlst = ChemStock.sortloclist(olst)
+        print("GOOT {}".format(sortlst))
+        # assert False, "force fail"
+        # NOTE: this is not really checking for correct sorting..
+        assert len(olst) == len(sortlst), "wrong list length"
 
 
 class commontests:
@@ -41,7 +50,7 @@ class commontests:
         assert set(tsdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpted dict keys"
         # assert False, " force fail"
 
-    @pytest.mark.skip(reason="method is in flusx")
+    @pytest.mark.skip(reason="method is in flux")
     def test_generate_webclient_stocklist01(self):
         lverb = False
         rdct = self.csdb.generate_webclient_stocklist()
@@ -101,7 +110,7 @@ class Test_Chemstock_EMPTYDB(commontests):
 
 @withchemstock
 class Test_Chemstock_NOQAI(commontests):
-    """Tests in which we load some data froma YAML file."""
+    """Tests in which we load some data from a YAML file."""
 
     @classmethod
     def setup_class(cls) -> None:

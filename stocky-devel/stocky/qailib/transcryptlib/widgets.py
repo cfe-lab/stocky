@@ -344,12 +344,7 @@ class SwitchView(base_widget):
         if on_view is None:
             return
         for el in self.view_lst:
-            if el == on_view:
-                el.removeAttribute("hidden")
-                # el.removeAttribute("display", do_children)
-            else:
-                el.setAttribute("hidden", True)
-                # el.setAttribute("display", "none", do_children)
+            el.set_visible(el == on_view)
 
     def rcvMsg(self,
                whofrom: base.base_obj,

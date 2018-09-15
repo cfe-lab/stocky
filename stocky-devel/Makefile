@@ -66,7 +66,7 @@ runlocal:  ## run the stocky docker image with local code interactively with bas
 runprod: ## run the stocky docker image for production.
 	${DOCKER_RUN_CMD} ${BASE_IMAGE_NAME}
 
-runtests:  ## run the stocky docker image with image code 
+runtests:  ## run the unit tests on the stocky docker image with image code 
 	${DOCKER_TESTRUN_CMD}  -it ${BASE_IMAGE_NAME} make all-test pep8
 
 

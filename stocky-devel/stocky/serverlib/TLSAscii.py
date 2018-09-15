@@ -549,7 +549,7 @@ class TLSReader(Taskmeister.BaseReader):
         by later on issuing RadarGet() commands.
         The 'Radar' functionality allows the user to search for a specific tag, and to determine
         its distance from the reader using the RSS (return signal strength) field.
-        See the TLS document: 'Application\ Note\ -\ Advice\ for\ Implementing\ a\ Tag\ Finder\ Feature\ V1.0.pdf'
+        See the TLS document: 'Application Note - Advice for Implementing a Tag Finder Feature V1.0.pdf'
         """
         if epc is not None:
             if not is_valid_EPC(epc):
@@ -607,8 +607,8 @@ class TLSReader(Taskmeister.BaseReader):
 
         NOTE: this command string was adapted from the document provided
         by TSL to their customers:
-        Application\ Note\ -\ Selecting\ Reading\ and\ Writing\ Transponders\
-        with\ the\ TSL\ ASCII\ 2\ Protocol\ V1.33.pdf
+        Application Note - Selecting Reading and Writing Transponders
+        with the TSL ASCII 2 Protocol V1.33.pdf
         """
         if not is_valid_EPC(epc):
             raise ValueError("illegal EPC = '{}'".format(epc))

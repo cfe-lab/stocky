@@ -106,7 +106,7 @@ class serverclass:
         self.tls.BT_set_stock_check_mode()
 
     def server_handle_msg(self, msg: CommonMSG) -> None:
-        """Handle this message to me..."""
+        """Handle this message to me, the stocky server..."""
         self.logger.debug("server handling msg...")
         print("server handling msg...")
         if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
@@ -220,10 +220,10 @@ class serverclass:
         rfid_act_on = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, True)
         rfid_act_off = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, False)
         # set up the RFID activity delay timer
-        self.rfid_delay_task = Taskmeister.DelayTaskMeister(self.msgQ,
-                                                            self.logger,
-                                                            1.5,
-                                                            rfid_act_off)
+        rfid_delay_task = Taskmeister.DelayTaskMeister(self.msgQ,
+                                                       self.logger,
+                                                       1.5,
+                                                       rfid_act_off)
         while True:
             if lverb:
                 print("YO: before get")
@@ -240,7 +240,7 @@ class serverclass:
             if msg.is_from_rfid_reader():
                 self.logger.debug("GOT RFID {}".format(msg.as_dict()))
                 self.send_WS_msg(rfid_act_on)
-                self.rfid_delay_task.trigger()
+                rfid_delay_task.trigger()
 
             is_handled = False
             if self.ws is not None and msg.msg in serverclass.MSG_FOR_WC_SET:

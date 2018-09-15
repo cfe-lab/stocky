@@ -6,7 +6,7 @@ import qailib.common.serversocketbase as serversocketbase
 import qailib.transcryptlib.htmlelements as html
 import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.widgets as widgets
-import qailib.transcryptlib.handlebars as handlebars
+# import qailib.transcryptlib.handlebars as handlebars
 # import qailib.transcryptlib.simpletable as simpletable
 
 
@@ -136,88 +136,11 @@ class stocky_mainprog(widgets.base_controller):
         switch.switchTo(0)
         self._curlocndx = None
 
-    def BLA_calctab(self, sel_ndx: int) -> typing.Optional[str]:
-        """Generate the html string for location index sel_ndx"""
-        # determine the list of locations to display
-        display_loc_lst = [{'name': loc,
-                            'key': '{}'.format(ndx),
-                            'isselected': ndx == sel_ndx} for ndx, loc in enumerate(self._stockloc_lst)]
-        # select the items at this location from the stock_list
-        scan_lst, ii = [], 0
-        stattab = ['FOUND', 'ABSENT', 'UNEXPECTED']
-        for locndx, itm_str, tagnum, helptext in self._stockitm_lst:
-            if locndx == sel_ndx:
-                scan_lst.append({'name': itm_str,
-                                 'id': tagnum,
-                                 'helptext': helptext,
-                                 'status': stattab[ii % 3]})
-                ii += 1
-        strval = handlebars.evalTemplate("checkstock-template", {"loclist": display_loc_lst,
-                                                                 "scanlist": scan_lst})
-        return strval
-
-    def BLApreparechecklists(self):
-        self.tabdct = {}
-        for ndx, stri in [(ndx, self._calctab(ndx)) for ndx in range(len(self._stockloc_lst))]:
-            self.tabdct[ndx] = stri
-
-    def BLAshowchecklist(self, sel_ndx: int):
-        """Show the list of stock items that are located at sel_ndx.
-        """
-        maxlen = len(self._stockloc_lst)
-        print("setting loc '{}', len: {}".format(sel_ndx, maxlen))
-        if sel_ndx < 0 or sel_ndx >= maxlen or self._curlocndx == sel_ndx:
-            return
-        # strval = self._calctab(sel_ndx)
-        newstrval = self.tabdct.get(sel_ndx, None)
-        if newstrval is None:
-            log('TEMPLATE FAILED')
-            return
-        # if we have reached this point, we are going to make the switch
-        html.setCursorBusy(True)
-        check_view = self.switch.getView(CHECK_STOCK_VIEW_NAME)
-        # switch out the innerHTML elements. Save the current innerHTML for later use
-        # NOTE: this does not work -- the table references become all mixed up...
-        # if self._curlocndx is not None:
-        #    oldstr = check_view.getInnerHTML()
-        #    log("OLD TEMPLATE {} {}".format(self._curlocndx, oldstr))
-        #    self.tabdct[self._curlocndx] = oldstr
-        self._curlocndx = sel_ndx
-        check_view.setInnerHTML(newstrval)
-        selattdct = {'title': 'Select the stock location you want to verify',
-                     STARATTR_ONCLICK: {'cmd': 'roomswitch'},
-                     "class": "w3-select locbutton-cls"
-                     }
-        self.lb = lb = typing.cast(html.select,
-                                   html.getPyElementByIdClass('locky-button',
-                                                              html.select, selattdct))
-        if lb is not None:
-            lb.addObserver(self, base.MSGD_BUTTON_CLICK)
-            print('got LOCKY {}'.format(lb))
-            se_ndx, se_val = lb.get_selected()
-            print('got LOCKY VBAL {}  {}'.format(se_ndx, se_val))
-        # we do not sort the table after all...
-        # tabby = html.getPyElementByIdClass('scantable', html.table, None)
-        # print('got TABBY {}'.format(tabby))
-        # rowlst = tabby.getrows()
-        # print('got tabby rows len {}'.format(len(rowlst)))
-        # print('got tabby rows {}'.format(rowlst))
-        # tabby.columnsort(2)
-        # tabvals = [row.getcells() for row in rowlst[1:]]
-        html.setCursorBusy(False)
-
     def setradardata(self, radarinfo: typing.List[typing.Tuple[str, int, float]]):
         """This is a list of string tuples.  (epc code, RI) """
         radar_view = self.switch.getView(RADAR_VIEW_NAME)
         radar_view.set_radardata(radarinfo)
 
-    def BLAshowlist(self):
-        strval = handlebars.evalTemplate("scolist-template", {"numlist": self.numlst})
-        if strval is None:
-            log('TEMPLATE FAILED')
-        else:
-            # log("TEMPLATE {}".format(strval))
-            self.switch.getView(ADDSTOCK_VIEW_NAME).setInnerHTML(strval)
 
     def set_login_status(self, resdct: dict) -> None:
         """Display the login status in the window"""
@@ -308,9 +231,11 @@ class stocky_mainprog(widgets.base_controller):
                 else:
                     print('unknown view target {}'.format(target_view))
             elif cmd == 'roomswitch':
-                se_ndx, se_val = self.lb.get_selected()
-                print("showchecklist: got LOCKY VBAL '{}'  '{}'".format(se_ndx, se_val))
-                self.showchecklist(se_ndx)
+                print("roomswitch not being handled")
+                # there is no self.lb...
+                # se_ndx, se_val = self.lb.get_selected()
+                # print("showchecklist: got LOCKY VBAL '{}'  '{}'".format(se_ndx, se_val))
+                # self.showchecklist(se_ndx)
             elif cmd == 'logout':
                 # the logout button was pressed
                 self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGOUT_TRY, 1))

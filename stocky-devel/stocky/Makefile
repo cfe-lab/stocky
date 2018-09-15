@@ -43,6 +43,8 @@ qai-coverage: ## show test coverage of code accessing the test QAI server
 #--
 chemstock-test: ## run the unit tests that access a local chemstocks YAML file
 	pytest -v serverlib --with_chemstock --ff -k test_ChemStock
+func-test: ## run the unit tests 
+	pytest -v serverlib -k Test_funcs
 chemstock-qai-test: ## run the unit tests (chemstock with access to qai)
 	pytest -v serverlib --with_cs_qai --ff --maxfail=1 -k test_ChemStock
 mypy: ## analyse the server code using mypy

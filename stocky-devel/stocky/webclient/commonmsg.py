@@ -92,7 +92,10 @@ class CommonMSG:
     def _init_class(cls):
         # NOTE: because of transcrypt, we cannot use a set..
         # nor can we seem to be able to define these as class variables.
-        # instead, use a class method which is called upon import below
+        # instead, use a class method which is called upon import of the module.
+        # Note that, because of this unorthodox way of initialising class variables,
+        # mypy gets confused, and believes that the class does not
+        # have a valid_msg_lst attribute
         cls.valid_msg_lst = [cls.MSG_SV_RAND_NUM, cls.MSG_SV_TIMER_TICK,
                              cls.MSG_SV_FILE_STATE_CHANGE,
                              cls.MSG_SV_RFID_STATREP, cls.MSG_SV_RFID_ACTIVITY,

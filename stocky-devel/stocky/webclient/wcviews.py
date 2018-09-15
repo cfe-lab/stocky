@@ -5,9 +5,9 @@ from org.transcrypt.stubs.browser import window
 import qailib.common.base as base
 
 import qailib.transcryptlib.htmlelements as html
-import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.simpletable as simpletable
 import qailib.transcryptlib.widgets as widgets
+import qailib.transcryptlib.cleverlabels as cleverlabels
 import qailib.transcryptlib.SVGlib as SVGlib
 
 # NOTE: would like to import this here for typing, but it leads to javascript
@@ -57,6 +57,8 @@ class SwitcheeView(widgets.BasicView):
         """This method called whener the view becomes active (because the user
         has selected the respective view button.
         Subclasses should set up their pages in here.
+        NOTE: this method could also be called in response to user input.
+        Example: the user has chosen a different location, so we must redraw the page...
         """
         print("EMPTY VIEW REDRAW")
 
@@ -140,49 +142,7 @@ class RadarView(SwitcheeView):
         svg.text(xleft, ytop, blu_colorstr, epc)
 
 
-class ScanList(simpletable.simpletable):
-    _RFID_COL = 0
-    _ACTIV_COL = 1
-
-    def __init__(self, parent: widgets.base_widget, idstr: str) -> None:
-        attrdct: typing.Dict[str, str] = {'class': 'scanlist'}
-        super().__init__(parent, idstr, attrdct, 0, 2)
-        self.reset()
-
-    def reset(self):
-        """Empty the list and display a placeholder..."""
-        self._tklst = []
-        self._tkdct = {}
-        self.delete_rows()
-        if not self.has_header_row():
-            self.add_header_row()
-            kattrdct = {'class': "w3-tag w3-blue"}
-            for colnum, txt in [(ScanList._RFID_COL, "RFID label"),
-                                (ScanList._ACTIV_COL, "Selected?")]:
-                kcell = self.getheader(colnum)
-                if kcell is not None:
-                    html.label(kcell, "", kattrdct, txt, None)
-
-    def _add_token(self, newtk: str) -> None:
-        """Add a new token string to the list."""
-        if newtk not in self._tkdct:
-            on_attrdct = {'class': "w3-tag w3-green"}
-            off_attrdct = {'class': "w3-tag w3-red"}
-            on_text = "Add to QAI"
-            off_text = "Ignore"
-            # add the new token...
-            rownum = self.append_row()
-            kcell = self.getcell(rownum, ScanList._RFID_COL)
-            if kcell is not None:
-                kattrdct = {'class': "w3-tag w3-red"}
-                html.label(kcell, "", kattrdct, newtk, None)
-            vcell = self.getcell(rownum, ScanList._ACTIV_COL)
-            if vcell is not None:
-                tog_lab = forms.ToggleLabel(vcell, "rfid_lsb{}".format(rownum),
-                                            on_attrdct, on_text,
-                                            off_attrdct, off_text)
-                self._tkdct[newtk] = tog_lab
-            self.set_alignment(rownum, ScanList._ACTIV_COL, "center")
+class BaseScanList:
 
     def add_scan(self, newdat: base.MSGdata_Type) -> None:
         """Add new RFID scan data to the list.
@@ -198,7 +158,66 @@ class ScanList(simpletable.simpletable):
         """
         for tag, cont in newdat:
             if (tag == 'EP' or tag == 'BC') and cont[:4] == 'CHEM':
-                self._add_token(cont)
+                self._register_RFID_token(cont)
+
+    def _register_RFID_token(self, newtk: str) -> None:
+        """This routine should be overridden in the subclasses"""
+        print("BaseScanList: _register_RFID_token is being called. This is probably an error")
+
+
+class AddScanList(simpletable.simpletable, BaseScanList):
+    """This class is used when adding new stock to the inventory.
+    It displays a list of RFID tags (left column) that have been scanned, and allows
+    the user to choose whether they should be added or not (right column).
+    """
+
+    _RFID_COL = 0
+    _ACTIV_COL = 1
+
+    def __init__(self, parent: widgets.base_widget, idstr: str) -> None:
+        attrdct: typing.Dict[str, str] = {'class': 'scanlist'}
+        simpletable.simpletable.__init__(self, parent, idstr, attrdct, 0, 2)
+        self.reset()
+
+    def reset(self):
+        """Empty any list in the table and display a placeholder..."""
+        self._tkdct = {}
+        self.adjust_row_number(0)
+        if not self.has_header_row():
+            self.add_header_row()
+            kattrdct = {'class': "w3-tag w3-blue"}
+            for colnum, txt in [(AddScanList._RFID_COL, "RFID label"),
+                                (AddScanList._ACTIV_COL, "Selected?")]:
+                kcell = self.getheader(colnum)
+                if kcell is not None:
+                    html.label(kcell, "", kattrdct, txt, None)
+
+    def _register_RFID_token(self, newtk: str) -> None:
+        """This method is called when a RFID tag has been produced by
+        the RFID reader. Handle it here.
+        This method is overridden from BaseScanList.
+
+        NOTE: here, we simply add any new token to the list if we haven't
+        got it in the list already.
+        """
+        if newtk not in self._tkdct:
+            on_attrdct = {'class': "w3-tag w3-green"}
+            off_attrdct = {'class': "w3-tag w3-red"}
+            on_text = "Add to QAI"
+            off_text = "Ignore"
+            # add the new token...
+            rownum = self.append_row()
+            kcell = self.getcell(rownum, AddScanList._RFID_COL)
+            if kcell is not None:
+                kattrdct = {'class': "w3-tag w3-red"}
+                html.label(kcell, "", kattrdct, newtk, None)
+            vcell = self.getcell(rownum, AddScanList._ACTIV_COL)
+            if vcell is not None:
+                tog_lab = cleverlabels.ToggleLabel(vcell, "rfid_lsb{}".format(rownum),
+                                            on_attrdct, on_text,
+                                            off_attrdct, off_text)
+                self._tkdct[newtk] = tog_lab
+            self.set_alignment(rownum, AddScanList._ACTIV_COL, "center")
 
     def get_active_tags(self) -> typing.List[str]:
         """Return the list of RFID tags (in column 0) if the column 1
@@ -209,8 +228,9 @@ class ScanList(simpletable.simpletable):
 
 class AddNewStockView(SwitcheeView):
     """This is the view that the user will use to add new stock to the QAI system.
-    a) We allow the user to scan RFID tags and display them.
-    b) Once happy, the user hits a button and is redirected to a QAI window.
+    a) The user may optionally select a location into which the new stock will be placed.
+    b) We allow the user to scan RFID tags and display them.
+    c) Once happy, the user hits a button and is redirected to a QAI window.
     """
 
     GO_ADD_NEW_STOCK = 'go_add_new_stock'
@@ -228,11 +248,15 @@ items to be added to QAI for the first time."""
         print("AddNewStockView!!!")
         self.location_sel: typing.Optional[html.select] = None
         self.gobutton: typing.Optional[html.textbutton] = None
-        self.scanlist: typing.Optional[ScanList] = None
-        self._initelements()
+        self.scanlist: typing.Optional[AddScanList] = None
         contr.addObserver(self, base.MSGD_RFID_CLICK)
 
-    def _initelements(self):
+    def Redraw(self):
+        """This method called whener the view becomes active (because the user
+        has selected the respective view button.
+        Subclasses should set up their pages in here.
+        """
+        print("Add New stock REDRAW")
         if self.location_sel is None:
             htext = 'Select the stock location you want to add new items to'
             self.location_sel = self.wcstatus.get_location_selector(self,
@@ -242,7 +266,7 @@ items to be added to QAI for the first time."""
             self.wcstatus.update_location_selector(self.location_sel, True)
         # list of scanned RFID tags...
         if self.scanlist is None:
-            self.scanlist = ScanList(self, "scocanlist")
+            self.scanlist = AddScanList(self, "scoaddscanlist")
         else:
             self.scanlist.reset()
         # now add a 'GO' button
@@ -254,14 +278,6 @@ items to be added to QAI for the first time."""
             buttontext = "Add to QAI"
             self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
             self.gobutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
-
-    def Redraw(self):
-        """This method called whener the view becomes active (because the user
-        has selected the respective view button.
-        Subclasses should set up their pages in here.
-        """
-        print("Add New stock REDRAW")
-        self._initelements()
 
     def rcvMsg(self,
                whofrom: 'base.base_obj',
@@ -331,27 +347,10 @@ class DownloadQAIView(SwitcheeView):
 For this to work, the stocky computer must be plugged in to ethernet and you must first log in."""
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
-
-        # status label and spinner are in a cell-row (so they appear side-by side)
-        cl_attrdct = {'class': 'w3-cell-row'}
-        cellrow = html.div(self, "cldiv", cl_attrdct, None)
-        # status label..
-        # cc_attrdct = {'class': 'w3-container w3-cell'}
-        # self.stat = html.spantext(cellrow, "blastr", cc_attrdct, "NOT LOGGED IN")
-        # spinner
-        spin_sz_pixels = 50
-        # span_attrdct = {'height': '{}px'.format(spin_sz_pixels),
-        #                'class': 'w3-container w3-cell'}
-        # spinnerspan = html.span(cellrow, "spinnerspan", span_attrdct, None)
-        # spin_attrdct = {'class': "w3-display-middle"}
-        spin_attrdct = {'title': "Download activity from QAI"}
-        self.spinner = forms.spinner(cellrow, "myspin",
-                                     spin_attrdct, forms.spinner.SPN_SPINNER,
-                                     spin_sz_pixels)
         self.stat_tab: typing.Optional[simpletable.dict_table] = None
 
     def Redraw(self):
-        """Start the download if we are loggged in."""
+        """Start the download if we are logged in."""
         is_logged_in = self.wcstatus.is_QAI_logged_in()
         print("LOGGED IN {}".format(is_logged_in))
         if is_logged_in:
@@ -359,8 +358,7 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
 
     def _start_download(self) -> None:
         # self.stat.set_text("Downloading QAI data...")
-        spin = self.spinner
-        spin.set_spin(True)
+        self.wcstatus.set_busy(True)
         # typing.cast(wccontroller.stocky_mainprog, self._contr).start_QAI_download()
         self._contr.start_QAI_download()
 
@@ -377,7 +375,173 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
                                                    list(db_stat_dct.items()))
         else:
             self.stat_tab.update_table(db_stat_dct)
-        self.spinner.set_spin(False)
+        self.wcstatus.set_busy(False)
+
+class rowtracker:
+    """Keep track of all HTML elements on one row of a CheckScanList"""
+    def __init__(self) -> None:
+        pass
+
+
+class CheckScanList(simpletable.simpletable, BaseScanList):
+    """This class is used when adding new stock to the inventory.
+    It displays a list of RFID tags (left column) that have been scanned,
+    and allows the user to choose whether they should be added
+    or not (right column).
+    """
+
+    _ITID_COL = 0
+    _RFID_COL = 1
+    _EXP_COL = 2
+    _DESC_COL = 3
+    _SCANSTAT_COL = 4
+    _ACTION_COL = 5
+    _NUM_COLS = 6
+    def __init__(self,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 ll: typing.Optional[list]) -> None:
+        attrdct: typing.Dict[str, str] = {'class': 'scanlist'}
+        simpletable.simpletable.__init__(self, parent, idstr, attrdct, 0, CheckScanList._NUM_COLS)
+        self.reset(ll)
+
+    def reset(self, ll: typing.Optional[list]):
+        """Empty any existing list in the table, then
+        write a new table from the list of dicts...
+        """
+        print("reset ll")
+        with html.ParentUncouple(self):
+            self._rfid_dct = {}
+            self._row_dct = {}
+            if not self.has_header_row():
+                print("adding header...")
+                self.add_header_row()
+                kattrdct = {'class': "w3-tag w3-blue"}
+                for colnum, txt in [(CheckScanList._ITID_COL, "Item ID"),
+                                    (CheckScanList._RFID_COL, "RFID label"),
+                                    (CheckScanList._EXP_COL, "Expected?"),
+                                    (CheckScanList._DESC_COL, "Description"),
+                                    (CheckScanList._SCANSTAT_COL, "Scan Status"),
+                                    (CheckScanList._ACTION_COL, "Action")]:
+                    kcell = self.getheader(colnum)
+                    if kcell is not None:
+                        html.label(kcell, "", kattrdct, txt, None)
+            #-- add the elements from ll, all with an 'undetected' scan status.
+            ll = ll or []
+            self.adjust_row_number(len(ll))
+            print("dunnn 01")
+            for rownum, rdct in enumerate(ll):
+                self._add_expected_row(rownum, rdct)
+
+        print("end reset ll")
+
+    def _add_expected_row(self, rownum: int, rdct: dict) -> None:
+        """We are given a dict:
+        {'id': 17107, 'last_seen': {}, 'lot_num': 'MKBS0446V',
+        'notes': 'for use of fridge/freezer probes',
+        'qcs_location_id': 10046, 'qcs_reag_id': 8158, 'rfid': '(no RFID)'}
+        here, add it to the table.
+
+        NOTE: the table is expected to have the correct number of rows...just
+        modify the cells on the give rownum here.
+        """
+        red_label = {'class': "w3-tag w3-red"}
+        grn_label = {'class': "w3-tag w3-green"}
+        normal_label = {'class': "w3-tag"}
+        on_attrdct = grn_label
+        off_attrdct = red_label
+        # keep some salient information about the item in rtracker.
+        rtracker = rowtracker()
+        rtracker.id = id_str = rdct['id']
+        self._row_dct[id_str] = rtracker
+        rtracker.expected = True
+        rtracker.detected = False
+        rtracker._dict = rdct
+        rtracker.rownum = rownum
+
+        # we retrieve the row to see whether we can reuse some of its columns...
+        myrow = self.getrow(rownum)
+        if myrow is None:
+            print("row number {} is None".format(rownum))
+            return
+        is_new_row = myrow.isnew
+        # print("exp row {} {}".format(rownum, is_new_row))
+
+        # see whether we have a valid rfid token...
+        if rdct['rfid'].startswith('CHEM'):
+            rfid_str = rdct['rfid']
+            self._rfid_dct[rfid_str] = rtracker
+        else:
+            rfid_str = "none"
+
+        # assemble description string
+        desc_str = "whisky-cola, lot: {}".format(rdct['lot_num'])
+        for colnum, coltext, field_attrdct in [(CheckScanList._ITID_COL, id_str, normal_label),
+                                               (CheckScanList._RFID_COL, rfid_str, normal_label),
+                                               (CheckScanList._EXP_COL, 'expected', grn_label),
+                                               (CheckScanList._DESC_COL, desc_str, normal_label)]:
+            if is_new_row:
+                kcell = myrow.getcell(colnum)
+                if kcell is not None:
+                    lab = html.label(kcell, "", field_attrdct, coltext, None)
+                    myrow.setcellcontent(colnum, lab)
+                else:
+                    print("error 99")
+                    return
+            else:
+                lab = myrow.getcellcontent(colnum)
+                # print("setty {}".format(lab))
+                lab.set_text(coltext)
+        # scan status
+        if is_new_row:
+            vcell = myrow.getcell(CheckScanList._SCANSTAT_COL)
+            if vcell is not None:
+                on_text = "detected"
+                off_text = "undetected"
+                tog_lab = cleverlabels.ToggleLabel(vcell, "scanstat_tog{}".format(rownum),
+                                                   on_attrdct, on_text,
+                                                   off_attrdct, off_text)
+                myrow.setcellcontent(CheckScanList._SCANSTAT_COL, tog_lab)
+            self.set_alignment(rownum, CheckScanList._SCANSTAT_COL, "center")
+        else:
+            tog_lab = myrow.getcellcontent(CheckScanList._SCANSTAT_COL)
+        tog_lab.set_state(False)
+        rtracker.scanstat_tog = tog_lab
+
+        # action column
+        if is_new_row:
+            vcell = myrow.getcell(CheckScanList._ACTION_COL)
+            if vcell is not None:
+                on_text = "report"
+                off_text = "ignore"
+                tog_lab = cleverlabels.ToggleLabel(vcell, "action_tog{}".format(rownum),
+                                                   on_attrdct, on_text,
+                                                   off_attrdct, off_text)
+                myrow.setcellcontent(CheckScanList._ACTION_COL, tog_lab)
+            self.set_alignment(rownum, CheckScanList._ACTION_COL, "center")
+        else:
+            tog_lab = myrow.getcellcontent(CheckScanList._ACTION_COL)
+        tog_lab.set_state(False)
+        rtracker.action_tog = tog_lab
+        myrow.isnew = False
+
+    def _register_RFID_token(self, newtk: str) -> None:
+        """This method is called when a RFID tag has been produced by
+        the RFID reader. Handle it here.
+        This method is overridden from BaseScanList.
+
+        NOTE: here, a token might be expected or not for the current location.
+        """
+        if newtk in self._rfid_dct:
+            print("newtk {} already in checkscanlist".format(newtk))
+        else:
+            self._add_unexpected(newtk)
+
+    def BLAget_active_tags(self) -> typing.List[str]:
+        """Return the list of RFID tags (in column 0) if the column 1
+        state is OK.
+        """
+        return [k for k, tog in self._tkdct.items() if tog.is_A_state()]
 
 
 class CheckStockView(SwitcheeView):
@@ -389,7 +553,7 @@ class CheckStockView(SwitcheeView):
     d) Once, happy, the user confirms the stock state.
     """
 
-    GO_ADD_NEW_STOCK = 'go_add_new_stock'
+    GO_CHECK_STOCK = 'go_check_stock'
 
     def __init__(self, contr: widgets.base_controller,
                  parent: widgets.base_widget,
@@ -400,11 +564,10 @@ class CheckStockView(SwitcheeView):
         help_text = """Use the scanner to verify the presence of stock at a specific location."""
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, help_text)
-        print("AddNewStockView!!!")
+        print("CheckStockView!!!")
         self.location_sel: typing.Optional[html.select] = None
         self.gobutton: typing.Optional[html.textbutton] = None
-        self.scanlist: typing.Optional[ScanList] = None
-        self._initelements()
+        self.scanlist: typing.Optional[CheckScanList] = None
         contr.addObserver(self, base.MSGD_RFID_CLICK)
 
     def rcvMsg(self,
@@ -415,30 +578,54 @@ class CheckStockView(SwitcheeView):
             print("GOT SCAN DATA {}".format(msgdat))
             if self.scanlist is not None and msgdat is not None:
                 self.scanlist.add_scan(msgdat)
+        elif msgdesc == base.MSGD_BUTTON_CLICK:
+            # print("YOYO BLABLA {}".format(whofrom))
+            if self.location_sel is not None and whofrom == self.location_sel:
+                # a new location has been selected: redraw the screen with
+                # the new location
+                print("new LOCKCHECK")
+                self.Redraw()
+            else:
+                super().rcvMsg(whofrom, msgdesc, msgdat)
         else:
             super().rcvMsg(whofrom, msgdesc, msgdat)
 
-    def _initelements(self):
+    def Redraw(self):
+        print("CHECKSTOCK REDRAW")
+        self.wcstatus.set_busy(True)
         if self.location_sel is None:
             htext = 'Select the stock location you want to check.'
             self.location_sel = self.wcstatus.get_location_selector(self,
                                                                     "checklocsel",
-                                                                    htext)
+                                                                    htext, False)
+            self.location_sel.addObserver(self, base.MSGD_BUTTON_CLICK)
         else:
-            self.wcstatus.update_location_selector(self.location_sel)
+            self.wcstatus.update_location_selector(self.location_sel, False)
         # here add a table of items at this location...
-
+        ndx, val = self.location_sel.get_selected()
+        print("LOCKY: {} {}".format(ndx, val))
+        locid = None if val == LOC_NOSEL_ID else val
+        loc_items = self.wcstatus.get_location_items(locid)
+        # NOTE: ll can also be None...
+        # we will receive a list of dicts like this:
+        # {'id': 17107, 'last_seen': {}, 'lot_num': 'MKBS0446V',
+        #   'notes': 'for use of fridge/freezer probes',
+        #   'qcs_location_id': 10046, 'qcs_reag_id': 8158, 'rfid': '(no RFID)'}
+        # the id is a reagent item id...
+        if self.scanlist is None:
+            self.scanlist = CheckScanList(self, "scocheckscanlist", loc_items)
+        else:
+            self.scanlist.reset(loc_items)
         # now add a 'GO' button
         if self.gobutton is None:
             idstr = "addloc-but"
             attrdct = {'class': 'w3-button',
                        'title': "Add selected RFID tags to QAI",
-                       STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_ADD_NEW_STOCK)}
-            buttontext = "Add to QAI"
+                       STARATTR_ONCLICK: dict(cmd=CheckStockView.GO_CHECK_STOCK)}
+            buttontext = "Check Stock"
             self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
             self.gobutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
+        self.wcstatus.set_busy(False)
+        print("CHECKSTOCK REDRAW DONE")
 
-    def Redraw(self):
-        """Start the download if we are loggged in."""
-        print("CHECKSTOCK REDRAW")
-        self._initelements()
+

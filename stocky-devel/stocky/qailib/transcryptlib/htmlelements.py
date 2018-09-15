@@ -107,6 +107,17 @@ class base_element(base.base_obj):
     def hasAttribute(self, k: str) -> bool:
         return self._el.hasAttribute(k)
 
+    # special handling of the 'hidden' attribute
+    # this allows an element to be visible or not
+    def set_visible(self, is_visible: bool) -> None:
+        """Set this element to be hidden or visible.
+        Initially, upon creation, all elements are visible.
+        """
+        if is_visible:
+            self.removeAttribute('hidden')
+        else:
+            self.setAttribute('hidden', True)
+
     def getID(self) -> str:
         """Short form of self.getAttribute('id')"""
         return self._el.getAttribute("id")
@@ -136,10 +147,16 @@ class base_element(base.base_obj):
         """Return this element's innerHTML contents as a string"""
         return self._el.innerHTML
 
+    def removeAllChildren(self) -> None:
+        jsel = self._el
+        while jsel.firstChild:
+            jsel.removeChild(jsel.firstChild)
+
     def get_WH(self) -> typing.Tuple[int, int]:
         """Return the width and height of the element in pixels."""
         rc = self._el.getBoundingClientRect()
         return (rc.width, rc.height)
+
 
     # manipulate class attributes
     # see https://developer.mozilla.org/en-US/docs/Web/API/Element/classList for
@@ -211,6 +228,9 @@ def create_elementstring(parent: base_element, idstr: str, attrdct: dict,
     el = elementclass(parent, idstr, attrdct)
     textnode(el, text)
     return el
+
+# a context manager for uncoupling the JS element from a parent
+# during update.
 
 
 class generic_element(base_element):
@@ -317,6 +337,30 @@ class generic_element(base_element):
         print("element.RECV({}): msg {} from {}: passing to parent..".format(self._idstr, msgdesc, whofrom._idstr))
         if self._parent is not None:
             self._parent.rcvMsg(whofrom, msgdesc, msgdat)
+
+    # parent manipulation -- these are best used in a context manager (ParentUncouple, see below)
+    def _removeJSfromParent(self) -> None:
+        jsel = self._el
+        jsel.parentNode.removeChild(jsel)
+
+    def _addJStoParent(self) -> None:
+        if self._parent is not None:
+            jsparent = self._parent._el
+            jsparent.appendChild(self._el)
+
+
+class ParentUncouple:
+    """Uncouple the js element from its parent while we update its
+    appearance for speed.
+    Recouple the js elements on exit."""
+    def __init__(self, el: generic_element) -> None:
+        self.obj = el
+
+    def __enter__(self):
+        self.obj._removeJSfromParent()
+
+    def __exit__(self, *args):
+        self.obj._addJStoParent()
 
 
 class element(generic_element):
@@ -624,6 +668,9 @@ class label(element):
         generic_element.__init__(self, 'label', parent, idstr, attrdct, jsel)
         self.setInnerHTML(labeltext)
 
+    def set_text(self, labeltext: str) -> None:
+        self.setInnerHTML(labeltext)
+    
 
 class option(element):
     """An option element that goes inside a select element."""
@@ -640,24 +687,28 @@ class select(element):
         self._optlst: typing.List[option] = []
         self._optdct: typing.Dict[str, option] = {}
 
-    def get_selected(self) -> typing.Tuple[int, str]:
-        """Return the currently selected index and value string """
+    def get_selected(self) -> typing.Tuple[typing.Optional[int], typing.Optional[str]]:
+        """Return the currently selected index and value string.
+        NOTE: it may be that no element is selected. In this case, selectedIndex will
+        return a value of -1. Return None, None in this case.
+        """
         sel_ndx = self._el.selectedIndex
+        if sel_ndx == -1:
+            return (None, None)
         val = self._el.options[sel_ndx].value
         return (int(sel_ndx), val)
 
     def has_option_id(self, idstr: str) -> bool:
-        """Return 'the select element has an option field with a id = idstr' """
+        """Return 'the select element has an option field with an id == idstr' """
         return self._optdct.get(idstr, None) is not None
 
     def num_options(self) -> int:
         """Return the number of options"""
         return len(self._optlst)
 
-    def add_option(self, idstr: str, name: str) -> None:
-        """Add an option to the list.
-        The HTML value becomes if idstr and the displayed string is 'name'
-
+    def _add_option(self, idstr: str, name: str) -> None:
+        """Add an option to the end of the option list.
+        The HTML value of the option becomes idstr and the displayed string is 'name'.
         """
         optattrdct = {'value': idstr}
         opt = option(self, "locopt{}".format(idstr), optattrdct, None)
@@ -668,7 +719,7 @@ class select(element):
     def add_or_set_option(self, idstr: str, name: str) -> None:
         opt = self._optdct.get(idstr, None)
         if opt is None:
-            self.add_option(idstr, name)
+            self._add_option(idstr, name)
         else:
             opt.setInnerHTML(name)
 

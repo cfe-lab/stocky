@@ -255,7 +255,8 @@ PATH_REAGITEM_LIST = '/qcs_reagent/list_reagent_items'
 PATH_REAGITEM_STATUS = '/qcs_reagent/item_status'
 
 # suppliers
-PATH_REAGENT_LIST_SUPPLIERS = '/qcs_reagent/list_suppliers'
+# changed 2018-09-10: PATH_REAGENT_LIST_SUPPLIERS = '/qcs_reagent/list_suppliers'
+PATH_REAGENT_LIST_SUPPLIERS = '/qcs_supplier_companies'
 
 # user list
 PATH_USER_LIST = '/qcs_user/list'

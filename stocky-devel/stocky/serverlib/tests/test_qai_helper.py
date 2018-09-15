@@ -218,12 +218,8 @@ class SimpleQAItester:
         assert rcode == HTTP_OK, "called failed"
         if lverb:
             yamlutil.writeyamlfile(cls.supplierlst, "./supplierlst.yaml")
-        # lets choose a supplier from the list. Upjohn if we have it, otherwise choose
-        # the first name in the list.
-        if "Upjohn" in cls.supplierlst:
-            cls.selected_supplier = "Upjohn"
-        else:
-            cls.selected_supplier = cls.supplierlst[0]
+        # lets choose a supplier from the list. Choose the first name in the list.
+        cls.selected_supplier_dct = cls.supplierlst[0]
         # retrieve the list of locations and choose some for testing.
         rcode, cls.loclst = cls.s.get_json(PATH_LOCATION_LIST)
         assert rcode == HTTP_OK, "called failed"
@@ -271,13 +267,14 @@ class SimpleQAItester:
                     'storage': '',
                     'needs_validation': None,
                     'expiry_time': 30,
-                    'supplier': cls.selected_supplier,
+                    'supplier': cls.selected_supplier_dct['name'],
                     'catalog_number': cls.test_reagent_catnum,
                     'date_msds_expires': 'never',
                     'msds_filename': ''}
             rcode, postres = cls.s.post_json(TPATH_REAGENT_SAVE, data=pdct, retries=1)
-            assert rcode == HTTP_OK, "called failed"
-            print("POSTreagent save {}".format(postres))
+            if lverb:
+                print("POSTreagent save {}".format(postres))
+            assert rcode == HTTP_CREATED, "call failed"
             cls.test_reagent_id = postres['id']
         print("goot ID {}".format(cls.test_reagent_id))
         assert cls.test_reagent_id is not None, "cannot get test reagent id"
@@ -403,7 +400,7 @@ class Test_creation(SimpleQAItester):
                  'storage': '',
                  'needs_validation': None,
                  'expiry_time': 10,
-                 'supplier': self.selected_supplier,
+                 'supplier': self.selected_supplier_dct['name'],
                  'date_msds_expires': 'never'}
         # illegal basetype
         pdct2 = pdct1.copy()
