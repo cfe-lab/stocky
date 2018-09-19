@@ -61,6 +61,7 @@ menulst = [
 
 
 class stocky_mainprog(widgets.base_controller):
+
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
         super().__init__(myname)
         self._ws = ws
@@ -140,7 +141,6 @@ class stocky_mainprog(widgets.base_controller):
         """This is a list of string tuples.  (epc code, RI) """
         radar_view = self.switch.getView(RADAR_VIEW_NAME)
         radar_view.set_radardata(radarinfo)
-
 
     def set_login_status(self, resdct: dict) -> None:
         """Display the login status in the window"""

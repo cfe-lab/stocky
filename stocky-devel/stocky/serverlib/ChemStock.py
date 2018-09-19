@@ -122,7 +122,18 @@ class TableChange(Base):
     stamp = sql.Column(sql.String)
 
 
+# when stock taking, keep track of RFID's that have changed position.
+class Locmutation(Base):
+    __tablename__ = 'locmutation'
+    reag_item_id = sql.Column(sql.Integer, primary_key=True)
+    locid = sql.Column(sql.Integer)
+    # rfid = sql.Column(sql.String)
+    op = sql.Column(sql.String)
+
+
 class node:
+    """An internal helper class used to sort the hierarchical location names."""
+
     def __init__(self, name: str) -> None:
         self.name = name
         self.child_dct: typing.Dict[str, "node"] = {}
@@ -147,7 +158,7 @@ class node:
         else:
             raise RuntimeError('node value set twice!')
 
-    def getval(self) -> dict:
+    def getval(self) -> typing.Optional[dict]:
         return self.val
 
     def dfslst(self, topname, lst) -> None:
@@ -170,6 +181,10 @@ def sortloclist(orglst: typing.List[dict]) -> typing.List[dict]:
     rlst: typing.List[dict] = []
     root.dfslst("", rlst)
     return rlst
+
+
+LocChangeTup = typing.Tuple[int, str]
+LocChangeList = typing.List[LocChangeTup]
 
 
 class ChemStockDB:
@@ -394,9 +409,10 @@ class ChemStockDB:
         # NOTE: as we want dicts and not Location instances, we go directly to
         # the 'SQL level' (session.execute() and not the 'ORM level' (session.query())
         # of sqlquery.
-        loclst = [dict(row) for row in self._sess.execute(Location.__table__.select())]
-        itmlst = [dict(row) for row in self._sess.execute(Reagent_Item.__table__.select())]
-        itmstat = [dict(row) for row in self._sess.execute(Reagent_Item_Status.__table__.select())]
+        s = self._sess
+        loclst = [dict(row) for row in s.execute(Location.__table__.select())]
+        itmlst = [dict(row) for row in s.execute(Reagent_Item.__table__.select())]
+        itmstat = [dict(row) for row in s.execute(Reagent_Item_Status.__table__.select())]
 
         # create a Dict[locationid, List[reagentitem]] and a Dict[RFID, reagentitem]
         dd: typing.Dict[typing.Optional[int], typing.List[dict]] = {}
@@ -464,7 +480,7 @@ class ChemStockDB:
             # else:
             # print("skipping {}".format(reag_item))
         # create a Dict[reagentid, reagent]
-        rl = [dict(row) for row in self._sess.execute(Reagent.__table__.select())]
+        rl = [dict(row) for row in s.execute(Reagent.__table__.select())]
         rg = {}
         for reagent in rl:
             # delete the legacy location field in reagents...
@@ -487,4 +503,37 @@ class ChemStockDB:
         if self._haschanged:
             self._cachedct = self.DOgenerate_webclient_stocklist()
             self._haschanged = False
-        return self._cachedct
+            return self._cachedct
+
+    # location changes ---
+    def reset_loc_changes(self) -> None:
+        """Remove all location changes in the database."""
+        s = self._sess
+        s.query(Locmutation).delete()
+        s.commit()
+
+    def number_of_loc_changes(self) -> int:
+        """Return the number location changes currently in the database"""
+        s = self._sess
+        return s.query(Locmutation).count()
+
+    def add_loc_changes(self, locid: int, locdat: LocChangeList) -> None:
+        """The locdat is a list of tuple
+        (18023, 'missing')
+        reagent (item ID, string)
+        """
+        if not isinstance(locid, int):
+            raise ValueError("locid must be an int")
+        s = self._sess
+        for reag_itm_id, opstring in locdat:
+            if not isinstance(reag_itm_id, int):
+                raise ValueError("reag_itm_id must be an int")
+            lm = Locmutation(**dict(reag_item_id=reag_itm_id, locid=locid, op=opstring))
+            s.merge(lm)
+
+    def get_loc_changes(self) -> typing.Dict[int, LocChangeList]:
+        """Return all location changes in the database."""
+        ret_dct: typing.Dict[int, LocChangeList] = {}
+        for row in self._sess.execute(Locmutation.__table__.select()):
+            ret_dct.setdefault(row.locid, []).append((row.reag_item_id, row.op))
+        return ret_dct

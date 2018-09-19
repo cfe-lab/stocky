@@ -41,6 +41,9 @@ qai-coverage: ## show test coverage of code accessing the test QAI server
 	coverage run -m py.test serverlib --with_qai -k test_qai_helper
 	coverage report  -m --include="serverlib/qai_helper.py"
 #--
+dump_chemstock: ## reload the chemstock YAML file used for testing
+	pytest -v serverlib --dump_chemstock -k test_qai_dump
+
 chemstock-test: ## run the unit tests that access a local chemstocks YAML file
 	pytest -v serverlib --with_chemstock --ff -k test_ChemStock
 func-test: ## run the unit tests 

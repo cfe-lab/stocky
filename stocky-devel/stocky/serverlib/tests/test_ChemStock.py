@@ -18,8 +18,6 @@ withchemstock = pytest.mark.skipif(not pytest.config.option.with_chemstock,
 withchemstockANDqa1 = pytest.mark.skipif(not pytest.config.option.with_cs_qai,
                                          reason="needs --with_cs_qai option in order to run")
 
-# csdb = None
-
 
 class Test_funcs:
     """Test a number of helper functions in the ChemStock module,
@@ -107,6 +105,50 @@ class Test_Chemstock_EMPTYDB(commontests):
         assert upd_str != new_upd, "updates must be different!"
         # assert False, " force fail"
 
+    def test_addlocchanges01(self) -> None:
+        csdb = self.csdb
+        wrong_locid = '99'
+        locdat = [(1, 'missing'), (2, 'found'), (3, 'missing')]
+        with pytest.raises(ValueError):
+            csdb.add_loc_changes(wrong_locid, locdat)
+        #
+        wronglocdat = [('1', 'missing'), ('2', 'found'), ('3', 'missing')]
+        with pytest.raises(ValueError):
+            csdb.add_loc_changes(99, wronglocdat)
+
+    def test_addlocchanges02(self) -> None:
+        csdb = self.csdb
+        locid = 99
+        # reset should remove all records
+        csdb.reset_loc_changes()
+        ngot = csdb.number_of_loc_changes()
+        assert isinstance(ngot, int), "int expected"
+        assert ngot == 0, "n should be zero!"
+        # add three changes
+        locdat = [(1, 'missing'), (2, 'found'), (3, 'missing')]
+        csdb.add_loc_changes(locid, locdat)
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 3, "expected three!"
+        # adding the same records again -- expect no change..
+        csdb.add_loc_changes(locid, locdat)
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 3, "expected three!"
+        # add a different loc change..
+        locdat = [(1, 'found'), (2, 'found'), (3, 'missing')]
+        csdb.add_loc_changes(locid, locdat)
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 3, "expected three!"
+        # read back all changes
+        dct = csdb.get_loc_changes()
+        assert isinstance(dct, dict), "dict expected"
+        print("dd {}".format(dct))
+        gotlst = dct[locid]
+        assert len(gotlst) == len(locdat), "unexpected length"
+        print("locc {}".format(gotlst))
+        # assert False, "force fail"
+        # remove all records to finish up
+        csdb.reset_loc_changes()
+
 
 @withchemstock
 class Test_Chemstock_NOQAI(commontests):
@@ -147,10 +189,6 @@ class Test_Chemstock_WITHQAI(commontests):
         cls.csdb = ChemStock.ChemStockDB(cls.locdbname, sess, 'America/Vancouver')
         print("DB NAME: {}".format(cls.csdb._locQAIfname))
         # assert False, "force fail"
-
-    def test01(self):
-        # assert False, "force fail!"
-        pass
 
     def test_update_from_qai02(self):
         """Actually update our local DB from QAI over the network.."""

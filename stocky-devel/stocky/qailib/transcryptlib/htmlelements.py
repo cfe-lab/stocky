@@ -157,7 +157,6 @@ class base_element(base.base_obj):
         rc = self._el.getBoundingClientRect()
         return (rc.width, rc.height)
 
-
     # manipulate class attributes
     # see https://developer.mozilla.org/en-US/docs/Web/API/Element/classList for
     # how these work.
@@ -339,28 +338,41 @@ class generic_element(base_element):
             self._parent.rcvMsg(whofrom, msgdesc, msgdat)
 
     # parent manipulation -- these are best used in a context manager (ParentUncouple, see below)
-    def _removeJSfromParent(self) -> None:
+    def _removeJSfromParent(self) -> int:
+        """Remove this object's js item from its parent, returning its child index
+        before removal. This will allow returning to the same place afterwards."""
         jsel = self._el
-        jsel.parentNode.removeChild(jsel)
+        jsparent = jsel.parentNode
+        child_col = jsparent.children
+        ifnd = 0
+        while ifnd < child_col.length and child_col[ifnd] != jsel:
+            ifnd += 1
+        jsparent.removeChild(jsel)
+        return ifnd
 
-    def _addJStoParent(self) -> None:
+    def _addJStoParent(self, pos: int) -> None:
+        """Add this object's js object into the parent at position pos"""
         if self._parent is not None:
             jsparent = self._parent._el
-            jsparent.appendChild(self._el)
+            child_arr = jsparent.children
+            # NOTE: if we set bef_node to null, we add our new element to the end of the list..
+            bef_node = child_arr[pos] if pos < child_arr.length else None
+            jsparent.insertBefore(self._el, bef_node)
 
 
 class ParentUncouple:
     """Uncouple the js element from its parent while we update its
     appearance for speed.
-    Recouple the js elements on exit."""
+    Recouple the js element at the same location in the parent's list of children on exit."""
     def __init__(self, el: generic_element) -> None:
         self.obj = el
+        self.pos: typing.Optional[int] = None
 
     def __enter__(self):
-        self.obj._removeJSfromParent()
+        self.pos = self.obj._removeJSfromParent()
 
     def __exit__(self, *args):
-        self.obj._addJStoParent()
+        self.obj._addJStoParent(self.pos)
 
 
 class element(generic_element):
@@ -666,11 +678,15 @@ class label(element):
                  labeltext: str,
                  jsel) -> None:
         generic_element.__init__(self, 'label', parent, idstr, attrdct, jsel)
-        self.setInnerHTML(labeltext)
+        self.set_text(labeltext)
 
     def set_text(self, labeltext: str) -> None:
         self.setInnerHTML(labeltext)
-    
+        self._mytext = labeltext
+
+    def get_text(self) -> str:
+        return self._mytext
+
 
 class option(element):
     """An option element that goes inside a select element."""

@@ -40,6 +40,8 @@ MSGD_FORM_SUBMIT = MSGdesc_Type("MSG_FORM_SUBMIT")
 # that are about to be displayed.
 MSGD_POPUP_OPENING = MSGdesc_Type("MSG_POPUP_OPENING")
 
+# a class has changed its state (e.g. on /off status) and wants to tell others
+MSGD_STATE_CHANGE = MSGdesc_Type("MSG_STATE_CHANGE")
 
 # a new data element has been created
 MSGD_CRUD_CREATE = MSGdesc_Type("MSG_CRUD_CREATE")

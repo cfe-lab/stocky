@@ -74,14 +74,16 @@ class CommonMSG:
     # the server is sending chemstock 'last update' info
     MSG_SV_STOCK_INFO_RESP = 'SV_CS_INFO_RESP'
 
-    # the web client wants the server to senf chemstock 'last update' info
+    # the web client wants the server to send chemstock 'last update' info
     # optionally, the webclient can also tell the server to update the chemstock
     # info from QAI.
     MSG_WC_STOCK_INFO_REQ = 'WC_CS_INFO_REQ'
 
-    # the RFID reader has produced some stock taking data
-    # MSG_RF_STOCK_DATA = 'RF_STOCK_DATA'
-
+    # The web client is sending the server some stock location data.
+    # This data is produced in the course of the stock taking procedure, i.e.,
+    # which RFID tags were detected at a particular location.
+    MSG_WC_LOCATION_INFO = 'WC_LOCATION_INFO'
+    
     # the RFID reader has produced some radar data
     MSG_RF_RADAR_DATA = 'RF_RADAR_DATA'
 
@@ -106,7 +108,8 @@ class CommonMSG:
                              cls.MSG_SV_LOGOUT_RES, cls.MSG_WC_LOGOUT_TRY,
                              cls.MSG_WC_ADD_STOCK_REQ, cls.MSG_SV_ADD_STOCK_RESP,
                              cls.MSG_WC_RADAR_MODE, cls.MSG_RF_RADAR_DATA,
-                             cls.MSG_RF_CMD_RESP, cls.MSG_WC_EOF]
+                             cls.MSG_RF_CMD_RESP, cls.MSG_WC_EOF,
+                             cls.MSG_WC_LOCATION_INFO]
         # cls.MSG_WC_STOCK_CHECK,cls.MSG_SV_NEW_STOCK_LIST
         # , cls.MSG_RF_STOCK_DATA
         cls.valid_msg_dct = dict([(k, 1) for k in cls.valid_msg_lst])

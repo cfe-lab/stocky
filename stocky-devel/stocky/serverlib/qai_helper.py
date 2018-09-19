@@ -380,7 +380,10 @@ class QAISession(Session):
         """
         rdct: QAIdct = {}
         for k, url in self.data_url_lst:
-            rcode, rval = self.get_json(url)
+            try:
+                rcode, rval = self.get_json(url)
+            except json.decoder.JSONDecodeError:
+                raise RuntimeError("JSON error on {}".format(url))
             if rcode != HTTP_OK:
                 raise RuntimeError("call for {} ({}) failed".format(k, url))
             rdct[k] = rval

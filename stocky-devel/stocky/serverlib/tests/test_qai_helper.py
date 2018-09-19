@@ -25,6 +25,9 @@ HTTP_UNPROCESSABLE = requests.codes.unprocessable
 withqai = pytest.mark.skipif(not pytest.config.option.with_qai,
                              reason="needs --with_qai option in order to run")
 
+dumpchemstock = pytest.mark.skipif(not pytest.config.option.dump_chemstock,
+                                   reason="needs --dump_chemstock and --with_qai option in order to run")
+
 # this is James Nakagawa's test server
 TESTqai_url = "http://192.168.69.170:4567"
 TESTauth_uname = 'wscott'
@@ -788,44 +791,28 @@ class Test_qai_helper_get(DATAQAItester):
             print("res VER1 {}".format(res))
         assert rcode == HTTP_OK, "called failed"
 
-    @pytest.mark.skip(reason="method is deprecated")
-    def test_location_list01(self):
-        loclst2 = self.s.get_location_list()
-        assert self.loclst == loclst2, "lists are not the same"
-
-    @pytest.mark.skip(reason="method is deprecated")
-    def test_supplier_lst01(self):
-        suplst = self.s.get_supplier_list()
-        assert suplst == self.supplierlst, "lists are not the same"
-
-    @pytest.mark.skip(reason="method is deprecated")
-    def test_reagent_list01(self):
-        rlst = self.s.get_reagent_list()
-        assert rlst == self.reagent_list, "lists are not the same"
-
-    @pytest.mark.skip(reason="method is deprecated")
-    def test_reagent_item01(self):
-        ritm_dct = self.s.get_reagent_items()
-        for reagent_dct in self.reagent_list:
-            reag_id = reagent_dct['id']
-            assert reag_id in ritm_dct, "key {} is missing".format(reag_id)
-
     def test_changedata(self):
         d = self.s.get_QAI_ChangeData()
         assert isinstance(d, dict), "dict expected"
         print("BLA {}".format(d))
         # assert False, "force fail"
 
-    def test_cleverdump01(self):
-        # d = self.s.clever_update_QAI_dump(inchange, qaidct)
-        pass
 
-    @pytest.mark.skip(reason="Takes too long")
-    def test_qai_dump(self):
+@dumpchemstock
+class Test_dump:
+
+    @classmethod
+    def setup_class(cls) -> None:
         lverb = True
+        if lverb:
+            print("SETUP CLASS {}".format(cls))
+        cls.s = TrackerSession(TESTqai_url)
+        cls.s.login(TESTauth_uname, TESTauth_password)
+        if not cls.s.is_logged_in():
+            raise RuntimeError("login failed")
+
+    # @pytest.mark.skip(reason="Takes too long")
+    def test_qai_dump(self):
         ds = self.s.get_QAI_dump()
         assert isinstance(ds, qai_helper.QAIDataset), "QAIDataset expected"
-        # print("BLA {}".format(ds.keys()))
-        # assert False, "force fail"
-        if lverb:
-            yamlutil.writeyamlfile(ds, "./qaidump.yaml")
+        yamlutil.writeyamlfile(ds, "./qaidump.yaml")

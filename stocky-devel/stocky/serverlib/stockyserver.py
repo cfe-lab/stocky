@@ -45,7 +45,8 @@ class serverclass:
                                 CommonMSG.MSG_WC_LOGOUT_TRY,
                                 CommonMSG.MSG_WC_SET_STOCK_LOCATION,
                                 CommonMSG.MSG_WC_ADD_STOCK_REQ,
-                                CommonMSG.MSG_SV_TIMER_TICK])
+                                CommonMSG.MSG_SV_TIMER_TICK,
+                                CommonMSG.MSG_WC_LOCATION_INFO])
 
     def __init__(self, app: flask.Flask, CommLinkClass, cfgname: str) -> None:
         # must set logging  before anything else...

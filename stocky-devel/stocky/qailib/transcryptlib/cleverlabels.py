@@ -1,6 +1,6 @@
 
 import typing
-# import qailib.common.base as base
+import qailib.common.base as base
 # import qailib.transcryptlib.genutils as genutils
 import qailib.transcryptlib.htmlelements as htmlelements
 
@@ -44,6 +44,7 @@ class ToggleLabel(htmlelements.label):
         self.rem_attrdct(oldstate)
         self.add_attrdct(newstate)
         self.setInnerHTML(newtext)
+        self.sndMsg(base.MSGD_STATE_CHANGE, self.is_astate)
 
     def is_A_state(self) -> bool:
         """Return is A state? """
@@ -59,9 +60,10 @@ class ToggleLabel(htmlelements.label):
         super()._clickfunc()
 
 
-class SimpleFSM:
-    def __init__(self, numstates: int, event_lst: typing.List[str])-> None:
+class SimpleFSM(base.base_obj):
+    def __init__(self, idstr: str, numstates: int, event_lst: typing.List[str])-> None:
         """The event lst is a list of strings that describe the legal events that can happen"""
+        base.base_obj.__init__(self, idstr)
         self.numstates = numstates
         self.event_dct = dict([(ev, 1) for ev in event_lst])
 
@@ -84,15 +86,16 @@ class FSMLabel(htmlelements.label):
     NOTE: Our strategy to toggle the state on button click is to hijack
     the htmlelements.generic_element._clickfunc()
     """
+    FSM_CLICK_EVENT = 'doclick'
     _DOTOGGLE = 'dotoggle'
-
+    
     def __init__(self, parent: htmlelements.base_element,
                  idstr: str,
                  fsm: SimpleFSM,
                  state_attrdct: typing.Dict[int, typing.Tuple[str, dict]]) -> None:
         self.fsm = fsm
         self.state_attrdct = state_attrdct
-        dd = dict(msg=ToggleLabel._DOTOGGLE)
+        dd = dict(msg=FSMLabel._DOTOGGLE)
         for labeltxt, attrdct in state_attrdct.values():
             attrdct[STARATTR_ONCLICK] = dd
         # determine the initial state from the FSM and set it
@@ -103,21 +106,29 @@ class FSMLabel(htmlelements.label):
     def enter_event(self, newevent: str) -> None:
         """Set the visible state, based on the current event.
         The new state is determined by the FSM."""
+        print("enter event '{}'".format(newevent))
         newstate = self.fsm.get_new_state(self.curstate, newevent)
         if self.curstate != newstate:
             self._toggle_state(newstate)
 
     def _toggle_state(self, newstate: int) -> None:
-        oldtxt, oldattr = self.state_attrdct[self.curstate]
-        self.curstate = newstate
-        newtxt, newattr = self.state_attrdct[self.curstate]
-        self.rem_attrdct(oldattr)
-        self.add_attrdct(newattr)
-        self.setInnerHTML(newtxt)
+        sattrdct = self.state_attrdct
+        print("bingo newstate {}".format(newstate))
+        if self.curstate != newstate and newstate in sattrdct:
+            oldtxt, oldattr = sattrdct[self.curstate]
+            self.curstate = newstate
+            newtxt, newattr = sattrdct[self.curstate]
+            self.rem_attrdct(oldattr)
+            self.add_attrdct(newattr)
+            self.setInnerHTML(newtxt)
 
     def get_current_state(self) -> int:
         """Return the current state"""
         return self.curstate
+
+    def reset_state(self) -> None:
+        self.curstate = self.fsm.get_init_state()
+        self._toggle_state(self.curstate)
 
     def _clickfunc(self):
         """This function is called whenever the user clicks on this label.
@@ -125,5 +136,5 @@ class FSMLabel(htmlelements.label):
         click event along as if nothing had happened...
         """
         print("TOGGLE CLICKFUNC")
-        self.enter_event(FSMLabel._DOTOGGLE)
+        self.enter_event(FSMLabel.FSM_CLICK_EVENT)
         super()._clickfunc()

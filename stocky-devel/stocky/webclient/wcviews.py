@@ -14,6 +14,7 @@ import qailib.transcryptlib.SVGlib as SVGlib
 # run time errors because the modules import each other)
 # import wccontroller
 
+from commonmsg import CommonMSG
 import wcstatus
 
 BIG_DISTANCE = 99.0
@@ -214,8 +215,8 @@ class AddScanList(simpletable.simpletable, BaseScanList):
             vcell = self.getcell(rownum, AddScanList._ACTIV_COL)
             if vcell is not None:
                 tog_lab = cleverlabels.ToggleLabel(vcell, "rfid_lsb{}".format(rownum),
-                                            on_attrdct, on_text,
-                                            off_attrdct, off_text)
+                                                   on_attrdct, on_text,
+                                                   off_attrdct, off_text)
                 self._tkdct[newtk] = tog_lab
             self.set_alignment(rownum, AddScanList._ACTIV_COL, "center")
 
@@ -377,10 +378,94 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
             self.stat_tab.update_table(db_stat_dct)
         self.wcstatus.set_busy(False)
 
+
 class rowtracker:
     """Keep track of all HTML elements on one row of a CheckScanList"""
     def __init__(self) -> None:
         pass
+
+
+FSM_CLICK_EVENT = cleverlabels.FSMLabel.FSM_CLICK_EVENT
+FSM_RFID_DETECT_EVENT = 'detected'
+
+
+class CheckFSM(cleverlabels.SimpleFSM):
+    ST_REPORT_FOUND = 0
+    ST_REPORT_MISSING = 1
+    ST_REPORT_MOVED = 2
+    ST_IGNORE = 3
+    ST_ERROR_STATE = 4
+
+    def __init__(self, idstr: str,
+                 isexpected: bool,
+                 detected_lab: cleverlabels.ToggleLabel) -> None:
+        self.isexpected = isexpected
+        self.isdetected_lab = detected_lab
+        self.dd: dict = {}
+        dd = self.dd
+        # isexp, isdetect, curstate, --event -->  = newstate
+        # expected items...
+        dd[(True, False, CheckFSM.ST_REPORT_MISSING, FSM_CLICK_EVENT)] = CheckFSM.ST_IGNORE
+        dd[(True, False, CheckFSM.ST_IGNORE, FSM_CLICK_EVENT)] = CheckFSM.ST_REPORT_MISSING
+        #
+        dd[(True, True, CheckFSM.ST_REPORT_MISSING, FSM_RFID_DETECT_EVENT)] = CheckFSM.ST_REPORT_FOUND
+        dd[(True, True, CheckFSM.ST_IGNORE, FSM_RFID_DETECT_EVENT)] = CheckFSM.ST_REPORT_FOUND
+        dd[(True, False, CheckFSM.ST_REPORT_FOUND, FSM_RFID_DETECT_EVENT)] = CheckFSM.ST_REPORT_MISSING
+        # unexpected items...
+        dd[(False, True, CheckFSM.ST_REPORT_MOVED, FSM_CLICK_EVENT)] = CheckFSM.ST_IGNORE
+        dd[(False, True, CheckFSM.ST_IGNORE, FSM_CLICK_EVENT)] = CheckFSM.ST_REPORT_MOVED
+        numstates = 5
+        event_lst = [FSM_CLICK_EVENT, FSM_RFID_DETECT_EVENT]
+        cleverlabels.SimpleFSM.__init__(self, idstr, numstates, event_lst)
+
+    def get_init_state(self) -> int:
+        """Return the initial state of the FSM."""
+        if self.isexpected:
+            return CheckFSM.ST_REPORT_MISSING
+        else:
+            return CheckFSM.ST_ERROR_STATE
+
+    def get_new_state(self, curstate: int, event: str) -> int:
+        """Given the current state and an event that has
+        occurred (information provided in self.os)
+        determine the new_state"""
+        isdetected = self.isdetected_lab.is_A_state()
+        evtup = (self.isexpected, isdetected, curstate, event)
+        newstate = self.dd.get(evtup, curstate)
+        print("FSM transition {} : {}".format(evtup, newstate))
+        return newstate
+
+
+class CheckLabel(cleverlabels.FSMLabel):
+    def __init__(self, parent: html.base_element,
+                 idstr: str,
+                 isexpected: bool,
+                 detected_lab: cleverlabels.ToggleLabel) -> None:
+        self.detected_lab = detected_lab
+        myfsm = CheckFSM('checkfsm:{}'.format(idstr), isexpected, detected_lab)
+        red_label = {'class': "w3-tag w3-red"}
+        grn_label = {'class': "w3-tag w3-green"}
+        org_label = {'class': "w3-tag w3-orange"}
+        normal_label = {'class': "w3-tag"}
+        at = {}
+        at[CheckFSM.ST_REPORT_FOUND] = ('report as found', grn_label)
+        at[CheckFSM.ST_REPORT_MISSING] = ('report as missing', red_label)
+        at[CheckFSM.ST_REPORT_MOVED] = ('report as moved', org_label)
+        at[CheckFSM.ST_IGNORE] = ('ignore', normal_label)
+        at[CheckFSM.ST_ERROR_STATE] = ('ERROR state', red_label)
+        #
+        cleverlabels.FSMLabel.__init__(self, parent, idstr,
+                                       myfsm, at)
+        detected_lab.addObserver(self, base.MSGD_STATE_CHANGE)
+
+    def rcvMsg(self,
+               whofrom: base.base_obj,
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if whofrom == self.detected_lab:
+            if msgdesc == base.MSGD_STATE_CHANGE:
+                print('enter event 99 {}')
+                self.enter_event(FSM_RFID_DETECT_EVENT)
 
 
 class CheckScanList(simpletable.simpletable, BaseScanList):
@@ -397,6 +482,7 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
     _SCANSTAT_COL = 4
     _ACTION_COL = 5
     _NUM_COLS = 6
+
     def __init__(self,
                  parent: widgets.base_widget,
                  idstr: str,
@@ -426,7 +512,7 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
                     kcell = self.getheader(colnum)
                     if kcell is not None:
                         html.label(kcell, "", kattrdct, txt, None)
-            #-- add the elements from ll, all with an 'undetected' scan status.
+            # -- add the elements from ll, all with an 'undetected' scan status.
             ll = ll or []
             self.adjust_row_number(len(ll))
             print("dunnn 01")
@@ -498,30 +584,31 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             if vcell is not None:
                 on_text = "detected"
                 off_text = "undetected"
-                tog_lab = cleverlabels.ToggleLabel(vcell, "scanstat_tog{}".format(rownum),
-                                                   on_attrdct, on_text,
-                                                   off_attrdct, off_text)
-                myrow.setcellcontent(CheckScanList._SCANSTAT_COL, tog_lab)
+                scan_lab = cleverlabels.ToggleLabel(vcell, "scanstat_tog{}".format(rownum),
+                                                    on_attrdct, on_text,
+                                                    off_attrdct, off_text)
+                myrow.setcellcontent(CheckScanList._SCANSTAT_COL, scan_lab)
             self.set_alignment(rownum, CheckScanList._SCANSTAT_COL, "center")
         else:
-            tog_lab = myrow.getcellcontent(CheckScanList._SCANSTAT_COL)
-        tog_lab.set_state(False)
-        rtracker.scanstat_tog = tog_lab
+            scan_lab = myrow.getcellcontent(CheckScanList._SCANSTAT_COL)
+        scan_lab.set_state(False)
+        rtracker.scanstat_tog = scan_lab
 
         # action column
         if is_new_row:
             vcell = myrow.getcell(CheckScanList._ACTION_COL)
             if vcell is not None:
-                on_text = "report"
-                off_text = "ignore"
-                tog_lab = cleverlabels.ToggleLabel(vcell, "action_tog{}".format(rownum),
-                                                   on_attrdct, on_text,
-                                                   off_attrdct, off_text)
+                # on_text = "report"
+                # off_text = "ignore"
+                # tog_lab = cleverlabels.ToggleLabel(vcell, "action_tog{}".format(rownum),
+                #                                   on_attrdct, on_text,
+                #                                   off_attrdct, off_text)
+                tog_lab = CheckLabel(vcell, "action_tog{}".format(rownum), True, scan_lab)
                 myrow.setcellcontent(CheckScanList._ACTION_COL, tog_lab)
             self.set_alignment(rownum, CheckScanList._ACTION_COL, "center")
         else:
             tog_lab = myrow.getcellcontent(CheckScanList._ACTION_COL)
-        tog_lab.set_state(False)
+        tog_lab.reset_state()
         rtracker.action_tog = tog_lab
         myrow.isnew = False
 
@@ -537,11 +624,31 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
         else:
             self._add_unexpected(newtk)
 
-    def BLAget_active_tags(self) -> typing.List[str]:
-        """Return the list of RFID tags (in column 0) if the column 1
-        state is OK.
+    def _add_unexpected(self, newtk: str) -> None:
+        """This method is called when an RFID tag is detected
+        that is not expected for this location.
         """
-        return [k for k, tog in self._tkdct.items() if tog.is_A_state()]
+        pass
+
+    def get_move_list(self) -> typing.List[typing.Tuple[str, str]]:
+        """Return the stock-taking action to perform on each row.
+        """
+        statedct = dict([(CheckFSM.ST_REPORT_FOUND, 'found'),
+                         (CheckFSM.ST_REPORT_MISSING, 'missing'),
+                         (CheckFSM.ST_REPORT_MOVED, 'moved'),
+                         (CheckFSM.ST_IGNORE, 'ignore'),
+                         (CheckFSM.ST_ERROR_STATE, 'errorstate')])
+        retlst = []
+        for row in self._rowlst:
+            # id string
+            txt = row.getcellcontent(CheckScanList._ITID_COL)
+            idstr = txt.get_text()
+            # action state
+            action_label = row.getcellcontent(CheckScanList._ACTION_COL)
+            action_int = action_label.get_current_state()
+            if action_int != CheckFSM.ST_IGNORE and action_int != CheckFSM.ST_ERROR_STATE:
+                retlst.append((idstr, statedct[action_int]))
+        return retlst
 
 
 class CheckStockView(SwitcheeView):
@@ -585,6 +692,17 @@ class CheckStockView(SwitcheeView):
                 # the new location
                 print("new LOCKCHECK")
                 self.Redraw()
+            elif self.gobutton is not None and whofrom == self.gobutton:
+                # the 'confirm stock' button has been pressed: upload the
+                # current stock status for this location to the stocky server.
+                print("UPLOAD NEW STATES!!")
+                locid, locname = self.location_sel.get_selected()
+                if locname is not None:
+                    move_lst = self.scanlist.get_move_list()
+                    print("locid {}, movelst {}".format(locname, move_lst))
+                    dd = {'locid': locname, 'locdat': move_lst}
+                    self._contr.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOCATION_INFO, dd))
+                    print("moving {} items".format(len(move_lst)))
             else:
                 super().rcvMsg(whofrom, msgdesc, msgdat)
         else:
@@ -618,14 +736,12 @@ class CheckStockView(SwitcheeView):
             self.scanlist.reset(loc_items)
         # now add a 'GO' button
         if self.gobutton is None:
-            idstr = "addloc-but"
+            idstr = "checkstock-but"
             attrdct = {'class': 'w3-button',
-                       'title': "Add selected RFID tags to QAI",
+                       'title': "Save the current stock status for this location for later upload to QAI",
                        STARATTR_ONCLICK: dict(cmd=CheckStockView.GO_CHECK_STOCK)}
-            buttontext = "Check Stock"
+            buttontext = "Confirm Stock Status"
             self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
-            self.gobutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
+            self.gobutton.addObserver(self, base.MSGD_BUTTON_CLICK)
         self.wcstatus.set_busy(False)
         print("CHECKSTOCK REDRAW DONE")
-
-
