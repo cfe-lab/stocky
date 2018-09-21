@@ -486,9 +486,11 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
     def __init__(self,
                  parent: widgets.base_widget,
                  idstr: str,
+                 wcstatus: wcstatus.WCstatus,
                  ll: typing.Optional[list]) -> None:
         attrdct: typing.Dict[str, str] = {'class': 'scanlist'}
         simpletable.simpletable.__init__(self, parent, idstr, attrdct, 0, CheckScanList._NUM_COLS)
+        self.wcstatus = wcstatus
         self.reset(ll)
 
     def reset(self, ll: typing.Optional[list]):
@@ -561,11 +563,27 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             rfid_str = "none"
 
         # assemble description string
-        desc_str = "whisky-cola, lot: {}".format(rdct['lot_num'])
+        reagent_id = rdct['qcs_reag_id']
+        lotnum = rdct['lot_num']
+        reag_dct = self.wcstatus.get_reagent_info(reagent_id)
+        # put additional information about the reagent into a helptext that will be visible
+        # by hovering the mouse over the description element.
+        if reag_dct is None:
+            desc_str = "reagent id {} , lot: {}".format(reagent_id, lotnum)
+            helptext = ""
+        else:
+            desc_str = "{}".format(reag_dct['name'])
+            hazstr = reag_dct['hazards'] or "none"
+            helptext = "basetype: {}, cat: {}, hazards: {}, storage: {}, reagent_id: {}".format(reag_dct['basetype'],
+                                                                                                reag_dct['category'],
+                                                                                                hazstr,
+                                                                                                reag_dct['storage'],
+                                                                                                reag_dct['id'])
+        desc_attrdct = {'class': "w3-tag", 'title': helptext}
         for colnum, coltext, field_attrdct in [(CheckScanList._ITID_COL, id_str, normal_label),
                                                (CheckScanList._RFID_COL, rfid_str, normal_label),
                                                (CheckScanList._EXP_COL, 'expected', grn_label),
-                                               (CheckScanList._DESC_COL, desc_str, normal_label)]:
+                                               (CheckScanList._DESC_COL, desc_str, desc_attrdct)]:
             if is_new_row:
                 kcell = myrow.getcell(colnum)
                 if kcell is not None:
@@ -578,6 +596,9 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
                 lab = myrow.getcellcontent(colnum)
                 # print("setty {}".format(lab))
                 lab.set_text(coltext)
+                if colnum == CheckScanList._DESC_COL:
+                    lab.removeAttribute('title')
+                    lab.setAttribute('title', helptext)
         # scan status
         if is_new_row:
             vcell = myrow.getcell(CheckScanList._SCANSTAT_COL)
@@ -696,11 +717,11 @@ class CheckStockView(SwitcheeView):
                 # the 'confirm stock' button has been pressed: upload the
                 # current stock status for this location to the stocky server.
                 print("UPLOAD NEW STATES!!")
-                locid, locname = self.location_sel.get_selected()
-                if locname is not None:
+                menu_num, locidstr = self.location_sel.get_selected()
+                if locidstr is not None and self.scanlist is not None:
                     move_lst = self.scanlist.get_move_list()
-                    print("locid {}, movelst {}".format(locname, move_lst))
-                    dd = {'locid': locname, 'locdat': move_lst}
+                    print("locid {}, movelst {}".format(locidstr, move_lst))
+                    dd = {'locid': int(locidstr), 'locdat': move_lst}
                     self._contr.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOCATION_INFO, dd))
                     print("moving {} items".format(len(move_lst)))
             else:
@@ -731,7 +752,7 @@ class CheckStockView(SwitcheeView):
         #   'qcs_location_id': 10046, 'qcs_reag_id': 8158, 'rfid': '(no RFID)'}
         # the id is a reagent item id...
         if self.scanlist is None:
-            self.scanlist = CheckScanList(self, "scocheckscanlist", loc_items)
+            self.scanlist = CheckScanList(self, "scocheckscanlist", self.wcstatus, loc_items)
         else:
             self.scanlist.reset(loc_items)
         # now add a 'GO' button
@@ -745,3 +766,22 @@ class CheckStockView(SwitcheeView):
             self.gobutton.addObserver(self, base.MSGD_BUTTON_CLICK)
         self.wcstatus.set_busy(False)
         print("CHECKSTOCK REDRAW DONE")
+
+
+class UploadLocMutView(SwitcheeView):
+    def __init__(self,
+                 contr: widgets.base_controller,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 attrdct: dict,
+                 jsel) -> None:
+        title_text = "QAI Database Upload Page"
+        htext = """Update the QAI system with the modified reagent item statuses determined
+during Stock Check. For this to work, the stocky computer must be plugged in to ethernet and you must first log in."""
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
+                              title_text, htext)
+        # self.stat_tab: typing.Optional[simpletable.dict_table] = None
+
+
+
+        

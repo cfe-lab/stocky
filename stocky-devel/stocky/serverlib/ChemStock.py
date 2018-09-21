@@ -4,6 +4,8 @@
 import typing
 import logging
 
+import hashlib
+import json
 import datetime
 import sqlalchemy as sql
 import sqlalchemy.orm as orm
@@ -23,6 +25,15 @@ STATE_DIR_ENV_NAME = serverconfig.STATE_DIR_ENV_NAME
 QAI_dct = typing.Dict[str, typing.Any]
 
 Base = declarative_base()
+
+
+def do_hash(dat: typing.Any) -> str:
+    """Calculate a hash function of a data structure.
+    NOTE: it is crucial that keys are sorted in dicts in order to
+    ensure that identical dicts created differently (adding elements in a different order)
+    produce the same hash.
+    """
+    return hashlib.sha1(json.dumps(dat, sort_keys=True).encode('utf-8')).hexdigest()
 
 
 class Reagent(Base):
@@ -495,15 +506,14 @@ class ChemStockDB:
         # finally, sort the loclst according to a hierarchy
         loclst = sortloclist(loclst)
         return {"loclst": loclst, "locdct": locid_reagitem_dct,
-                "ritemdct": ritemdct}
+                "ritemdct": ritemdct, "reagentdct": rg}
     # , "rfiddct": rfid_reagitem_dct}
-    # "reagentdct": rg,
 
     def generate_webclient_stocklist(self) -> dict:
         if self._haschanged:
             self._cachedct = self.DOgenerate_webclient_stocklist()
             self._haschanged = False
-            return self._cachedct
+        return self._cachedct
 
     # location changes ---
     def reset_loc_changes(self) -> None:
@@ -531,9 +541,19 @@ class ChemStockDB:
             lm = Locmutation(**dict(reag_item_id=reag_itm_id, locid=locid, op=opstring))
             s.merge(lm)
 
-    def get_loc_changes(self) -> typing.Dict[int, LocChangeList]:
-        """Return all location changes in the database."""
+    def get_loc_changes(self, oldhash: typing.Optional[str]=None) -> \
+            typing.Tuple[str, typing.Optional[typing.Dict[int, LocChangeList]]]:
+        """Return all location changes in the database.
+        if oldhash does not match our current hash,
+        return a new dictionary.
+        If it does match, return None.
+        """
+        oldhash = oldhash or ""
         ret_dct: typing.Dict[int, LocChangeList] = {}
-        for row in self._sess.execute(Locmutation.__table__.select()):
+        for row in self._sess.execute(Locmutation.__table__.select().order_by(Locmutation.reag_item_id)):
             ret_dct.setdefault(row.locid, []).append((row.reag_item_id, row.op))
-        return ret_dct
+        newhash = do_hash(ret_dct)
+        if oldhash != newhash:
+            return newhash, ret_dct
+        else:
+            return newhash, None

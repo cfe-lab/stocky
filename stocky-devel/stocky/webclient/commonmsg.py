@@ -79,10 +79,15 @@ class CommonMSG:
     # info from QAI.
     MSG_WC_STOCK_INFO_REQ = 'WC_CS_INFO_REQ'
 
-    # The web client is sending the server some stock location data.
+    # The web client is sending the server some stock location change data.
     # This data is produced in the course of the stock taking procedure, i.e.,
     # which RFID tags were detected at a particular location.
     MSG_WC_LOCATION_INFO = 'WC_LOCATION_INFO'
+
+    # When reviewing location mutation list, wc will request all location changes
+    # this data will be provided by the stocky server.
+    MSG_WC_LOCMUT_REQ = 'WC_LOCMUT_REQ'
+    MSG_SV_LOCMUT_RESP = 'WC_LOCMUT_REQ'
     
     # the RFID reader has produced some radar data
     MSG_RF_RADAR_DATA = 'RF_RADAR_DATA'

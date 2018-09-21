@@ -4,12 +4,13 @@ import qailib.common.base as base
 
 
 import qailib.transcryptlib.genutils as genutils
-# import qailib.common.serversocketbase as serversocketbase
 import qailib.transcryptlib.htmlelements as html
 import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.widgets as widgets
-# import qailib.transcryptlib.handlebars as handlebars
 import qailib.transcryptlib.simpletable as simpletable
+
+from commonmsg import CommonMSG
+
 
 log = genutils.log
 
@@ -52,6 +53,9 @@ class WCstatus(base.base_obj):
         self._stockloc_lst: typing.List[dict] = []
         self._locid_item_dct: dict = {}
         self._ritemdct: dict = {}
+        # empty locmut data..
+        self.locmut_hash = "bla"
+        self.locmut_dct = {}
         #
         self.mainprog = mainprog
         self.login_popup = login_popup
@@ -201,7 +205,8 @@ class WCstatus(base.base_obj):
         self.actspinner.set_spin(on)
 
     def set_QAIupdate_state(self, d: dict) -> None:
-        """Set the string describing when the local DB was last with from QAI"""
+        """Set the string describing when the local DB was last
+        updated from QAI"""
         upd_str = d['upd_time']
         print("UPDATE {}".format(upd_str))
         self.qai_upd_text.set_text(upd_str)
@@ -228,6 +233,9 @@ class WCstatus(base.base_obj):
         self._locid_item_dct = stockdct['locdct']
         print(" SETTING LOCITEMDCT LEN {}".format(len(self._locid_item_dct)))
         self._ritemdct = stockdct['ritemdct']
+        self._reagentdct = stockdct['reagentdct']
+        print(" SETTING REAGENTDCT LEN {}".format(len(self._reagentdct)))
+
         # self.preparechecklists()
         # self.showchecklist(0)
 
@@ -249,7 +257,7 @@ class WCstatus(base.base_obj):
                                  sel: html.select, add_nosel: bool) -> None:
         """Set the previously created select element to the current
         list of locations"""
-        print(" LOCLIST LEN {}".format(len(self._stockloc_lst)))
+        print("LOCLIST LEN {}".format(len(self._stockloc_lst)))
         for locdct in self._stockloc_lst:
             name = locdct['name']
             idstr = locdct['id']
@@ -257,13 +265,36 @@ class WCstatus(base.base_obj):
         if add_nosel:
             sel.add_or_set_option(WCstatus.LOC_NOSEL_ID, WCstatus.LOC_NOSEL_NAME)
 
+    def get_reagent_info(self, rid: str) -> typing.Optional[dict]:
+        """Rge returned dict is taken directly from the ChemStock.Reagent_table
+        and is of the form:
+        {basetype: stockchem, catalog_number: TDF, category: Antiviral drugs/stds, date_msds_expires: null,
+         disposed: t, expiry_time: 2555, hazards: null, id: 6371, location: 605 dessicator,
+         msds_filename: null, name: Tenofovir Tablet, needs_validation: null, notes: null,
+         qcs_document_id: null, storage: Room Temperature, supplier: Pharmacy}
+
+        """
+        return self._reagentdct.get(rid, None)
+
     def get_location_items(self, locid: str) -> typing.Optional[list]:
         """Return the list of all reagent items that have been registered as
         being at this location.
-
         """
         retval = self._locid_item_dct.get(locid, None)
         retval = retval[1] if retval else None
         # print("getregitems for loc: {}: {}".format(locid, retval))
         return retval
-    
+
+    def refresh_locmut_dct(self) -> None:
+        """Request a new locmutation list from the stocky server
+        if we need an update.
+        This is done by sending a hash of the current data.
+        The server will send an update if our data is out of date.
+        """
+        self.mainprog.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOCMUT_REQ, self.locmut_hash))
+
+    def set_locmut_dct(self, dct: dict, newhash: str) -> None:
+        """Set the location mutation dictionary"""
+        print("NEW HASH {}".format(newhash))
+        self.locmut_dct = dct
+        self.locmut_hash = newhash

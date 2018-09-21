@@ -6,9 +6,6 @@ import qailib.common.serversocketbase as serversocketbase
 import qailib.transcryptlib.htmlelements as html
 import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.widgets as widgets
-# import qailib.transcryptlib.handlebars as handlebars
-# import qailib.transcryptlib.simpletable as simpletable
-
 
 from commonmsg import CommonMSG
 import wcviews
@@ -52,9 +49,9 @@ menulst = [
                 'id': 'BV4'}
      },
     {'name': 'upload',
-     'viewidtext': "This is view Upload",
-     'button': {'label': 'Upload QAI Stock list',
-                'title': "Write the current stock list back to QAI",
+     'viewclass': wcviews.UploadLocMutView,
+     'button': {'label': 'Upload status changes to QAI',
+                'title': "Write the reviewed reagent item locations back to QAI",
                 'id': 'BV5'}
      }
     ]
@@ -153,13 +150,13 @@ class stocky_mainprog(widgets.base_controller):
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_STOCK_INFO_REQ, dict(do_update=True)))
 
     def addnewstock(self, url: str):
-        """redirect to a new window with the given URL ro allow user to
+        """Redirect to a new window with the given URL ro allow user to
         add stock."""
         vv = self.switch.getView(ADDSTOCK_VIEW_NAME)
         vv.redirect(url)
 
     def set_qai_update(self, resdct: dict) -> None:
-        """ the server has told us about a new QAI update.
+        """The server has told us about a new QAI update.
         ==> tell the wcstatus icons
         ==? also tell the download view.
         """
@@ -207,6 +204,9 @@ class stocky_mainprog(widgets.base_controller):
                 self.set_qai_update(val)
             elif cmd == CommonMSG.MSG_SV_ADD_STOCK_RESP:
                 self.addnewstock(val)
+            elif cmd == CommonMSG.MSG_SV_LOCMUT_RESP:
+                rdct, newhash = val['data'], val['hash']
+                self.wcstatus.set_locmut_dct(rdct, newhash)
             else:
                 print("unrecognised server command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:
@@ -251,7 +251,9 @@ class stocky_mainprog(widgets.base_controller):
                 print('webclient: unrecognised cmd {}'.format(cmd))
                 return
         elif msgdesc == base.MSGD_COMMS_ARE_UP:
-            pass
+            # this happens when the websocket first comes online. Use it for
+            # some initial caching.
+            self.wcstatus.refresh_locmut_dct()
             # print("sending config request to server")
             # self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_CONFIG_REQUEST, 1))
         elif msgdesc == base.MSGD_FORM_SUBMIT:

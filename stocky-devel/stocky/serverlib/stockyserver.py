@@ -44,6 +44,7 @@ class serverclass:
                                 CommonMSG.MSG_WC_LOGIN_TRY,
                                 CommonMSG.MSG_WC_LOGOUT_TRY,
                                 CommonMSG.MSG_WC_SET_STOCK_LOCATION,
+                                CommonMSG.MSG_WC_LOCMUT_REQ,
                                 CommonMSG.MSG_WC_ADD_STOCK_REQ,
                                 CommonMSG.MSG_SV_TIMER_TICK,
                                 CommonMSG.MSG_WC_LOCATION_INFO])
@@ -160,6 +161,15 @@ class serverclass:
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
         elif msg.msg == CommonMSG.MSG_SV_FILE_STATE_CHANGE:
             self.handleRFIDstatechange(msg.data)
+        elif msg.msg == CommonMSG.MSG_WC_LOCATION_INFO:
+            # location change information: save to DB
+            self.stockdb.add_loc_changes(msg.data['locid'], msg.data['locdat'])
+        elif msg.msg == CommonMSG.MSG_WC_LOCMUT_REQ:
+            client_hash = msg.data
+            newhash, rdct = self.stockdb.get_loc_changes(client_hash)
+            if rdct is not None:
+                self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOCMUT_RESP,
+                                           dict(data=rdct, hash=newhash)))
         else:
             self.logger.error("server not handling message {}".format(msg))
             raise RuntimeError("unhandled message {}".format(msg))

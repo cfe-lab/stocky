@@ -38,6 +38,17 @@ class Test_funcs:
         # NOTE: this is not really checking for correct sorting..
         assert len(olst) == len(sortlst), "wrong list length"
 
+    def test_hash01(self) -> None:
+        dohash = ChemStock.do_hash
+        # create two identical dicts in different ways. The hash should be the same.
+        adct = dict(a=3, b=2, c=1)
+        bdct = {}
+        for k, v in sorted(adct.items(), key=lambda a: a[1]):
+            bdct[k] = v
+        ahash = dohash(adct)
+        bhash = dohash(bdct)
+        assert ahash == bhash, "hashes are different"
+
 
 class commontests:
 
@@ -139,9 +150,16 @@ class Test_Chemstock_EMPTYDB(commontests):
         ngot = csdb.number_of_loc_changes()
         assert ngot == 3, "expected three!"
         # read back all changes
-        dct = csdb.get_loc_changes()
+        hashkey, dct = csdb.get_loc_changes()
         assert isinstance(dct, dict), "dict expected"
+        assert isinstance(hashkey, str), "string expected"
         print("dd {}".format(dct))
+        # next, pass the hash back in.. we should get a None for dct indicating 'no changes'
+        oldhashkey = hashkey
+        hashkey, none_dct = csdb.get_loc_changes(oldhashkey)
+        assert isinstance(hashkey, str), "string expected"
+        assert hashkey == oldhashkey, "old hash expected"
+        assert none_dct is None, "expected None for dct"
         gotlst = dct[locid]
         assert len(gotlst) == len(locdat), "unexpected length"
         print("locc {}".format(gotlst))
