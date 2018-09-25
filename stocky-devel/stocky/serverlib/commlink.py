@@ -1,5 +1,5 @@
-
-# define a bluetooth communication link class for the TLS ASCII protocol
+"""Define a bluetooth communication link class for the TLS ASCII protocol
+"""
 
 import typing
 import serial
@@ -57,14 +57,31 @@ hextab = dict([(chr(ord('0') + i), i) for i in range(0, 10)] +
 
 
 def HexStrtoStr(instr: str) -> str:
-    """We receive a string containing hex characters of ASCII chars,
-    Convert these into a string.
-    E.G.:
-    the string '4348454D3130303030000000' is coded as:
-    '43 48 45 4D 31 30 30 30 30 00 00 00'
-      C  H  E  M  1  0  0  0  0
-    where, for example, hexadecimal 43 is the ASCII charachter 'C'.
+    """Convert a string of hex characters into legible characters.
+
+    Depending on the RFID label being read, and the settings of the RFID reader,
+    we can receive a string containing hexadecimal characters
+    representing ASCII chars from the RFID reader when reading
+    RFID labels.
+    Here, convert these into a string of alphanumeric characters suitable
+    for human consumption.
+    For example, the received string '4348454D3130303030000000' is coded as::
+
+      '43 48 45 4D 31 30 30 30 30 00 00 00'
+        C  H  E  M  1  0  0  0  0
+
+    where, for example, hexadecimal 43 is the ASCII character 'C'.
+    Note that this conversion is only considered successful if the leading
+    decoded character is 'human readable' , i.e. either a lower or uppercase letter or
+    a numeral.
     If the conversion fails, return the original string.
+
+    Args:
+       instr: the raw string read from the RFID reader.
+
+    Returns:
+    the modified string upon successful conversion, otherwise
+    the original string.
     """
     if len(instr) % 2 == 1 or len(instr) == 0:
         return instr
@@ -162,6 +179,8 @@ class CLResponse:
 
 
 class BaseCommLink:
+    """A low-level communication link class that communicates with an RFID reader
+    over a serial connection."""
     # Return codes of the RFID reader, see _tlsretcode_dct
     RC_OK = 0
     RC_FAULTY = 1
@@ -176,7 +195,7 @@ class BaseCommLink:
     MSGNUM_ID = 'MSG'
 
     def __init__(self, cfgdct: dict) -> None:
-        """Open a communication channel defined by its id.
+        """Open a communication channel to an RFID device.
         Information needed to open such a channel will be extracted from
         the cfgdct. This is the dict resulting from the server configuration file.
         """
@@ -374,11 +393,18 @@ _tlsretcode_dct = {0: 'No Error',
 
 
 class SerialCommLink(BaseCommLink):
-    """Communicate with the RFID reader via a serial device (i.e. USB or Bluetooth)"""
+    """Communicate with the RFID reader via a serial device (i.e. USB or Bluetooth).
+    The name of the device to open  (typically something like '/dev/rfcomm0')
+    is taken from the server configuration file.
+    """
 
     def open_device(self) -> typing.Any:
         """Try to open a device for IO with the RFID scanner.
-        Return None is this fails."""
+        The exact device to open depends on the configuration dict cfgdct.
+
+        Returns:
+        The device opened, or None is this fails.
+        """
         cfgdct = self.cfgdct
         devname = cfgdct['RFID_READER_DEVNAME']
         self.logger.debug("commlink opening '{}'".format(devname))

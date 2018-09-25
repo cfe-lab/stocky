@@ -2,8 +2,15 @@
 # Makefile to facilitate the building and running of Stocky.
 # ****** Simply run 'make' in this directory to get a list of options *******
 
+# this is the docker image that we use for development and production
 BASE_IMAGE_NAME = stocky-base
 BASE_DOCKERFILE = ${BASE_IMAGE_NAME}.dock
+
+# in addition, we have another one that adds additional software needed
+# to produce documentation.
+DOCS_IMAGE_NAME = stocky-docs
+DOCS_DOCKERFILE = ${DOCS_IMAGE_NAME}.dock
+
 
 STOCKY_TOP_DIR = ${CURDIR}
 
@@ -69,6 +76,10 @@ runprod: ## run the stocky docker image for production.
 runtests:  ## run the unit tests on the stocky docker image with image code 
 	${DOCKER_TESTRUN_CMD}  -it ${BASE_IMAGE_NAME} make all-test pep8
 
+build-docs: $(BASE_DOCKERFILE) ## build the stocky-docs docker image for stocky
+	( docker build  -f $(DOCS_DOCKERFILE) -t ${DOCS_IMAGE_NAME} . )
+run-docs:  ## run the stocky-docs docker image with local code interactively with tcsh
+	${DOCKER_RUN_CMD} -v ${DEV_SRC}:/stockysrc -it ${DOCS_IMAGE_NAME} tcsh
 
 clean-logs: ## remove all log files from the stocky-devel-state directory
 	rm -f stocky-devel-state/*.log

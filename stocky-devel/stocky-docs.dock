@@ -1,0 +1,18 @@
+
+# docker image for generating stocky documentation
+
+FROM stocky-base:latest
+
+MAINTAINER wscott@cfenet.ubc.ca
+
+RUN apt-get install -y graphviz default-jre
+
+COPY stocky/requirements-docs.txt /stockysrc/requirements-docs.txt
+
+WORKDIR /stockysrc
+
+RUN  pip install --no-cache-dir -r requirements-docs.txt
+
+# install plantuml
+WORKDIR /plantuml
+RUN /stockysrc/plantuml/download_jar.sh
