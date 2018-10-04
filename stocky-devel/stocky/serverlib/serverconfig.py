@@ -1,8 +1,5 @@
-
-
 """
-.. module:: serverconfig
-    :synopsis: Implement reading of YAML files to configure the stocky server.
+Implement the reading of YAML files to configure the stocky server.
 """
 
 import math
@@ -31,6 +28,15 @@ valid_keys = known_set | frozenset(['TZINFO'])
 
 
 def read_logging_config(yamlfilename: str) -> dict:
+    """Read in a YAML logging configuration file.
+
+    Args:
+       yamlfilename: the file name to read
+    Returns:
+       The dict contained in the YAML file.
+    Raises:
+       RuntimeError: If the config file contains anything but a single dictionary.
+    """
     cfg_dct = yamlutil.readyamlfile(yamlfilename, ENV_NAME=CONFIG_DIR_ENV_NAME)
     if not isinstance(cfg_dct, dict):
         raise RuntimeError("logging config must be a single dict class , but found a {}".format(type(cfg_dct)))
@@ -39,8 +45,13 @@ def read_logging_config(yamlfilename: str) -> dict:
 
 def read_server_config(yamlfilename: str) -> dict:
     """Read in a YAML file describing the server configuration.
-    Raise a RuntimeError exception iff there is a problem with the file.
-    Otherwise return a dictionary of settings.
+
+    Args:
+       yamlfilename: The name of the file to read.
+    Returns:
+       A dict containing the server configuration.
+    Raises:
+       RuntimeError: iff there is a problem with the file. A number of checks are performed.
     """
     cfg_dct = yamlutil.readyamlfile(yamlfilename, ENV_NAME=CONFIG_DIR_ENV_NAME)
     if not isinstance(cfg_dct, dict):

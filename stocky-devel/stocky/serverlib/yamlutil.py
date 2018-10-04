@@ -10,20 +10,40 @@ import serverlib.timelib as timelib
 
 
 def yamldump(data: typing.Any) -> str:
-    """Return a string that represents the data
-    in YAML format."""
+    """Convert a python data structure to a YAML string.
+
+    Args:
+       data: the data structure to convert.
+    Returns:
+       A string that represents the data in YAML format.
+    """
     return yaml.dump(data, Dumper=yaml.CDumper)  # type: ignore
 
 
 def get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
-    if yamlfilename.startswith('/'):
+    """Determine a complete file name using an optional environment variable.
+
+    If yamlfilename starts with a period ('.') or backslash ('/') or ENV_NAME is None,
+    the filename is returned without modification.
+    Otherwise, the ENV_NAME environment variable is consulted.
+    Its contents are prepended to the filename and this is returned.
+
+    Args:
+       yamlfilename: the filename stub to be completed.
+       ENV_NAME: the optional name of an environment variable
+
+    Returns:
+       A possibly modified file name.
+
+    Raises:
+       RuntimeError: if the ENV_NAME is accessed and not defined
+    """
+    if yamlfilename.startswith('/') or yamlfilename.startswith('.') or ENV_NAME is None:
         return yamlfilename
-    if not (yamlfilename.startswith('.') or ENV_NAME is None):
-        dirname = os.environ.get(ENV_NAME, None)
-        if dirname is None:
-            raise RuntimeError('Environment variable {} is not set'.format(ENV_NAME))
-        yamlfilename = os.path.join(dirname, yamlfilename)
-    return yamlfilename
+    dirname = os.environ.get(ENV_NAME, None)
+    if dirname is None:
+        raise RuntimeError('Environment variable {} is not set'.format(ENV_NAME))
+    return os.path.join(dirname, yamlfilename)
 
 
 def writeyamlfile(data: typing.Any, yamlfilename: str, ENV_NAME: str=None) -> None:
@@ -51,23 +71,25 @@ def readyamlfile(yamlfilename: str, ENV_NAME: str=None) -> typing.Any:
     """Open and read a file containing a data structure in YAML format and return the
     data structure read.
 
-    If the yamlfilename does not start witha period and ENV_NAME is not None, then the
-    contents of an environment variable called ENV_NAME is accessed.
-    If this is successful, the file name is looked for in the directory specified by the
-    environment variable ENV_NAME.
-    This function will raise a RuntimeError if there are any problems.
+    Args:
+       yamlfilename: the name of the file to read
+       ENV_NAME: the optional name of an environment variable to use in determining\
+       the file location. See :py:func:`get_filename` for how this is done.
+    Raises:
+       RuntimeError: If any errors occur in reading the file, or if it cannot be found.
 
-    NOTE: reading and writing datetime instances to a yaml file requires special handling.
-    When a timezone-aware datetime is written to a yaml file, the correct timezone
-    information is written to the file, e.g. in the form
-    of "2018-05-15 18:55:43.916028+02:00", where the +2:00 indicates the UTC+2 time zone.
+    Note:
+       Reading and writing datetime instances to a yaml file requires special handling.
+       When a timezone-aware datetime is written to a yaml file, the correct timezone
+       information is written to the file, e.g. in the form
+       of "2018-05-15 18:55:43.916028+02:00", where the +2:00 indicates the UTC+2 time zone.
 
-    However, when reading this back, the time is converted to the same point in time, but
-    is returned in UTC time in a timezone UNAWARE datetime instance.
-    For example, the time in the above example would be 16:44:43.
-    In other words, the time read back is implicitly in UTC.
-    We convert these datetime records to be timezone aware, that is explicitly in UTC
-    in order to avoid confusion.
+       However, when reading this back, the time is converted to the same point in time, but
+       is returned in UTC time in a timezone *UNAWARE* datetime instance.
+       For example, the time in the above example would be 16:44:43.
+       In other words, the time read back is implicitly in UTC.
+       We convert these datetime records to be timezone aware, that is explicitly in UTC,
+       in order to avoid confusion.
     """
     yamlfilename = get_filename(yamlfilename, ENV_NAME)
     try:

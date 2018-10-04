@@ -50,6 +50,30 @@ class serverclass:
                                 CommonMSG.MSG_WC_LOCATION_INFO])
 
     def __init__(self, app: flask.Flask, CommLinkClass, cfgname: str) -> None:
+        """
+
+        Args:
+           app: The flask app instance
+           CommLinkClass: the name of the class to use for communicating\
+              with the RFID reader (Commlink = serial communication link)
+           cfgname: the name of the server configuration file (a YAML file)
+
+        This class pull all of the data streams together and passes data
+        between the actors. When first instantiated, this class performs
+        the following.
+          - a configuration file is read in
+          - a message queue is instantiated
+          - a connection to the RFID reader \
+            (via a commlink instance passed to a TLSReader) is established.
+          - a way of calling to the QAI API is established.
+          - a local database of chemical stocks is opened.
+
+        ..note::
+           A connection to the webclient via websocket is *NOT* established
+           at this stage; The Flask web framework passes a websocket instance to
+           :meth:`mainloop` when the websocket makes a connection to the server.
+
+        """
         # must set logging  before anything else...
         self._app = app
         self.logger = app.logger
@@ -87,7 +111,11 @@ class serverclass:
         self.logger.info("End of serverclass.__init__")
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
-        """Send a command to the web client over websocket in a standard JSON format."""
+        """Send a command to the web client over websocket in a standard JSON format.
+
+        Args:
+           msg: the message to send.
+        """
         if self.ws is not None:
             self.ws.sendMSG(msg.as_dict())
 
@@ -95,7 +123,9 @@ class serverclass:
         gevent.sleep(secs)
 
     def BT_init_reader(self):
-        """Initialise the RFID reader. Raise an exception if this fails."""
+        """Initialise the RFID reader.
+        This method should only be called when/if the RFID reader comes online.
+        Raise an exception if this fails."""
         # set RFID region
         reg_code = self.cfg_dct['RFID_REGION_CODE']
         self.logger.debug("setting RFID region '{}'".format(reg_code))
@@ -108,7 +138,11 @@ class serverclass:
         self.tls.BT_set_stock_check_mode()
 
     def server_handle_msg(self, msg: CommonMSG) -> None:
-        """Handle this message to me, the stocky server..."""
+        """Handle this message to me, the stocky server
+
+        Args:
+           msg: the message to handle.
+        """
         self.logger.debug("server handling msg...")
         print("server handling msg...")
         if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
@@ -175,8 +209,17 @@ class serverclass:
             raise RuntimeError("unhandled message {}".format(msg))
 
     def handleRFIDstatechange(self, is_online: bool) -> None:
-        """This routine is called whenever the BT connection to the RFID reader
+        """React to the serial device associated with the RFID reader appearing/disappearing.
+
+        This routine is called whenever the BT connection to the RFID reader
         comes online/ comes offline.
+        Among other things, this routine calls :meth:`BT_init_reader` to ensure
+        that the reader is in a defined state, and then
+        sends a message to the webclient so that the status LED can be changed
+        for the user to see.
+
+        Args:
+           is_online: whether the link is now 'live'
         """
         commlink = self.cl
         commlink.HandleStateChange(is_online)
@@ -204,9 +247,26 @@ class serverclass:
     def mainloop(self, newws: ServerWebSocket.BaseWebSocket):
         """This routine is entered into when the webclient has established a
         websocket connection to the server.
+        Flask will call this routine with a newly established web socket when
+        the webclient makes a connection via the websocket protocol.
+
+        Args:
+           newws: the new websocket connection to the webclient.
+
+        .. note::
+           mainloop is reentrant: we enter here with a new websocket every time
+           the webclient is started or restarted...
+
+        The general strategy of the mainloop is to initialise all parties concerned,
+        then enter an infinite loop in which messages are taken from the message queue.
+
+        Messages are enqueued asynchronously from the various sources
+        (webclient over websocket, RFID scanner over serial link) but the mainloop
+        is the only entity dequeuing messages in this loop.
+        Some messages are either simply passed on to interested parties, while
+        others are handled as requests by the server itself in
+        :meth:`server_handle_msg` .
         """
-        # NOTE: mainloop is reentrant: we enter here with a new websocket every time
-        # the webclient is started or restarted...
         lverb = True
         print("mainloop with {}".format(newws))
         if self.ws is not None:

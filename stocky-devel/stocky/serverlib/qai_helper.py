@@ -1,3 +1,5 @@
+"""Implement a client-side http API to a QAI server for chemical stocks."""
+
 import json
 import logging
 from random import Random
@@ -13,9 +15,19 @@ StatusCode = int
 RequestValue = typing.Tuple[StatusCode, typing.Any]
 
 
-def tojson(data) -> str:
-    """Convert the data structure to json.
-    see https://docs.python.org/3.4/library/json.html
+def tojson(data: typing.Any) -> str:
+    """Convert a python data structure to json.
+
+    The conversion typically occurs when sending a python data structure
+    to the QAI via HTTP.
+    See https://docs.python.org/3.4/library/json.html
+
+    Args:
+       data: the python data structure to convert.
+    Returns:
+       a json string representing the python data structure
+    Raises:
+       TypeError: if the data contains a structure that cannot be serialised.
     """
     try:
         retstr = json.dumps(data, separators=(',', ':'), default=str)
@@ -26,15 +38,32 @@ def tojson(data) -> str:
 
 
 def fromjson(data_bytes: bytes) -> typing.Any:
-    """Convert bytes into a data struct which we return.
-    This routine will raise an exception of there is an error in json.loads
+    """Convert bytes to a python data structure.
+
+    Convert json code in byte form, typically received from a QAI request,
+    into a data struct which we return.
+
+    Args:
+       data_bytes: in the input JSON bytes
+    Returns:
+       The converted python data structure.
+    Raises:
+       This routine will raise an exception if a json conversion error occurs.
     """
     return json.loads(data_bytes)
 
 
 def safe_fromjson(data_bytes: bytes) -> typing.Optional[typing.Any]:
-    """Convert bytes into a data struct which we return.
-    This routine will return None if the conversion from json fails.
+    """Convert bytes to a python data structure.
+
+    Convert json code in byte form, typically received from a QAI request,
+    into a data struct which we return.
+
+    Args:
+       data_bytes: in the input JSON bytes
+    Returns:
+       The converted python data structure upon successful conversion.
+       None is returned if an error occurred during conversion.
     """
     try:
         return json.loads(data_bytes)
@@ -45,6 +74,10 @@ def safe_fromjson(data_bytes: bytes) -> typing.Optional[typing.Any]:
 class Session(requests.Session):
 
     def __init__(self, qai_path: str) -> None:
+        """
+        Args:
+           qai_path: the base string to be used to contact the QAI server.
+        """
         super().__init__()
         self._islogged_in = False
         self.qai_path = qai_path
@@ -60,8 +93,15 @@ class Session(requests.Session):
                          timeout=TEN_SECONDS)
 
     def login(self, qai_user: str, password: str) -> None:
-        """ Login to QAI before calling post_json or get_json.
-        @raise RuntimeError: when the QAI server rejects the user and password.
+        """Login to the QAI system.
+
+        Note: this must occur before calling any of the other API calls.
+
+        Args:
+           qai_user: the user name on the QAI system.
+           password: the user's password.
+        Raises:
+           RuntimeError: when the QAI server rejects the user and password.
         """
         response = self._login_resp(qai_user, password)
         if response.status_code == requests.codes.forbidden:  # @UndefinedVariable
@@ -69,13 +109,16 @@ class Session(requests.Session):
         self._islogged_in = True
 
     def login_try(self, qai_user: str, password: str) -> dict:
-        """Try to login. Do not raise any exceptions, but return a dict with information
-        that can be shown to the user.
-        The dict returned must have:
-        "username": return the name of the user
-        "ok" boolean
-        if not ok:
-          msg = "error message for the user"
+        """Try to login without raising any exceptions.
+
+        Instead, return a dict with information that can be shown to the
+        user on the webclient.
+
+        Returns:
+           The dict returned must have the following keys
+             1. "username": return the name of the user
+             2. "ok": boolean
+             3. if not ok, also msg = "error message for the user"
         """
         if qai_user is None:
             return dict(ok=False, msg="Configuration error: empty username")
@@ -115,6 +158,10 @@ class Session(requests.Session):
         self._islogged_in = False
 
     def is_logged_in(self):
+        """
+        Returns:
+           whether a successful login to QAI has been performed.
+        """
         return self._islogged_in
 
     def _retry_response(self,
@@ -186,16 +233,28 @@ class Session(requests.Session):
     def post_json(self, path: str, data: typing.Any, retries=3) -> RequestValue:
         """ Post a JSON object to the web server, and return a JSON object.
 
-        @param path the relative path to add to the qai_path used in login()
-        @param data a JSON object that will be converted to a JSON string
-        @param retries: the number of times to retry the request before failing.
-        @return the response body, parsed as a JSON object
+        Args:
+           path: the relative path to add to the qai_path used in login()
+           data: a JSON object that will be converted to a JSON string
+           retries: the number of times to retry the request before failing.
+        Returns:
+           The HTML status code with the response body, converted from JSON.
         """
         return self._retry_json(self.post, path, data=data, retries=retries)
 
     def generate_receive_url(self, locid: typing.Optional[int], rfidlst: typing.List[str]) -> str:
-        """Generate the URL in string form that can be used to generate
-        a RFID receive response.
+        """Generate the URL in string form that can be used to add new chemical stock
+        items to QAI.
+
+        Note that this call does not actually perform an API call to QAI (this is done
+        on the webclient). This routine simply determines the URL string required.
+
+        Args:
+           locid: the id of the location at which the new items are to be added.
+           rfidlst: a non-empty list of RFID label strings (typically of the form 'CHEMxxxxx')
+              that are to be added.
+        Returns:
+           a string containing the required to add these RFID's to QAI.
         """
         if rfidlst is None or len(rfidlst) == 0:
             raise RuntimeError("Empty rfidlst")
@@ -218,11 +277,12 @@ class Session(requests.Session):
 
     def get_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
         """ Get a JSON object from the web server.
-
-        @param session an open HTTP session
-        @param path the relative path to add to settings.qai_path
-        @param retries: the number of times to retry the request before failing.
-        @return the response body, parsed as a JSON object
+        Args:
+           path: the relative path to add to settings.qai_path.
+           params: URL parameters to be added to the URL.
+           retries: the number of times to retry the request before failing.
+        Returns:
+           The HTML response body, parsed as a JSON object.
         """
         return self._retry_json(self.get, path, params=params, retries=retries)
 
@@ -293,7 +353,7 @@ class QAIDataset:
 
 
 class QAISession(Session):
-    """Add some QAI- API-specific functions"""
+    """A requests session with some QAI-API-specific functions added."""
 
     # these are entries in the QAIdct
     QAIDCT_REAGENTS = 'reagents'
@@ -319,8 +379,9 @@ class QAISession(Session):
         return dict([(k, None) for k in cls.qai_key_lst])
 
     def _get_location_list(self) -> typing.List[dict]:
-        """Retrieve a list of all locations.
-        The dict contains two keys: id and name.
+        """Retrieve a list of all locations stored in the QAI database.
+        Returns:
+           The dicts in the list contain two keys: 'id' and 'name'.
         """
         rcode, loclst = self.get_json(PATH_LOCATION_LIST)
         if rcode != HTTP_OK:
@@ -328,7 +389,10 @@ class QAISession(Session):
         return loclst
 
     def _get_supplier_list(self) -> typing.List[str]:
-        """Retrieve a list of reagent suppliers as a list of strings."""
+        """Retrieve a list of reagent suppliers as a list of strings.
+        Returns:
+           A list of strings.
+        """
         rcode, supplierlst = self.get_json(PATH_REAGENT_LIST_SUPPLIERS)
         if rcode != HTTP_OK:
             raise RuntimeError("call for supplier_list failed")
@@ -336,7 +400,8 @@ class QAISession(Session):
 
     def _get_reagent_list(self) -> typing.List[dict]:
         """Retrieve a list of all reagents.
-        The dict contains two keys: id and name.
+        Returns:
+           The dicts contain two keys: 'id' and 'name'.
         """
         rcode, reagent_lst = self.get_json(PATH_REAGENT_LIST_REAGENTS)
         if rcode != HTTP_OK:
@@ -345,10 +410,14 @@ class QAISession(Session):
 
     def _get_reagent_items(self, reagent_lst: typing.List[dict]) -> typing.Dict[int, dict]:
         """Retrieve the reagent items for each reagent dict provided.
-        Return a dict with the reagent_id as a key, the value is a dict resulting
-        from the show API call. (I.e. the reagent_items a list in "items", e.g.:
-        reag_dct = get_reagent_items(rlst)
-        my_reag_item_lst = reag_dct[my_reagent_id]['items']
+        Args:
+           reagent_lst: a list of reagent dicts.
+        Returns:
+           Return a top-level dict with the reagent_id as a key.
+           The value of the top-level dict is a dict resulting
+           from the show API call. (I.e. the reagent_item_lst,  a list in "items", e.g.:
+           reag_dct = get_reagent_items(rlst)
+           my_reag_item_lst = reag_dct[my_reagent_id]['items']
         """
         rdct = {}
         for reagent_dct in reagent_lst:
@@ -362,6 +431,10 @@ class QAISession(Session):
     def get_QAI_ChangeData(self) -> QAIChangedct:
         """Retrieve the current QAI change value (Oracle's system change number)
         for each data table we track.
+
+        Returns:
+           A dict in which the keys are defined as class variables in :class:`QAISession`.
+           The values are strings representing time stamps.
         """
         rdct: QAIChangedct = {}
         for k, url in self.timestamp_url_lst:
@@ -391,10 +464,23 @@ class QAISession(Session):
         return QAIDataset(rdct, tsdct)
 
     def clever_update_QAI_dump(self, qaiDS: QAIDataset) -> QAIUpdatedct:
-        """Using the timestamp keys in tsdct, update those
-        entries in qaidct and tsdct from the server that are out of date.
-        For each dictionary entry (i.e. database table) return a
-        boolean "an update from the server occured"
+        """Update only those parts of the QAI dataset necessary
+
+        For every QAI database table stored locally, we store in addition
+        a timestamp received from the QAI server at the time of data retrieval.
+        We query the QAI server for its current timestamp values, and then,
+        by comparison, only update those entries in qaiDS from the server
+        that are out of date.
+        The timestamps stored in qaiDS are also updated as necessary.
+
+        Args:
+           qaiDS: the qai dataset to be updated if necessary.
+
+        Returns:
+           Return a dictionary with identical keys to qaiDS (i.e. the names of
+           the database tables).
+           The values of the dict are
+           a boolean := "an update from the server occurred"
         """
         tsdct = qaiDS.get_timestamp()
         qaidct = qaiDS.get_data()

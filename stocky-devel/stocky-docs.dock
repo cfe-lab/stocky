@@ -5,7 +5,7 @@ FROM stocky-base:latest
 
 MAINTAINER wscott@cfenet.ubc.ca
 
-RUN apt-get install -y graphviz default-jre
+RUN apt-get install -y graphviz default-jre vim
 
 COPY stocky/requirements-docs.txt /stockysrc/requirements-docs.txt
 

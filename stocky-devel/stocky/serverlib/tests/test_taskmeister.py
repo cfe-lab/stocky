@@ -124,8 +124,9 @@ class Test_Taskmeister:
 
     def test_base01(self) -> None:
         tt1 = Taskmeister.BaseTaskMeister(self.msgq, self.logger, 1, False)
-        tt2 = Taskmeister.BaseReader(self.msgq, self.logger, 1, False)
-        for tt in [tt1, tt2]:
+        # tt2 = Taskmeister.BaseReader(self.msgq, self.logger, 1, False)
+        # for tt in [tt1, tt2]:
+        for tt in [tt1]:
             with pytest.raises(NotImplementedError):
                 tt.generate_msg()
 

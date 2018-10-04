@@ -1,11 +1,10 @@
-
-
-# a generic class that defines an interface to gevent job tasks
-# a Taskmeister has a gevent loop which, when active, puts CommonMSG instances onto
-# a message queue
+"""A collection of classes that define an interface to :py:mod:`gevent` job tasks.
+   A Taskmeister has a gevent loop which, when active, puts CommonMSG instances onto
+   a message queue.
+"""
 
 import typing
-from random import random
+import random
 import pathlib
 
 import gevent
@@ -31,12 +30,20 @@ class DelayTaskMeister:
                  logger,
                  sec_interval: float,
                  msg_tosend: CommonMSG) -> None:
+        """
+        Args:
+           msqG: the queue to put messages onto.
+           logger: a logging instance to use for logging.
+           sec_interval: the time to wait after triggering before putting a message on the queue
+           msg_tosend: the message to put on the queue.
+        """
         self.msgQ = msgQ
         self.logger = logger
         self._sec_sleep = sec_interval
         self.msg_tosend = msg_tosend
 
     def trigger(self) -> None:
+        """Trigger the DelayTaskMeister."""
         gevent.spawn(self._worker_one_shot)
 
     def _worker_one_shot(self) -> None:
@@ -45,10 +52,34 @@ class DelayTaskMeister:
 
 
 class BaseTaskMeister:
+    "A fundamental TaskMeister class."
+
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
                  sec_interval: float,
                  is_active: bool) -> None:
+        """
+        Upon instantiation, this class spawns off its mainloop using :mod:`gevent`.
+
+        Args:
+           msqG: the queue to put messages onto.
+           logger: a logging instance to use for logging.
+           sec_interval: the time to wait between calls to generate_msg in the event loop.
+           is_active: whether to set the class active upon instantiation.\
+           The active state can be changed at a later time with :meth:`set_active` .
+
+        The mainloop essentially does::
+
+         while self._do_main_loop:
+             if self._isactive:
+                 msg = self.generate_msg()
+                 if msg is not None:
+                     msgq.put(msg)
+             # --
+             gevent.sleep(self._sec_sleep)
+
+        Where :meth:`generate_msg` is overridden in subclasses.
+        """
         self.msgQ = msgQ
         self.logger = logger
         self._isactive = is_active
@@ -57,7 +88,11 @@ class BaseTaskMeister:
         gevent.spawn(self._worker_loop)
 
     def set_active(self, is_active: bool) -> None:
-        """Enable/ disable the scheduling of messages"""
+        """Enable/disable the scheduling of messages.
+
+        Args:
+           is_active: the new value of is_active to set.
+        """
         self._isactive = is_active
 
     def _worker_loop(self) -> None:
@@ -84,18 +119,31 @@ class BaseTaskMeister:
         This routine may block or take as long as it likes.
         It may return None if a message is not meant to be passed back onto the queue.
         Overwrite this method in the subclasses.
+
+        Raises:
+           NotImplementedError: when called.
         """
         raise NotImplementedError("generate_msg: not implemented")
 
 
 class FileChecker(BaseTaskMeister):
-    """Check for existence of a given file every X seconds, generating a message
-    when the state changes.
+    """Check for the existence of a specified file every sec_interval seconds, generating
+    a message when the state changes.
     """
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
                  sec_interval: float,
                  do_activate: bool, file_to_check: str) -> None:
+        """This class is typically used to monitor removable files and devices
+        such as USB devices.
+
+        Args:
+           msqG: the queue to put messages onto.
+           logger: a logging instance to use for logging.
+           sec_interval: the time to wait between calls to generate_msg in the event loop.
+           do_activate: whether to set the class active upon instantiation.
+           file_to_check: the name of the file to monitor.
+        """
         super().__init__(msgQ, logger, sec_interval, do_activate)
         self._path = pathlib.Path(file_to_check)
         self._curstate: typing.Optional[bool] = None
@@ -104,10 +152,9 @@ class FileChecker(BaseTaskMeister):
         return self._path.exists()
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
-        """Generate a message for this class.
-        This routine may block or take as long as it likes.
-        It may return None if a message is not meant to be passed back onto the queue.
-        Overwrite this method in the subclasses.
+        """
+        Generate a message if the monitored file has appeared or disappeared
+        since the last call.
         """
         newstate = self.file_exists()
         if self._curstate != newstate:
@@ -117,28 +164,16 @@ class FileChecker(BaseTaskMeister):
             return None
 
 
-class BaseReader(BaseTaskMeister):
-    """A BaseReader is a BaseTaskMeister class that is automatically
-    activated upon instantiation, and waits sec_interval seconds in the main loop between reads.
-    The main purpose of this class is for handling blocking reads (websockets, bluetooth, ...)
-    """
-    def __init__(self, msgQ: gevent.queue.Queue,
-                 logger,
-                 sec_interval: float,
-                 do_activate: bool) -> None:
-        super().__init__(msgQ, logger, sec_interval, do_activate)
-
-
 class RandomGenerator(BaseTaskMeister):
-    """Generate a random number message every X seconds. This is used for testing."""
+    """Generate a random number message every sec_interval seconds. This is used for testing."""
     def generate_msg(self) -> typing.Optional[CommonMSG]:
-        number = round(random()*10, 3)
+        number = round(random.random()*10, 3)
         self.logger.debug("random: {}".format(number))
         return CommonMSG(CommonMSG.MSG_SV_RAND_NUM, number)
 
 
 class TickGenerator(BaseTaskMeister):
-    """Generate a timer message every X seconds.
+    """Generate a timer message every sec_interval seconds.
     The timer message contains the name (msgid) of the timer event.
     """
     def __init__(self, msgQ: gevent.queue.Queue, logger,
@@ -151,9 +186,10 @@ class TickGenerator(BaseTaskMeister):
 
 
 class CommandListGenerator(TickGenerator):
-    """Generate a generic message every X seconds.
+    """Generate a generic message every sec_interval seconds.
     The commands are cycled through from a list of commands provided.
     An empty string in the list means that that cycle is skipped.
+    This class is used for testing.
     """
     def __init__(self, msgQ: gevent.queue.Queue, logger,
                  sec_interval: float, msgid: str,
@@ -172,7 +208,7 @@ class CommandListGenerator(TickGenerator):
         return CommonMSG(CommonMSG.MSG_SV_GENERIC_COMMAND, cmdstr)
 
 
-class WebSocketReader(BaseReader):
+class WebSocketReader(BaseTaskMeister):
     """The stocky server uses this Taskmeister to receive messages from the webclient
     in json format. It puts CommonMSG instances onto the queue."""
 
@@ -181,12 +217,25 @@ class WebSocketReader(BaseReader):
                  ws: WS.BaseWebSocket,
                  sec_interval: float=0.0,
                  do_activate: bool=True) -> None:
+        """
+        Args:
+           msqG: the queue to put messages onto.
+           logger: a logging instance to use for logging.
+           ws: the websocket to read from.
+           sec_interval: the time to wait between calls to generate_msg in the event loop.
+           is_active: whether to set the class active upon instantiation.\
+           The active state can be changed at a later time with :meth:`set_active` .
+        """
         self.ws = ws
         super().__init__(msgQ, logger, sec_interval, do_activate)
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
-        """Block until a command is received from the webclient over websocket.
-        Return the JSON string received as a CommonMSG instance."""
+        """Block until a data message is received from the webclient over websocket
+        in JSON format.
+        The resulting python data structure is analysed. If it is a valid message
+        as defined in :mod:`webclient.commonmsg` , it is put on the queue as
+        a CommonMSG instance.
+        """
         dct = self.ws.receiveMSG()
         # the return value is either None or a dict.
         if dct is None:

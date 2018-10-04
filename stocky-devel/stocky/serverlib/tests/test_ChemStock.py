@@ -185,10 +185,11 @@ class Test_Chemstock_NOQAI(commontests):
         # assert False, "force fail"
 
     def test_update_from_qai01(self):
-        """As we don't have access to QAI, this should return False."""
-        retval = self.csdb.update_from_QAI()
-        assert isinstance(retval, bool), "bool expected"
-        assert not retval, "False expected"
+        """As we don't have access to QAI, haschanged should be False."""
+        self.csdb.update_from_QAI()
+        haschanged = self.csdb._haschanged
+        assert isinstance(haschanged, bool), "bool expected"
+        assert not haschanged, "False expected"
 
 
 @withchemstockANDqa1

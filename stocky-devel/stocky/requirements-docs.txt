@@ -2,3 +2,6 @@ sphinx>=1.8.0
 sphinxcontrib-napoleon>=0.6.1
 sphinx-autodoc-typehints>=1.3.0
 sphinxcontrib-plantuml>=0.12
+sadisplay>=0.4.9
+sphinx-pyreverse>=0.0.12
+pylint>=2.1.1

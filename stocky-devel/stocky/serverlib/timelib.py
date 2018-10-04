@@ -1,3 +1,5 @@
+"""Provide some low-level utilities for working with timezones
+and datetime objects"""
 
 import typing
 import datetime as dt
@@ -9,7 +11,10 @@ TimeZoneType = dt.tzinfo
 
 
 def utc_nowtime() -> DateTimeType:
-    """Return a timezone aware time of now in the UTZ time zone"""
+    """
+    Returns:
+       The current time as a timezone-aware time in the UTC time zone.
+    """
     # NOTE: the following returns a non timezone aware time...not what we want.
     # return dt.datetime.utcnow()
     utc_t = dt.datetime.now(pytz.utc)
@@ -22,6 +27,11 @@ _tzinfo: typing.Optional[TimeZoneType] = None
 
 
 def set_local_timezone(newtzinfo: typing.Union[str, TimeZoneType]) -> None:
+    """Set the module's local time zone information.
+
+    Args:
+       newtzinfo: either a string denoting a timezone, or a timezone type (datetime.tzinfo)
+    """
     if isinstance(newtzinfo, TimeZoneType):
         nnt = newtzinfo
     elif isinstance(newtzinfo, str):
@@ -49,9 +59,15 @@ def loc_nowtime() -> DateTimeType:
 
 def datetime_to_str(dt: DateTimeType, in_local_tz=False) -> str:
     """Convert a date time into a string.
-    if in_local_tz is True, the string represents the time (dt) in the local
-    timezone (previously set by set_local_timezone())
-    Otherwise, dt is converted as is (i.e. in the the timezoen provided)
+    Args:
+       dt: the datetime instance to convert.
+       in_local_tz: if True, the string returned will represent the \
+         time (dt) in the local timezone (previously set by :meth:`set_local_timezone`)\
+         Otherwise, dt is converted as is (i.e. in the timezone provided)
+    Returns:
+       the datetime information in ISO format.
+    Raises:
+       RuntimeError: if in_local_tz is True and the local time zone has not been set.
     """
     my_time = dt
     if in_local_tz:
@@ -63,8 +79,15 @@ def datetime_to_str(dt: DateTimeType, in_local_tz=False) -> str:
 
 def str_to_datetime(s: str) -> DateTimeType:
     """Convert a string into a datetime type.
-    The string must have encoded timezone information.
+
+    Args:
+       s: the string to convert. The string must have encoded timezone information.
+    Returns:
+       The datetime instance.
+    Raises:
+       RuntimeError: if the conversion fails.
     """
     retval = dateutil.parser.parse(s)
-    assert retval.tzinfo is not None, "tzinfo is None!!"
+    if retval is None:
+        raise RuntimeError("conversion from string to tz failed!")
     return retval

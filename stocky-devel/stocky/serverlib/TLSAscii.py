@@ -1,3 +1,17 @@
+"""Implement some of the Technology Solutions (UK) TSL ASCII Protocoll 2.4
+to control a RFID/bar code scanner over a serial device.
+
+This module is based on the Technology Solutions document available from www.tsl.com.
+
+All commands are of the form
+'.'XY {'-'params}  <LF>
+
+i.e. a period followed by a two letter command, then
+a number of paramaters beginning with '-', and
+a linefeed.
+
+Some parameters need to be enclosed in double quotes.
+"""
 
 import typing
 from enum import Enum
@@ -11,21 +25,6 @@ import serverlib.Taskmeister as Taskmeister
 
 from webclient.commonmsg import CommonMSG
 
-"""Implement some of the Technology Solutions (UK) TSL ASCII Protocoll 2.4
-to control a RFID/bar code scanner over a serial device.
-
-This module is based on the Technology Solutions document available from www.tsl.com.
-
-All commands are of the form
-'.'XY {'-'params}  <LF>
-
-i.e. a period followed by a two letter command, then
-a number of paramater beginning with '-', and
-a linefeed.
-
-Some parameters need to enclosed in double quotes.
-
-"""
 
 BarcodeType = str
 
@@ -319,7 +318,8 @@ class RunningAve:
         return ret_lst
 
 
-class TLSReader(Taskmeister.BaseReader):
+# class TLSReader(Taskmeister.BaseReader):
+class TLSReader(Taskmeister.BaseTaskMeister):
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
                  cl: commlink.BaseCommLink,

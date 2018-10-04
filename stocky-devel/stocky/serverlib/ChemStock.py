@@ -1,5 +1,5 @@
-
-# A module to manage a local copy of the reagent database using sqlite3 and sqlalchemy
+"""A module to manage a local copy of the QAI reagent database
+using sqlite3 and sqlalchemy."""
 
 import typing
 import logging
@@ -29,9 +29,24 @@ Base = declarative_base()
 
 def do_hash(dat: typing.Any) -> str:
     """Calculate a hash function of a data structure.
-    NOTE: it is crucial that keys are sorted in dicts in order to
-    ensure that identical dicts created differently (adding elements in a different order)
-    produce the same hash.
+
+    This routine works by converting a data structure to a json string,
+    then applying the SHA1 algorithm.
+    Finally, the hexdigest is returned.
+
+    Attention:
+       Because conversion to json is involved, only serialisable data structures
+       can be input.
+    Note:
+       In this routine, it is crucial that keys are sorted in dicts when converting
+       to json in order to ensure that identical dicts created
+       differently (adding elements in a different order)
+       produce the same hash.
+
+    Args:
+       dat: A serialisable python data structure to calculate the hash of.
+    Returns:
+       A string representing a hash function.
     """
     return hashlib.sha1(json.dumps(dat, sort_keys=True).encode('utf-8')).hexdigest()
 
@@ -183,8 +198,15 @@ class node:
 
 def sortloclist(orglst: typing.List[dict]) -> typing.List[dict]:
     """Sort the list of location dicts in a hierarchically sensible order.
-    We add the nodes to a tree based on name, then perform an in-order DFS
-    traversal (children are sorted alphabetically) to sort the list.
+
+    The method applied is the following: Nodes are added to a tree based on name,
+    then an in-order DFS traversal is performed (children are sorted alphabetically)
+    to sort the list.
+
+    Args:
+       orglst: the original, unsorted list of location dicts
+    Returns:
+       A copy of the input list sorted according to hierarchical location.
     """
     root = node('')
     for dct in orglst:
@@ -199,6 +221,7 @@ LocChangeList = typing.List[LocChangeTup]
 
 
 class ChemStockDB:
+    """ Maintain a local copy of the QAI chemical stock program."""
 
     _ITM_LIST = [(qai_helper.QAISession.QAIDCT_LOCATIONS, Location),
                  (qai_helper.QAISession.QAIDCT_USERS, User),
@@ -212,8 +235,18 @@ class ChemStockDB:
                  qaisession: typing.Optional[qai_helper.QAISession],
                  tz_name: str) -> None:
         """
-        This stock information is stored to a local file locQAIfname as an sqlite3 databse
+        This database is accessed by the stocky web server.
+        It is passed a :class:`qai_helper.QAISession` instance which it
+        uses to access the QAI database via an HTTP API.
+        This stock information is stored to a local file locQAIfname as an sqlite3 database
         in the server state directory if a name is provided. Otherwise it is stored in memory.
+
+        Args:
+           locQAIfname: the name of the file which is used to store the database information
+            by sqlite. If this is None, the database is stored in memory (This is used mostly
+            for testing).
+           qaisession: the session instance used to access the QAI server.
+           tz_name: the name of the local timezone.
         """
         self.qaisession = qaisession
         if locQAIfname is None:
@@ -233,7 +266,7 @@ class ChemStockDB:
         self.generate_webclient_stocklist()
 
     def _set_update_time(self) -> str:
-        """Set the ChecmDB update time to now
+        """Set the ChemDB update time to now
         and return the current datetime as a string.
         """
         s = self._sess
@@ -251,8 +284,13 @@ class ChemStockDB:
         return self.get_update_time()
 
     def get_update_time(self) -> str:
-        """Return the ChemDB update time as a string
-        Return 'never' if the databse is empty.
+        """Return the ChemDB update time.
+
+        The update time is the last time the local ChemDB was updated from
+        the QAI server.
+
+        Returns:
+           The time as a string. Return 'never' if the database is empty.
         """
         s = self._sess
         tt = s.query(TimeUpdate).first()
@@ -261,29 +299,38 @@ class ChemStockDB:
         else:
             return timelib.datetime_to_str(tt.dt, in_local_tz=True)
 
-    def get_db_stats(self) -> dict:
-        """Return the number of each kind of records we have."""
+    def get_db_stats(self) -> typing.Dict[str, int]:
+        """Return database size statistics.
+
+        Return the number of records we have in each database table.
+
+        Returns:
+           The keys are table names, the values are the number of records in each table.
+        """
         s = self._sess
         rdct = {}
         for idname, classname in ChemStockDB._ITM_LIST:
             rdct[idname] = s.query(classname).count()
         return rdct
 
-    def update_from_QAI(self) -> bool:
+    def update_from_QAI(self) -> None:
         """Update the local ChemStock using the qaisession.
+
+           If the qaisession is None or we have not yet logged in to QAI,
+        this routine silently returns,
         """
         qaisession = self.qaisession
         if qaisession is None or not qaisession.is_logged_in():
-            return False
+            return
         # get the locally stored timestamp data from our database
         cur_tsdata = self.load_TS_data()
         newds = qai_helper.QAIDataset(None, cur_tsdata)
         # load those parts from QAI that are out of date
         update_dct = qaisession.clever_update_QAI_dump(newds)
-        update_ok = self.loadQAI_data(newds, update_dct)
-        if update_ok:
-            self._haschanged = True
-        return update_ok
+        # if any values is True, then we did get something from QAI...
+        did_load_from_qai = sum(update_dct.values()) > 0
+        if did_load_from_qai:
+            self._haschanged = self.loadQAI_data(newds, update_dct)
 
     def loadQAI_data(self,
                      qaiDS: qai_helper.QAIDataset,
@@ -371,51 +418,57 @@ class ChemStockDB:
         return rtup
 
     def DOgenerate_webclient_stocklist(self) -> dict:
-        """Generate the stock list in a form required by the web client
-        the dict returned has the following entries:
+        """Generate the stock list in a form required by the web client.
+
+        Returns:
+        The dict returned has the following entries:
         loclst: a list of dicts containing the stock locations, e.g.
-            [{'id': 10000, 'name': 'SPH'}, {'id': 10001, 'name': 'SPH\\638'}, ... ]
 
-        the itemlst is a list of dicts containing:
-        {'id': 18478, 'last_seen': None, 'lot_num': '2019AD3EB',
-           'notes': '8 bottles of spare reagents',
-           'qcs_location_id': 10010,
-           'qcs_reag_id': 6297, 'rfid': 'REPLACE ME'},
-        {'id': 18479, 'last_seen': None, 'lot_num': 'INT.BP.17.02',
-           'notes': None, 'qcs_location_id': 10016,
-           'qcs_reag_id': 6217, 'rfid': 'REPLACE ME'}
+           [{'id': 10000, 'name': 'SPH'}, {'id': 10001, 'name': 'SPH\\638'}, ... ]
 
-        the itmstatlst is a list of dicts containing:
-        {'id': 41418, 'occurred': '2021-04-30T07:00:00Z',
-           'qcs_reag_item_id': 18512, 'qcs_user_id': 113, 'status': 'EXPIRED'},
-        {'id': 41419, 'occurred': '2018-06-01T22:54:26Z',
-           'qcs_reag_item_id': 18513, 'qcs_user_id': 112, 'status': 'MADE'},
-        {'id': 41420, 'occurred': '2020-04-03T00:00:00Z',
-           'qcs_reag_item_id': 18513, 'qcs_user_id': 112, 'status': 'EXPIRED'}
+        The itemlst is a list of dicts containing:
 
-        the reagentlst is a list of dicts containing:
-        {'id': 8912, 'name': 'Atazanavir-bisulfate', 'basetype': 'reagent',
-           'catalog_number': None, 'category': 'TDM', 'date_msds_expires': None,
-           'disposed': None, 'expiry_time': None,
-           'hazards': 'Avoid inhalation, skin and eye contact. Wear PPE.',
-           'location': None, 'msds_filename': 'ATV_BS_A790050MSDS.pdf',
-           'needs_validation': None, 'notes': None, 'qcs_document_id': None,
-           'storage': '-20 C', 'supplier': None},
-        {'id': 8932, 'name': 'Triton X-100', 'basetype': 'stockchem',
-           'catalog_number': 'T8787', 'category': 'Other Chemicals',
-           'date_msds_expires': '2020-02-28T00:00:00Z', 'disposed': None,
-           'expiry_time': 2555, 'hazards': None, 'location': None,
-           'msds_filename': None, 'needs_validation': None,
-           'notes': None, 'qcs_document_id': None, 'storage': 'Room Temperature',
-           'supplier': 'Sigma Aldrich'},
-        {'id': 8952, 'name': 'Proviral V3 Primary 1st PCR  mix', 'basetype': 'reagent',
-           'catalog_number': None, 'category': 'PCR',
-           'date_msds_expires': None, 'disposed': None,
-           'expiry_time': None, 'hazards': None,
-           'location': '604', 'msds_filename': None,
-           'needs_validation': None,
-           'notes': None, 'qcs_document_id': None,
-           'storage': '-20 C', 'supplier': None}
+         {'id': 18478, 'last_seen': None, 'lot_num': '2019AD3EB',
+            'notes': '8 bottles of spare reagents',
+            'qcs_location_id': 10010,
+            'qcs_reag_id': 6297, 'rfid': 'REPLACE ME'},
+         {'id': 18479, 'last_seen': None, 'lot_num': 'INT.BP.17.02',
+            'notes': None, 'qcs_location_id': 10016,
+            'qcs_reag_id': 6217, 'rfid': 'REPLACE ME'}
+
+        The itmstatlst is a list of dicts containing:
+
+          {'id': 41418, 'occurred': '2021-04-30T07:00:00Z',
+            'qcs_reag_item_id': 18512, 'qcs_user_id': 113, 'status': 'EXPIRED'},
+          {'id': 41419, 'occurred': '2018-06-01T22:54:26Z',
+            'qcs_reag_item_id': 18513, 'qcs_user_id': 112, 'status': 'MADE'},
+          {'id': 41420, 'occurred': '2020-04-03T00:00:00Z',
+            'qcs_reag_item_id': 18513, 'qcs_user_id': 112, 'status': 'EXPIRED'}
+
+        The reagentlst is a list of dicts containing:
+
+          {'id': 8912, 'name': 'Atazanavir-bisulfate', 'basetype': 'reagent',
+            'catalog_number': None, 'category': 'TDM', 'date_msds_expires': None,
+            'disposed': None, 'expiry_time': None,
+            'hazards': 'Avoid inhalation, skin and eye contact. Wear PPE.',
+            'location': None, 'msds_filename': 'ATV_BS_A790050MSDS.pdf',
+            'needs_validation': None, 'notes': None, 'qcs_document_id': None,
+            'storage': '-20 C', 'supplier': None},
+          {'id': 8932, 'name': 'Triton X-100', 'basetype': 'stockchem',
+            'catalog_number': 'T8787', 'category': 'Other Chemicals',
+            'date_msds_expires': '2020-02-28T00:00:00Z', 'disposed': None,
+            'expiry_time': 2555, 'hazards': None, 'location': None,
+            'msds_filename': None, 'needs_validation': None,
+            'notes': None, 'qcs_document_id': None, 'storage': 'Room Temperature',
+            'supplier': 'Sigma Aldrich'},
+         {'id': 8952, 'name': 'Proviral V3 Primary 1st PCR  mix', 'basetype': 'reagent',
+            'catalog_number': None, 'category': 'PCR',
+            'date_msds_expires': None, 'disposed': None,
+            'expiry_time': None, 'hazards': None,
+            'location': '604', 'msds_filename': None,
+            'needs_validation': None,
+            'notes': None, 'qcs_document_id': None,
+            'storage': '-20 C', 'supplier': None}
         """
         # NOTE: as we want dicts and not Location instances, we go directly to
         # the 'SQL level' (session.execute() and not the 'ORM level' (session.query())
@@ -517,20 +570,27 @@ class ChemStockDB:
 
     # location changes ---
     def reset_loc_changes(self) -> None:
-        """Remove all location changes in the database."""
+        """Remove all location changes in the database.
+        A location change occurs when, during stock taking, a reagent item was
+        found in a location that does not agree with the database.
+        The user enters a location change for that item to be uploaded
+        to QAI at a later date.
+        """
         s = self._sess
         s.query(Locmutation).delete()
         s.commit()
 
     def number_of_loc_changes(self) -> int:
-        """Return the number location changes currently in the database"""
+        """Return the number of location changes currently in the database"""
         s = self._sess
         return s.query(Locmutation).count()
 
     def add_loc_changes(self, locid: int, locdat: LocChangeList) -> None:
-        """The locdat is a list of tuple
-        (18023, 'missing')
-        reagent (item ID, string)
+        """Add a location change to the database.
+        The locdat is a list of tuple with an id and a string indicating the change.
+           (reagent item ID, string)
+        For example:
+          (18023, 'missing')
         """
         if not isinstance(locid, int):
             raise ValueError("locid must be an int")
@@ -544,9 +604,13 @@ class ChemStockDB:
     def get_loc_changes(self, oldhash: typing.Optional[str]=None) -> \
             typing.Tuple[str, typing.Optional[typing.Dict[int, LocChangeList]]]:
         """Return all location changes in the database.
-        if oldhash does not match our current hash,
-        return a new dictionary.
-        If it does match, return None.
+
+        Args:
+           oldhash: an optional hashkey indicating the last retrieved database state.
+        Returns:
+           If oldhash does not match our current hash,
+           return the new hash and a new dictionary.
+           If it does match, return the newhash and None.
         """
         oldhash = oldhash or ""
         ret_dct: typing.Dict[int, LocChangeList] = {}

@@ -1,6 +1,5 @@
-
-# Provide a level of abstraction to websockets on the server side to allow for different
-# encoding and/or compression approaches.
+"""Provide a level of abstraction to websockets on the server side to allow for different
+encoding and/or compression approaches."""
 
 
 import typing
@@ -17,7 +16,15 @@ EOF_dct = {"msg": CommonMSG.MSG_WC_EOF, "data": None}
 
 
 class BaseWebSocket:
+    """Encapsulate a raw websocket instance and provided methods for encoding/decoding
+    of messages."""
     def __init__(self, rawws: websocket, logger) -> None:
+        """
+
+        Args:
+           rawws: the raw websocket instance
+           logger: a python logging class
+        """
         self.ws = rawws
         self.logger = logger
 
@@ -26,8 +33,10 @@ class BaseWebSocket:
 
     def receiveMSG(self) -> typing.Optional[WebsocketMSG]:
         """Block until a message is received from the websocket channel,
-        Then return the message read as a python object.
-        If an error occurs, this message could be None.
+
+        Returns:
+           The message read as a python object.
+           If an error occurs, a message is logged and None is returned.
         """
         try:
             rawmsg = self.ws.receive()
@@ -43,13 +52,24 @@ class BaseWebSocket:
         return retdct
 
     def sendMSG(self, msg: WebsocketMSG) -> None:
-        """Send the message over the websocket connection"""
+        """Send the message over the websocket connection.
+        Args:
+           msg: the message dict to send.
+        """
         self.ws.send(self._encodeMSG(msg))
 
     def _decodeMSG(self, rawmsg: typing.Any) -> typing.Optional[WebsocketMSG]:
         """Given a raw message read from the websocket interface,
         convert this into a python object (a dict) and return it.
-        Return None is this somehow fails.
+        This method must be overriden in subclasses.
+        Args:
+           rawmsg: the raw message read from the websocket.
+        Returns:
+           The raw message converted into a python data structure.
+           Return None is this somehow fails.
+
+        Raises:
+           NotImplementedError: when called.
         """
         raise NotImplementedError("decodeMSG not implemented")
 
@@ -59,7 +79,8 @@ class BaseWebSocket:
 
 
 class JSONWebSocket(BaseWebSocket):
-
+    """Communicate over a raw websocket using uncompressed JSON-encoded messages.
+    """
     def _decodeMSG(self, rawmsg: typing.Any) -> typing.Optional[WebsocketMSG]:
         """Given a raw message read from the websocket interface,
         convert this into a python object (a dict) and return it.
