@@ -109,6 +109,36 @@ class TrackerSession(qai_helper.QAISession):
         return super().generate_receive_url(locid, rfidlst)
 
 
+class FaultySession(qai_helper.QAISession):
+    """A session that always returns an HTTP error."""
+    def __init__(self, qai_path: str) -> None:
+        super().__init__(qai_path)
+
+    def patch_json(self, path: str, data: typing.Any, params=None, retries=3) -> qai_helper.RequestValue:
+        return [HTTP_OK+1, None]
+
+    def post_json(self, path: str, data: typing.Any, retries=3) -> qai_helper.RequestValue:
+        return [HTTP_OK+1, None]
+
+    def get_json(self, path: str, params: dict=None, retries=3) -> qai_helper.RequestValue:
+        return [HTTP_OK+1, None]
+
+    def delete_json(self, path: str, params: dict=None, retries=3) -> qai_helper.RequestValue:
+        return [HTTP_OK+1, None]
+
+    def generate_receive_url(self, locid: int, rfidlst: typing.List[str]) -> str:
+        return [HTTP_OK+1, None]
+
+    def _rawget(self, path: str, params: dict=None, retries: int=3) -> requests.Response:
+        """Perform a get call to the server, in which we do NOT expect a json response
+        from the server.
+        """
+        resp = requests.Response()
+        resp.status_code = HTTP_OK + 1
+        # rval = resp.text
+        return resp
+
+
 def setup_module(module) -> None:
     print("SEETUP MODULE")
     # assert False, "force fail"
@@ -143,6 +173,84 @@ def check_dct_type(tdct: dict, totest: dict) -> None:
                                                                               v,
                                                                               exp_type,
                                                                               type(v)))
+
+
+class Test_qai_helpers:
+    """These tests are independent of access to a QAI server."""
+
+    def test_tojson01(self) -> None:
+        """Encoding a dict with a complex key raises a TypeError"""
+        s = {(1, 2): 'hello'}
+        with pytest.raises(TypeError):
+            qai_helper.tojson(s)
+
+    def test_tojson02(self) -> None:
+        """Encoding a user-defined class should work."""
+        class bla:
+            def __init__(self):
+                self.bg = 'red'
+                self.goo = 'blue'
+        b = bla()
+        rs = qai_helper.tojson(b)
+        assert isinstance(rs, str), 'string expected'
+
+    def test_jsonconvert(self) -> None:
+        """Encode and decoding should produce the same data structure.
+        NOTE: tuple are converted into lists in json -- therefore our tests
+        should not use them.
+        NOTE: complex numbers come back as strings -- do not test either.
+        NOTE: sets cannot be used either.
+        """
+        a = dict(a=100.0, b=99, c='hello', d=[12, 'blu'])
+        b = [100.0, -99, 'bla', ['sub', 'list']]
+        c = [1, 2, 3]
+        for var in [a, b, c]:
+            transmit_bytes = qai_helper.tojson(var)
+            got_var = qai_helper.fromjson(transmit_bytes)
+            assert got_var == var, "variable is not the same "
+
+    def test_safe_fromjson(self) -> None:
+        """
+        safe_fromjson should provide a data structure or None
+        """
+        avar = dict(a=100.0, b=99, c='hello', d=[12, 'blu'])
+        astr = qai_helper.tojson(avar)
+        bstr = "this is not json"
+        for var, exp_res in [(astr, avar), (bstr, None)]:
+            res = qai_helper.safe_fromjson(var)
+            assert res == exp_res, "got unexpected result"
+
+    def test_login_try_wrong_parameters(self) -> None:
+        """Ensure that login_try behaves appropriately when
+        passed nonsense arguments.
+        These tests do not require access to the QAI server.
+        """
+        s = qai_helper.Session(TESTqai_url)
+        for usr, passwd in [(None, 'password'),
+                            ('user', None)]:
+            res = s.login_try(usr, passwd)
+            assert isinstance(res, dict), "dict expected"
+            assert not res['ok'], "ok = False expected"
+
+    def test_login_try_invalid_URL(self) -> None:
+        for hname in ["", "192.abc", 145, "rss:bka:hello", "hello/%bla?goo"]:
+            s = qai_helper.Session(hname)
+            res = s.login_try('user', 'password')
+            assert isinstance(res, dict), "dict expected"
+            assert not res['ok'], "ok = False expected"
+            print("GOT msg '{}'".format(res['msg']))
+        # assert False, "force fail"
+
+    def test_qaidataset(self) -> None:
+        rdct: qai_helper.QAIdct = None
+        tsdct: qai_helper.QAIChangedct = {}
+        tsdct[qai_helper.QAISession.QAIDCT_REAGENTS] = 'now'
+        ds = qai_helper.QAIDataset(rdct, tsdct)
+        data_dct = ds.get_data()
+        assert isinstance(data_dct, dict), "dict expected"
+        ts_dct = ds.get_timestamp()
+        assert ts_dct == tsdct, "unexpected dict"
+        # assert False, "force fail"
 
 
 @withqai
@@ -182,7 +290,11 @@ class Test_qai_log_in:
     def test_is_logged_in01(self) -> None:
         retval = self.s.is_logged_in()
         assert isinstance(retval, bool), "bool expected"
-        assert not retval, "expected false"
+        assert not retval, "expected False"
+
+        # we are NOT logged in -- try to log out anyway
+        with pytest.raises(RuntimeError):
+            self.s.logout()
 
     def test_logout01(self) -> None:
         """Make sure we can login and out."""
@@ -210,6 +322,8 @@ class SimpleQAItester:
         lverb = True
         if lverb:
             print("SETUP CLASS {}".format(cls))
+        cls.faulty_session = FaultySession(TESTqai_url)
+        # --
         cls.s = TrackerSession(TESTqai_url)
         cls.s.login(TESTauth_uname, TESTauth_password)
         if not cls.s.is_logged_in():
@@ -336,6 +450,12 @@ def random_string(len: int) -> str:
 
 @withqai
 class Test_creation(SimpleQAItester):
+
+    def test_logout_raises_01(self) -> None:
+        self.faulty_session._islogged_in = True
+        with pytest.raises(RuntimeError):
+            self.faulty_session.logout()
+        # assert False, "force fail"
 
     def test_is_logged_in02(self):
         retval = self.s.is_logged_in()
@@ -581,16 +701,32 @@ class Test_qai_helper_get(DATAQAItester):
         with pytest.raises(requests.exceptions.InvalidURL):
             self.s.get_json(invalid_url)
 
-    def test_get_location_list(self):
+    def test_get_location_list01(self):
         """Getting the list of locations should be of
         the expected data structure."""
-        loclst = self.loclst
+        # loclst = self.loclst
+        loclst = self.s._get_location_list()
         assert isinstance(loclst, list), 'list expected'
         tdct = {'id': int, 'name': str}
         for d in loclst:
             check_dct_type(tdct, d)
+        #
+        with pytest.raises(RuntimeError):
+            self.faulty_session._get_location_list()
 
-    def test_get_reagent_list(self):
+    def test_get_supplier_list(self) -> None:
+        supplst = self.s._get_supplier_list()
+        assert isinstance(supplst, list), 'list expected'
+        with pytest.raises(RuntimeError):
+            self.faulty_session._get_supplier_list()
+
+    def test_get_reagent_list01(self) -> None:
+        rlst = self.s._get_reagent_list()
+        assert isinstance(rlst, list), 'list expected'
+        with pytest.raises(RuntimeError):
+            self.faulty_session._get_reagent_list()
+
+    def test_get_reagent_list02(self):
         """Getting the reagent list should succeed and provide
         the expected data structure."""
         lverb = True
@@ -661,10 +797,22 @@ class Test_qai_helper_get(DATAQAItester):
         assert len(fndlst) == 1, "itemid not found"
         return fndlst[0]
 
-    def test_get_reagent_items(self):
+    def test_get_reagent_items01(self):
         """Attempt to get all reagent items defined."""
         rcode, itm_lst = self.s.get_json(PATH_REAGITEM_LIST)
         assert rcode == HTTP_OK, "called failed"
+
+    def test_get_reagent_items02(self):
+        """Attempt to get all reagent items defined."""
+        itm_dct = self.s._get_reagent_items([])
+        assert isinstance(itm_dct, dict), "dict expected"
+        assert len(itm_dct) == 0, "expecting empty dict"
+
+        itm_dct = self.s._get_reagent_items([dict(id=self.test_reagent_id)])
+        assert isinstance(itm_dct, dict), "dict expected"
+        assert len(itm_dct) == 1, "expecting empty dict"
+        with pytest.raises(RuntimeError):
+            self.faulty_session._get_reagent_items([dict(id=self.test_reagent_id)])
 
     def test_reagent_item_patch01(self):
         """We should be able to modify a reagent_item."""
@@ -795,7 +943,30 @@ class Test_qai_helper_get(DATAQAItester):
         d = self.s.get_QAI_ChangeData()
         assert isinstance(d, dict), "dict expected"
         print("BLA {}".format(d))
-        # assert False, "force fail"
+        with pytest.raises(RuntimeError):
+            self.faulty_session.get_QAI_ChangeData()
+
+    def test_qai_dump01(self):
+        with pytest.raises(RuntimeError):
+            self.faulty_session.get_QAI_dump()
+
+    def test_clever_qai_update_args(self):
+        """Passing wrongs args to the routine should raise a RuntimeError
+        No QAI server access is required for this test.
+        """
+        # create a faulty tsdct (missing keys)
+        rdct: qai_helper.QAIdct = None
+        tsdct: qai_helper.QAIChangedct = {}
+        qaids = qai_helper.QAIDataset(rdct, tsdct)
+        with pytest.raises(RuntimeError):
+            self.s.clever_update_QAI_dump(qaids)
+        # now try again with a better tsdct..
+        for k in qai_helper.QAISession.qai_key_lst:
+            tsdct[k] = 'now'
+        qaids = qai_helper.QAIDataset(rdct, tsdct)
+        # a faulty session
+        with pytest.raises(RuntimeError):
+            self.faulty_session.clever_update_QAI_dump(qaids)
 
 
 @dumpchemstock
@@ -812,7 +983,7 @@ class Test_dump:
             raise RuntimeError("login failed")
 
     # @pytest.mark.skip(reason="Takes too long")
-    def test_qai_dump(self):
+    def test_qai_dump02(self):
         ds = self.s.get_QAI_dump()
         assert isinstance(ds, qai_helper.QAIDataset), "QAIDataset expected"
         yamlutil.writeyamlfile(ds, "./qaidump.yaml")

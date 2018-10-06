@@ -32,7 +32,7 @@ def tojson(data: typing.Any) -> str:
     try:
         retstr = json.dumps(data, separators=(',', ':'), default=str)
     except TypeError as e:
-        logger.warn("problem converting to json '{}'".format(data))
+        logger.warning("problem converting to json '{}'".format(data))
         raise e
     return retstr
 
@@ -127,9 +127,9 @@ class Session(requests.Session):
         try:
             response = self._login_resp(qai_user, password)
         except requests.exceptions.InvalidURL:
-            return dict(ok=False, msg="Configuration error: invalid QAI URL {}".format(self.qai_path))
+            return dict(ok=False, msg="Configuration error: invalid QAI URL '{}'".format(self.qai_path))
         except requests.exceptions.ConnectionError:
-            return dict(ok=False, msg="Configuration error: no route to host: QAI URL {}".format(self.qai_path))
+            return dict(ok=False, msg="Configuration error: no route to host: QAI URL '{}'".format(self.qai_path))
         except requests.exceptions.HTTPError:
             return dict(ok=False, msg="Configuration error: HTTP Protocol error")
         except requests.exceptions.Timeout:
@@ -137,7 +137,7 @@ class Session(requests.Session):
         except Exception:
             # the QAI could not be contacted (exceeded number of attempts)
             return dict(ok=False,
-                        msg="Login unsuccessful: The QAI system at {} cannot be contacted".format(self.qai_path))
+                        msg="Login unsuccessful: The QAI system at '{}' cannot be contacted".format(self.qai_path))
         retstat = response.status_code
         if retstat == requests.codes.forbidden:
             return dict(ok=False,
@@ -215,7 +215,7 @@ class Session(requests.Session):
 
                 # ten minutes with some noise
                 sleep_seconds = average_delay + Random().uniform(-10, 10)
-                logger.warn(
+                logger.warning(
                     'JSON request failed. Sleeping for %ss before retry.',
                     sleep_seconds,
                     exc_info=True)
@@ -223,14 +223,14 @@ class Session(requests.Session):
                 retries_remaining -= 1
                 average_delay += 600
 
-    def _retry_json(self, method, path, data=None, params=None, retries=3) -> RequestValue:
+    def _retry_json(self, method, path, data=None, params=None, retries: int =3) -> RequestValue:
         r = self._retry_response(method, path, data=data, params=params, retries=retries)
         return (r.status_code, r.json())
 
-    def patch_json(self, path: str, data: typing.Any, params=None, retries=3) -> RequestValue:
+    def patch_json(self, path: str, data: typing.Any, params=None, retries: int=3) -> RequestValue:
         return self._retry_json(self.patch, path, data=data, params=params, retries=retries)
 
-    def post_json(self, path: str, data: typing.Any, retries=3) -> RequestValue:
+    def post_json(self, path: str, data: typing.Any, retries: int=3) -> RequestValue:
         """ Post a JSON object to the web server, and return a JSON object.
 
         Args:
@@ -265,7 +265,7 @@ class Session(requests.Session):
         arglst.append("rfids=" + ",".join(["{}".format(rfid) for rfid in rfidlst]))
         return ustr + "&".join(arglst)
 
-    def _rawget(self, path: str, params: dict=None, retries=3) -> requests.Response:
+    def _rawget(self, path: str, params: dict=None, retries: int=3) -> requests.Response:
         """Perform a get call to the server, in which we do NOT expect a json response
         from the server.
         """
@@ -276,7 +276,7 @@ class Session(requests.Session):
                                     expect_json=False)
 
     def get_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
-        """ Get a JSON object from the web server.
+        """Retrieve a JSON object from the web server using a http GET call.
         Args:
            path: the relative path to add to settings.qai_path.
            params: URL parameters to be added to the URL.
@@ -287,6 +287,14 @@ class Session(requests.Session):
         return self._retry_json(self.get, path, params=params, retries=retries)
 
     def delete_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
+        """Make a HTTP delete call
+        Args:
+           path: the relative path to add to settings.qai_path.
+           params: URL parameters to be added to the URL.
+           retries: the number of times to retry the request before failing.
+        Returns:
+           The HTML response body, parsed as a JSON object.
+        """
         return self._retry_json(self.delete, path, params=params, retries=retries)
 
 
@@ -382,6 +390,8 @@ class QAISession(Session):
         """Retrieve a list of all locations stored in the QAI database.
         Returns:
            The dicts in the list contain two keys: 'id' and 'name'.
+        Raises:
+           RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
         rcode, loclst = self.get_json(PATH_LOCATION_LIST)
         if rcode != HTTP_OK:
@@ -392,6 +402,8 @@ class QAISession(Session):
         """Retrieve a list of reagent suppliers as a list of strings.
         Returns:
            A list of strings.
+        Raises:
+           RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
         rcode, supplierlst = self.get_json(PATH_REAGENT_LIST_SUPPLIERS)
         if rcode != HTTP_OK:
@@ -402,6 +414,8 @@ class QAISession(Session):
         """Retrieve a list of all reagents.
         Returns:
            The dicts contain two keys: 'id' and 'name'.
+        Raises:
+           RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
         rcode, reagent_lst = self.get_json(PATH_REAGENT_LIST_REAGENTS)
         if rcode != HTTP_OK:
@@ -418,6 +432,8 @@ class QAISession(Session):
            from the show API call. (I.e. the reagent_item_lst,  a list in "items", e.g.:
            reag_dct = get_reagent_items(rlst)
            my_reag_item_lst = reag_dct[my_reagent_id]['items']
+        Raises:
+           RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
         rdct = {}
         for reagent_dct in reagent_lst:
@@ -435,6 +451,8 @@ class QAISession(Session):
         Returns:
            A dict in which the keys are defined as class variables in :class:`QAISession`.
            The values are strings representing time stamps.
+        Raises:
+           RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
         rdct: QAIChangedct = {}
         for k, url in self.timestamp_url_lst:
@@ -450,6 +468,14 @@ class QAISession(Session):
 
     def get_QAI_dump(self) -> QAIDataset:
         """Retrieve the complete reagent database as a QAIDataset.
+
+        This routine attempts to download the complete data set from QAI, regardless
+        of the data stored locally.
+
+        Returns:
+           The retrieved QAIDataset.
+        Raises:
+           RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
         rdct: QAIdct = {}
         for k, url in self.data_url_lst:
@@ -464,7 +490,7 @@ class QAISession(Session):
         return QAIDataset(rdct, tsdct)
 
     def clever_update_QAI_dump(self, qaiDS: QAIDataset) -> QAIUpdatedct:
-        """Update only those parts of the QAI dataset necessary
+        """Update only those parts of the QAI dataset that are out of date.
 
         For every QAI database table stored locally, we store in addition
         a timestamp received from the QAI server at the time of data retrieval.
@@ -481,6 +507,9 @@ class QAISession(Session):
            the database tables).
            The values of the dict are
            a boolean := "an update from the server occurred"
+
+        Raises:
+           RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
         tsdct = qaiDS.get_timestamp()
         qaidct = qaiDS.get_data()
