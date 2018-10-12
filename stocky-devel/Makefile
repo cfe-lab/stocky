@@ -21,6 +21,8 @@ DEV_SRC           =${STOCKY_TOP_DIR}/stocky
 STOCKY_STATE_DIR  =${STOCKY_TOP_DIR}/stocky-devel-state
 STOCKY_CONFIG_DIR =${STOCKY_TOP_DIR}/stocky-devel-config
 
+# the name of the docker container (NOT image) used for production
+STOCKY_PROD_NAME=stockyprod
 
 #ENV_OPTS = -ePYTHONPATH=/stockysrc/utils
 ENV_OPTS = 
@@ -71,8 +73,11 @@ runlocal:  ## run the stocky docker image with local code interactively with bas
 	${DOCKER_RUN_CMD} -v ${DEV_SRC}:/stockysrc -it ${BASE_IMAGE_NAME} tcsh
 
 runprod: ## run the stocky docker image for production.
-	${DOCKER_RUN_CMD} ${BASE_IMAGE_NAME}
-
+	${DOCKER_RUN_CMD} -d --name ${STOCKY_PROD_NAME} ${BASE_IMAGE_NAME}
+	notify-send "stocky server is running"
+stopprod: ## stop a container previously srated with runprod
+	docker stop ${STOCKY_PROD_NAME}
+	notify-send "stocky server stopped"
 runtests:  ## run the unit tests on the stocky docker image with image code 
 	${DOCKER_TESTRUN_CMD}  -it ${BASE_IMAGE_NAME} make all-test pep8
 

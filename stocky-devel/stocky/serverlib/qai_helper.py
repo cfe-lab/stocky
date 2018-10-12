@@ -127,13 +127,13 @@ class Session(requests.Session):
         try:
             response = self._login_resp(qai_user, password)
         except requests.exceptions.InvalidURL:
-            return dict(ok=False, msg="Configuration error: invalid QAI URL '{}'".format(self.qai_path))
+            return dict(ok=False, msg="Configuration error: invalid QAI URL: '{}'".format(self.qai_path))
         except requests.exceptions.ConnectionError:
-            return dict(ok=False, msg="Configuration error: no route to host: QAI URL '{}'".format(self.qai_path))
+            return dict(ok=False, msg="No route to host or connection refused (QAI URL: '{}')".format(self.qai_path))
         except requests.exceptions.HTTPError:
             return dict(ok=False, msg="Configuration error: HTTP Protocol error")
         except requests.exceptions.Timeout:
-            return dict(ok=False, msg="The Connection timed out")
+            return dict(ok=False, msg="The connection to QAI ({}) timed out".format(self.qai_path))
         except Exception:
             # the QAI could not be contacted (exceeded number of attempts)
             return dict(ok=False,
@@ -141,7 +141,8 @@ class Session(requests.Session):
         retstat = response.status_code
         if retstat == requests.codes.forbidden:
             return dict(ok=False,
-                        msg="Login unsuccessful: The QAI system refused access for user {}".format(qai_user))
+                        msg="Login unsuccessful: The QAI system at {} refused access for user {}".format(self.qai_path,
+                                                                                                         qai_user))
         # finally -- things seem to have worked out
         self._islogged_in = True
         return dict(ok=True,
@@ -205,6 +206,8 @@ class Session(requests.Session):
             except requests.exceptions.InvalidURL:
                 raise
             except requests.exceptions.HTTPError:
+                raise
+            except requests.exceptions.ConnectionError:
                 raise
             except Exception:
                 if retries_remaining <= 0:

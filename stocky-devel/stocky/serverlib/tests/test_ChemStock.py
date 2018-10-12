@@ -217,9 +217,7 @@ class Test_Chemstock_WITHQAI(commontests):
         assert isinstance(old_upd, str), "string expected"
         if lverb:
             print("OLD UPDATE {}".format(old_upd))
-        retval = csdb.update_from_QAI()
-        assert isinstance(retval, bool), "bool expected"
-        assert retval, "QAI update failed !"
+        csdb.update_from_QAI()
 
         new_upd = csdb.get_update_time()
         assert isinstance(new_upd, str), "string expected"
