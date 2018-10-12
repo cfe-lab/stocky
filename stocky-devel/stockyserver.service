@@ -1,0 +1,14 @@
+# copy this file to /etc/systemd/system/.
+# reload the systemd with 'sudo systemctl daemon-reload'
+[Unit]
+Description=The stocky server docker image
+Requires=docker.service
+
+[Service]
+WorkingDirectory=/home/wscott/stockygit/stocky-devel/
+ExecStart=/usr/bin/make runprod
+ExecStop=/usr/bin/make stopprod
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
