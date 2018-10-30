@@ -248,7 +248,7 @@ class serverclass:
         else:
             did_dbreq = False
             dbreq_ok = True
-            dbreq_msg = "no dbupdate"
+            dbreq_msg = "NOTE: No update from QAI database performed."
         wc_stock_dct = self.stockdb.generate_webclient_stocklist()
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_STOCK_INFO_RESP,
                                    dict(db_stats=self.stockdb.get_db_stats(),

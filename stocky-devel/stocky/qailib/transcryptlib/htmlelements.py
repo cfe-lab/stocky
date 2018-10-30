@@ -805,7 +805,7 @@ class LEDElement(div):
                  idstr: str,
                  attrdct: dict,
                  jsel,
-                 initial_colour: int=0) -> None:
+                 initial_colour: int = 0) -> None:
         # these reflect the names in the css file. The order must reflect the indices
         # defined above.
         self.cols = ['led-red', 'led-yellow', 'led-green', 'led-blue']
@@ -830,3 +830,18 @@ class LEDElement(div):
 def scoalert(txt: str) -> None:
     """Opens a blocking dialog with an 'OK' button The txt is presented."""
     alert(txt)
+
+
+class alertbox(div):
+    """A box that displays text to catch a user's attention."""
+    def __init__(self, parent: base_element,
+                 idstr: str,
+                 attrdct: dict,
+                 jsel) -> None:
+        attrdct = attrdct or {}
+        attrdct['class'] = 'alert'
+        super().__init__(parent, idstr, attrdct, jsel)
+        self.txt = textnode(self, "")
+
+    def set_text(self, newtext: str) -> None:
+        self.txt.set_text(newtext)

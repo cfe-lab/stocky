@@ -64,6 +64,7 @@ class stocky_mainprog(widgets.base_controller):
         self._ws = ws
         ws.addObserver(self, base.MSGD_SERVER_MSG)
         ws.addObserver(self, base.MSGD_COMMS_ARE_UP)
+        ws.addObserver(self, base.MSGD_COMMS_ARE_DOWN)
         self.numlst: typing.List[int] = []
         self.init_view()
 
@@ -256,9 +257,12 @@ class stocky_mainprog(widgets.base_controller):
             # this happens when the websocket first comes online. Use it for
             # some initial caching.
             print("COMMS ARE UP")
+            self.wcstatus.set_WS_state(True)
             self.wcstatus.refresh_locmut_dct()
-            # print("sending config request to server")
-            # self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_CONFIG_REQUEST, 1))
+        elif msgdesc == base.MSGD_COMMS_ARE_DOWN:
+            # this happens id the stocky server crashes, taking
+            # the websocket connection with it
+            self.wcstatus.set_WS_state(False)
         elif msgdesc == base.MSGD_FORM_SUBMIT:
             # the login form has sent us a login request. pass this to the server
             # for verification

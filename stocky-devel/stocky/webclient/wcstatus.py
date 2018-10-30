@@ -30,15 +30,24 @@ class WCstatus(base.base_obj):
     Also store the stock information on the webclient that was sent
     from the stocky server.
     """
-    NUM_ROW = 2
-    NUM_COL = 3
 
-    RFID_ROW = 0
-    QAI_ROW = 1
+    # the size of the spinners in pixels
+    SPIN_SZ_PIZELS = 30
+
+    NUM_ROW = 3
+    NUM_COL = 2
+
+    # SRV: status of comms to stocky server
+    # RFID: status of RFID reader
+    # QAI: whether logged in to QAI
+    SRV_ROW = 0
+    RFID_ROW = 1
+    QAI_ROW = 2
 
     LED_COL = 0
     INFO_COL = 1
-    QAI_UPD_COL = 2
+    # set this to INFO_COL..
+    QAI_UPD_COL = 1
 
     LOC_NOSEL_ID = "NOSEL_ID"
     LOC_NOSEL_NAME = "No Defined Location"
@@ -75,7 +84,8 @@ class WCstatus(base.base_obj):
                                                      WCstatus.NUM_COL)
 
         self.ledlst: typing.List[html.LEDElement] = []
-        for title, rownum in [("RFID Scanner Status", WCstatus.RFID_ROW),
+        for title, rownum in [("Stocky Server Status", WCstatus.SRV_ROW),
+                              ("RFID Scanner Status", WCstatus.RFID_ROW),
                               ("Click to log in to QAI", WCstatus.QAI_ROW)]:
             ledattrdct = {"title": title}
             cell = mytab.getcell(rownum, WCstatus.LED_COL)
@@ -110,13 +120,12 @@ class WCstatus(base.base_obj):
             return
 
         # install a general purpose busy spinner
-        cell = mytab.getcell(WCstatus.RFID_ROW, WCstatus.QAI_UPD_COL)
+        cell = mytab.getcell(WCstatus.SRV_ROW, WCstatus.QAI_UPD_COL)
         if cell is not None:
-            spin_sz_pixels = 50
             spin_attrdct = {'title': "Server activity"}
             self.spinner = forms.spinner(cell, "busyspinner",
                                          spin_attrdct, forms.spinner.SPN_SPINNER,
-                                         spin_sz_pixels)
+                                         WCstatus.SPIN_SZ_PIZELS)
         else:
             log("cell table error 2a")
             return
@@ -139,7 +148,8 @@ class WCstatus(base.base_obj):
             self.actspinner = forms.spinner(cell,
                                             "rfidspin",
                                             {"title": "RFID Scanner Activity"},
-                                            forms.spinner.SPN_COG, 20)
+                                            forms.spinner.SPN_COG,
+                                            WCstatus.SPIN_SZ_PIXELS)
         else:
             # self.actspinner = None
             log("cell table error 3")
@@ -211,6 +221,17 @@ class WCstatus(base.base_obj):
         """Set the RFID spinner on/off """
         self.actspinner.set_spin(on)
 
+    def set_WS_state(self, is_up: bool) -> None:
+        "Set the websocket communication to stocky server status to up or down"""
+        print("WC status : {}".format(is_up))
+        statusled = self.ledlst[WCstatus.SRV_ROW]
+        if is_up:
+            # set to green
+            statusled.setcolour(html.LEDElement.GREEN)
+        else:
+            # set to red
+            statusled.setcolour(html.LEDElement.RED)
+
     def set_QAIupdate_state(self, d: dict) -> None:
         """Set the string describing when the local DB was last
         updated from QAI"""
@@ -230,7 +251,7 @@ class WCstatus(base.base_obj):
             print("RECEIVED EMPTY STOCK DATA")
 
     def _setstockdata(self, stockdct: dict) -> None:
-        """Set the webclient's current  copy of the QAI chemicals stock DB.
+        r"""Set the webclient's current  copy of the QAI chemicals stock DB.
         NOTE: the loclist is a list of dict with id, and name entries:
         {'id': 10031, 'name': 'SPH\604\Research Fridge'},
         {'id': 10032, 'name': 'SPH\638\Freezer 6'}
@@ -238,7 +259,6 @@ class WCstatus(base.base_obj):
         NOTE: the stockdct dictionary is built on the server side in
         ChemStock.DOgenerate_webclient_stocklist() .
         The keys we use here must obviously match those used there.
-
         """
         self._stockloc_lst = stockdct['loclst']
         # self._stockitm_lst = stockdct['itemlst']

@@ -21,8 +21,12 @@ MSGD_SERVER_MSG = MSGdesc_Type("MSG_SERVER_MSG")
 MSGD_RFID_CLICK = MSGdesc_Type("MSG_RFID_CLICK")
 
 
-# the websocket communication to the server has come online. Produced by serversocket.server_socket
+# Indicate websocket communication from the webclient's perspective.
+# These messages are produced by serversocket.server_socket
+# the websocket communication to the server has come online/ offline.
 MSGD_COMMS_ARE_UP = MSGdesc_Type("MSG_COMMS_ARE_UP")
+MSGD_COMMS_ARE_DOWN = MSGdesc_Type("MSG_COMMS_ARE_DOWN")
+
 MSGD_DATA_CACHE_READY = MSGdesc_Type("MSG_DATA_CACHE_READY")
 
 # a 'logging' message is being passed along. This can be used to pass along

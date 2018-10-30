@@ -14,7 +14,7 @@ class BaseRawWebSocket:
     def send_raw(self, data_to_server) -> None:
         raise NotImplementedError('send_raw not implemented')
 
-    def is_open(self):
+    def is_open(self) -> bool:
         return self._isopen
 
     def send(self, data_to_server) -> None:
@@ -41,6 +41,12 @@ class BaseRawWebSocket:
         print('on_message_cb')
         if self._cbhandler is not None:
             self._cbhandler.on_message_cb(event)
+
+    def on_close_cb(self, event) -> None:
+        print('on_close_cb')
+        self.close()
+        if self._cbhandler is not None:
+            self._cbhandler.on_close_cb(event)
 
 
 class RawWebsocket(BaseRawWebSocket):
@@ -70,6 +76,9 @@ class RawWebsocket(BaseRawWebSocket):
         __pragma__(
             'js', '{}',
             'self._ws.onmessage = function(event){self.on_message_cb(event);}')
+        __pragma__(
+            'js', '{}',
+            'self._ws.onclose = function(event){self.on_close_cb(event);}')
 
     def close(self) -> None:
         self._ws.close()
@@ -94,7 +103,7 @@ class CNVWebsocket:
         print("CNVWebsocket.send {}".format(data_to_server))
         self._rawws.send_raw(self.encode(data_to_server))
 
-    def is_open(self):
+    def is_open(self) -> bool:
         return self._rawws.is_open()
 
     def on_message_JSON(self, data) -> None:
@@ -102,6 +111,9 @@ class CNVWebsocket:
         The data from the server will be provided in a javascript data structure.
         """
         raise NotImplementedError('on_message_JSON not implemented')
+
+    def on_close_cb(self, event) -> None:
+        print("CNVWebsocket: on_close_cb")
 
     def on_message_cb(self, event) -> None:
         datain = self.decode(event.data)

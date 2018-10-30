@@ -27,6 +27,11 @@ class clientsocket(base_server_socket):
         # print('BLU-BLU-BLU')
         self.sndMsg(base.MSGD_COMMS_ARE_UP, {})
 
+    def on_close_cb(self, event) -> None:
+        """This routine is called whenever the socket is closed for communication."""
+        # print('BLU-BLU-BLU')
+        self.sndMsg(base.MSGD_COMMS_ARE_DOWN, {})
+
     def on_message_JSON(self, data_from_server) -> None:
         """This is called with a javascript data structure whenever the client
         receives a message from the server.

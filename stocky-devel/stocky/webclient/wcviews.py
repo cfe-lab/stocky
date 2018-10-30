@@ -338,6 +338,7 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
         self.stat_tab: typing.Optional[simpletable.dict_table] = None
+        self.message_bar: typing.Optional[html.alertbox] = None
 
     def Redraw(self):
         """Start the download if we are logged in."""
@@ -365,6 +366,10 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
                                                                              dbreq_ok,
                                                                              dbreq_msg))
         print("SB stats 2 {}".format(tmp_dct))
+        if self.message_bar is None:
+            self.message_bar = html.alertbox(self, "alert-box", None, None)
+        self.message_bar.set_text(dbreq_msg)
+
         db_stat_dct = dict(tmp_dct)
         if self.stat_tab is None:
             tab_attrdct = {'class': 'w3-container'}
