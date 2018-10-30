@@ -144,7 +144,7 @@ class serverclass:
            msg: the message to handle.
         """
         self.logger.debug("server handling msg...")
-        print("server handling msg...")
+        print("server handling msg...{}".format(msg))
         if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
             radar_on = msg.data
             self.logger.debug("RADAR mode...{}".format(radar_on))
@@ -156,6 +156,7 @@ class serverclass:
                 self.tls.RadarGet()
         elif msg.msg == CommonMSG.MSG_WC_LOGIN_TRY:
             self.logger.debug("server received LOGIN request...")
+            print("server received LOGIN request...")
             # try to log in and send back the response
             un = msg.data.get('username', None)
             pw = msg.data.get('password', None)
@@ -180,11 +181,13 @@ class serverclass:
         elif msg.msg == CommonMSG.MSG_WC_STOCK_INFO_REQ:
             # request about chemstock information
             do_update = msg.data.get('do_update', False)
-            print("chemstock 1 {}".format(do_update))
+            print("chemstock 1 do_update={}".format(do_update))
+            upd_dct: typing.Optional[dict] = None
             if do_update:
-                self.stockdb.update_from_QAI()
+                upd_dct = self.stockdb.update_from_QAI()
+                print("update dct {}".format(upd_dct))
             print("chemstock 2..")
-            self.send_QAI_status()
+            self.send_QAI_status(upd_dct)
             print("chemstock 3")
         elif msg.msg == CommonMSG.MSG_WC_ADD_STOCK_REQ:
             # get a string for adding RFID labels to QAI.
@@ -194,7 +197,9 @@ class serverclass:
             qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst)
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
         elif msg.msg == CommonMSG.MSG_SV_FILE_STATE_CHANGE:
+            print("state change enter")
             self.handleRFIDstatechange(msg.data)
+            print("state change exit")
         elif msg.msg == CommonMSG.MSG_WC_LOCATION_INFO:
             # location change information: save to DB
             self.stockdb.add_loc_changes(msg.data['locid'], msg.data['locdat'])
@@ -207,6 +212,7 @@ class serverclass:
         else:
             self.logger.error("server not handling message {}".format(msg))
             raise RuntimeError("unhandled message {}".format(msg))
+        print("--END of server handling msg...{}".format(msg))
 
     def handleRFIDstatechange(self, is_online: bool) -> None:
         """React to the serial device associated with the RFID reader appearing/disappearing.
@@ -223,26 +229,34 @@ class serverclass:
         """
         commlink = self.cl
         commlink.HandleStateChange(is_online)
-        rfid_is_alive = commlink.is_alive()
-        if rfid_is_alive:
-            self.logger.debug("Commlink is alive")
-            self.logger.debug("serverclass: getting id_string...")
-            idstr = self.cl.id_string()
-            self.logger.info("Commlink idents as '{}'".format(idstr))
+        rfid_state = commlink.get_RFID_state()
+        self.logger.info("Commlink RFID state: {}".format(rfid_state))
+        if rfid_state == CommonMSG.RFID_ON:
+            print("Commlink is alive")
+            print("serverclass: getting id_string...")
+            idstr = commlink.id_string()
+            print("Commlink idents as '{}'".format(idstr))
             self.BT_init_reader()
             self.logger.info("Bluetooth init OK")
-        else:
-            self.logger.info("Commlink is NOT alive...")
-            self.logger.info("Skipping Bluetooth init...")
-        # now tell the webclient...
-        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, is_online))
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, rfid_state))
 
-    def send_QAI_status(self):
+    def send_QAI_status(self, upd_dct: typing.Optional[dict]):
+        if upd_dct is not None:
+            did_dbreq = True
+            dbreq_ok = upd_dct.get("ok", False)
+            dbreq_msg = upd_dct.get("msg", "no message")
+        else:
+            did_dbreq = False
+            dbreq_ok = True
+            dbreq_msg = "no dbupdate"
         wc_stock_dct = self.stockdb.generate_webclient_stocklist()
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_STOCK_INFO_RESP,
                                    dict(db_stats=self.stockdb.get_db_stats(),
                                         upd_time=self.stockdb.get_update_time(),
-                                        stock_dct=wc_stock_dct)))
+                                        stock_dct=wc_stock_dct,
+                                        did_dbreq=did_dbreq,
+                                        dbreq_ok=dbreq_ok,
+                                        dbreq_msg=dbreq_msg)))
 
     def mainloop(self, newws: ServerWebSocket.BaseWebSocket):
         """This routine is entered into when the webclient has established a
@@ -286,7 +300,7 @@ class serverclass:
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, is_up))
 
         # send the QAI update status to the webclient
-        self.send_QAI_status()
+        self.send_QAI_status(None)
 
         rfid_act_on = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, True)
         rfid_act_off = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, False)
@@ -295,7 +309,8 @@ class serverclass:
                                                        self.logger,
                                                        1.5,
                                                        rfid_act_off)
-        while True:
+        do_loop = True
+        while do_loop:
             if lverb:
                 print("YO: before get")
             msg: CommonMSG = self.msgQ.get()
@@ -307,7 +322,8 @@ class serverclass:
                 if lverb:
                     print("mainloop detected WS_EOF... quitting")
                 self.ws = None
-                return
+                do_loop = False
+            print("step 2")
             if msg.is_from_rfid_reader():
                 self.logger.debug("GOT RFID {}".format(msg.as_dict()))
                 self.send_WS_msg(rfid_act_on)
@@ -323,11 +339,13 @@ class serverclass:
                 is_handled = True
                 self.tls.send_RFID_msg(msg)
             if msg.msg in serverclass.MSG_FOR_ME_SET:
+                print("msg for me: {}".format(msg.msg))
                 is_handled = True
                 self.server_handle_msg(msg)
-
+                print("done handling")
             if not is_handled:
                 mmm = "mainloop DID NOT handle msgtype '{}'".format(msg.msg)
                 self.logger.error(mmm)
-                # print(mmm)
-            # print("end of ML.while")
+                print(mmm)
+            print("end of ML.while")
+        print("OUT OF LOOP")

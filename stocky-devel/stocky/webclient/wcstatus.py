@@ -11,6 +11,10 @@ import qailib.transcryptlib.simpletable as simpletable
 
 from commonmsg import CommonMSG
 
+RFID_ON = CommonMSG.RFID_ON
+RFID_OFF = CommonMSG.RFID_OFF
+RFID_TIMEOUT = CommonMSG.RFID_TIMEOUT
+
 
 log = genutils.log
 
@@ -116,7 +120,6 @@ class WCstatus(base.base_obj):
         else:
             log("cell table error 2a")
             return
-            
         # Set up the QAI last update tag
         cell = mytab.getcell(WCstatus.QAI_ROW, WCstatus.QAI_UPD_COL)
         if cell is not None:
@@ -186,18 +189,22 @@ class WCstatus(base.base_obj):
     def is_QAI_logged_in(self) -> bool:
         return self._stat_is_loggedin
 
-    def set_RFID_state(self, on: bool) -> None:
-        """Set the RFID LED state to on (green) or off (red)"""
+    def set_RFID_state(self, newstate: int) -> None:
+        """Set the RFID LED state to on (green), off (red) or timeout (ORANGE)"""
         statusled = self.ledlst[WCstatus.RFID_ROW]
-        if on:
+        if newstate == RFID_ON:
             # set to green
             statusled.setcolour(html.LEDElement.GREEN)
-        else:
+        elif newstate == RFID_OFF:
             # set to red
             statusled.setcolour(html.LEDElement.RED)
+        elif newstate == RFID_TIMEOUT:
+            statusled.setcolour(html.LEDElement.YELLOW)
+        else:
+            print("INVALID RFID LED STATE!")
 
     def set_busy(self, isbusy: bool) -> None:
-        """Set the state of the 'busy' spinner"""
+        """Set the state of the 'internet is busy' spinner"""
         self.spinner.set_spin(isbusy)
 
     def set_rfid_activity(self, on: bool) -> None:
@@ -208,7 +215,13 @@ class WCstatus(base.base_obj):
         """Set the string describing when the local DB was last
         updated from QAI"""
         upd_str = d['upd_time']
-        print("UPDATE {}".format(upd_str))
+        did_dbreq = d.get("did_dbreq", False)
+        dbreq_ok = d.get("dbreq_ok", False)
+        dbreq_msg = d.get("dbreq_msg", "")
+        print("UPDATE {}, did_dbreq: {}, dbreq_ok: {}, dbreq_msg; {}".format(upd_str,
+                                                                             did_dbreq,
+                                                                             dbreq_ok,
+                                                                             dbreq_msg))
         self.qai_upd_text.set_text(upd_str)
         stock_dct = d.get("stock_dct", None)
         if stock_dct is not None:
@@ -235,7 +248,6 @@ class WCstatus(base.base_obj):
         self._ritemdct = stockdct['ritemdct']
         self._reagentdct = stockdct['reagentdct']
         print(" SETTING REAGENTDCT LEN {}".format(len(self._reagentdct)))
-
         # self.preparechecklists()
         # self.showchecklist(0)
 

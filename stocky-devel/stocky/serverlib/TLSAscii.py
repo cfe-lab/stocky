@@ -328,6 +328,9 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         super().__init__(msgQ, logger, 0, True)
         self._cl = cl
         self.mode = tls_mode.undef
+        print("TLS init")
+        self.cur_state: typing.Optional[int] = None
+        print("TLS init got {}".format(self.cur_state))
         if cl.is_alive():
             self.BT_set_stock_check_mode()
         self.runningave = RunningAve(logger, radar_ave_num)
@@ -344,11 +347,13 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         return self.mode == tls_mode.radar
 
     def _convert_message(self, clresp: commlink.CLResponse) -> typing.Optional[CommonMSG]:
-        """Convert a RFID response into a common message.
+        """Convert an RFID response into a common message.
         Return None if this message should not be passed on.
         """
         # assume that we are going to return this message...
         ret_code: commlink.TLSRetCode = clresp.return_code()
+        if ret_code == commlink.BaseCommLink.RC_TIMEOUT:
+            return CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, CommonMSG.RFID_TIMEOUT)
         ret_is_ok = (ret_code == commlink.BaseCommLink.RC_OK)
         # A: determine the kind of message to return based on the comment_dict
         # or the current mode
@@ -391,14 +396,6 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             self.runningave.add_clresp(clresp)
             ret_data = self.runningave.get_runningave()
             self.logger.debug("Returning radar data {}".format(ret_data))
-        # elif msg_type == CommonMSG.MSG_RF_STOCK_DATA:
-        #    if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
-        #       ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
-        #        # the scan event failed to return any EPC or barcode data
-        #        # ->we return an empty list
-        #        ret_data = []
-        #    else:
-        #        ret_data = clresp[commlink.EP_VAL]
         elif msg_type == CommonMSG.MSG_RF_CMD_RESP:
             ret_data = clresp.rl
         # do something with ret_data here and return a CommonMSG or None
@@ -409,12 +406,20 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     # stocky main server messaging service....
     def generate_msg(self) -> typing.Optional[CommonMSG]:
-        """Block and return a message to the web server
+        """Read a message from the RFID reader device if one is present.
+        Convert this message into a CommonMsg instance or None and return it.
+        The returned message will be put on the TaskMeister's queue.
+
         Typically, when the user presses the trigger of the RFID reader,
         we will send a message with the scanned data back.
         NOTE: this method overrules the method defined in BaseTaskMeister.
         """
-        if self._cl.is_alive():
+        if self.cur_state is None or self.cur_state == CommonMSG.RFID_TIMEOUT:
+            new_state = self._cl.get_RFID_state()
+            if new_state != self.cur_state:
+                self.cur_state = new_state
+                return CommonMSG(CommonMSG.MSG_SV_FILE_STATE_CHANGE, new_state)
+        if self.cur_state == CommonMSG.RFID_ON:
             clresp: commlink.CLResponse = self._cl.raw_read_response()
             print("INCOMING {}".format(clresp))
             return self._convert_message(clresp)

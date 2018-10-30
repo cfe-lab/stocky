@@ -19,13 +19,6 @@ class CommonMSG:
     # the server has produced a timer event
     MSG_SV_TIMER_TICK = 'SV_TIMER'
 
-    # the device used to communicate with the RFID scanner has changed state (presence/absence)
-    # This is used to signal that the RFID scanner has come online/ gone offline.
-    MSG_SV_FILE_STATE_CHANGE = 'SV_FILE_STATE'
-
-    # the server is setting the RFID scanner in stock check mode
-    # MSG_SV_STOCK_CHECK_MODE = 'SV_STOCK_CHECK_MODE'
-
     # the server is sending a list of all stock locations
     # in response to a MSG_WC_STOCK_CHECK
     # MSG_SV_NEW_STOCK_LIST = 'SV_NEW_STOCK_LIST'
@@ -48,8 +41,25 @@ class CommonMSG:
     # the server acknowledges the logout.
     MSG_SV_LOGOUT_RES = "SV_LOGOUT_RES"
 
+    # ---server RFID reader realted actions
+    # the device used to communicate with the RFID scanner has changed state (presence/absence)
+    # This is used to signal that the RFID scanner device has come online/ gone offline.
+    MSG_SV_FILE_STATE_CHANGE = 'SV_FILE_STATE'
+
+    # the RFID reader is unresponsive (communcation timed out)
+    # MSG_SV_RFID_TIMEOUT = 'SV_RFID_TIMEOUT'
+
+    # the server is setting the RFID scanner in stock check mode
+    # MSG_SV_STOCK_CHECK_MODE = 'SV_STOCK_CHECK_MODE'
+
     # the server is telling the webclient about the status of the RFID reader
     MSG_SV_RFID_STATREP = "SV_RFID_STATREP"
+
+    # state of the RFID communication.
+    # these are data values used when reporting MSG_SV_RFID_STATREP
+    RFID_OFF = 0
+    RFID_ON = 1
+    RFID_TIMEOUT = 2
 
     # there has been some signal from the RFID reader (trigger has been pressed)
     # this message will include on/off data
@@ -59,6 +69,8 @@ class CommonMSG:
     MSG_WC_ADD_STOCK_REQ = 'WC_ADD_STOCK_REQ'
     # the server is sending the URL to add these RFID tags back to the client.
     MSG_SV_ADD_STOCK_RESP = 'SV_ADD_STOCK_RESP'
+
+    # --end of RFID reader related commands.
 
     # the web client websocket connection has terminated.
     # this message is generated on the server side when the websocket connection
@@ -95,6 +107,8 @@ class CommonMSG:
     # the RFID reader has produced a command response
     MSG_RF_CMD_RESP = 'RF_CMD_RESP'
 
+
+    
     @classmethod
     def _init_class(cls):
         # NOTE: because of transcrypt, we cannot use a set..

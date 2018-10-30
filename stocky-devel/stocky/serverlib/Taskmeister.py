@@ -19,7 +19,7 @@ import serverlib.ServerWebSocket as WS
 # This can lead to errors that are difficult to find. Specifically, a message
 # that a WebSocket reader passes up the chain by the queue will never be acted on
 # by its consumers because they will not be able to dequeue the message due to starvation.
-MIN_SEC_INTERVAL = 0.01
+MIN_SEC_INTERVAL = 0.1
 
 
 class DelayTaskMeister:
@@ -262,5 +262,5 @@ class WebSocketReader(BaseTaskMeister):
             self._SetTaskFinished()
         mmm = "WS.generate_msg returning commonmsg {}".format(retmsg)
         self.logger.debug(mmm)
-        # print(mmm)
+        print(mmm)
         return retmsg

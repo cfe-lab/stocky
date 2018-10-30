@@ -1,5 +1,4 @@
 
-# import typing
 import pytest
 
 import time
@@ -48,6 +47,14 @@ class Test_funcs:
         ahash = dohash(adct)
         bhash = dohash(bdct)
         assert ahash == bhash, "hashes are different"
+
+    def test_retrieve_column_names(self) -> None:
+        """Must be able to determine the column names of an SQL table."""
+        # for idname, classname in ChemStockDB._ITM_LIST:
+        classname = ChemStock.Reagent
+        klst = classname.__table__.columns.keys()
+        print("keylst {}".format(klst))
+        assert isinstance(klst, list), "list expected"
 
 
 class commontests:

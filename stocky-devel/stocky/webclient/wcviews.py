@@ -229,9 +229,8 @@ class AddScanList(simpletable.simpletable, BaseScanList):
 
 class AddNewStockView(SwitcheeView):
     """This is the view that the user will use to add new stock to the QAI system.
-    a) The user may optionally select a location into which the new stock will be placed.
-    b) We allow the user to scan RFID tags and display them.
-    c) Once happy, the user hits a button and is redirected to a QAI window.
+    a) We allow the user to scan RFID tags and display them.
+    b) Once happy, the user hits a button and is redirected to a QAI window.
     """
 
     GO_ADD_NEW_STOCK = 'go_add_new_stock'
@@ -247,7 +246,6 @@ items to be added to QAI for the first time."""
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, help_text)
         print("AddNewStockView!!!")
-        self.location_sel: typing.Optional[html.select] = None
         self.gobutton: typing.Optional[html.textbutton] = None
         self.scanlist: typing.Optional[AddScanList] = None
         contr.addObserver(self, base.MSGD_RFID_CLICK)
@@ -258,13 +256,6 @@ items to be added to QAI for the first time."""
         Subclasses should set up their pages in here.
         """
         print("Add New stock REDRAW")
-        if self.location_sel is None:
-            htext = 'Select the stock location you want to add new items to'
-            self.location_sel = self.wcstatus.get_location_selector(self,
-                                                                    "addlocsel",
-                                                                    htext, True)
-        else:
-            self.wcstatus.update_location_selector(self.location_sel, True)
         # list of scanned RFID tags...
         if self.scanlist is None:
             self.scanlist = AddScanList(self, "scoaddscanlist")
@@ -304,11 +295,9 @@ items to be added to QAI for the first time."""
         if len(add_rfid_lst) == 0:
             return None
         # find the location selected...
-        if self.location_sel is None:
-            return None
-        ndx, val = self.location_sel.get_selected()
-        print("LOCKY {} {}".format(ndx, val))
-        locid = None if val == LOC_NOSEL_ID else val
+        # NOTE: no longer user-defined location; instead must be configured (serverconfig)
+        # just set this to None for now
+        locid = None
         return {'rfids': add_rfid_lst, 'location': locid}
 
     def redirect(self, url: str) -> None:
@@ -356,6 +345,8 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
         print("LOGGED IN {}".format(is_logged_in))
         if is_logged_in:
             self._start_download()
+        else:
+            html.scoalert("Download only possible once logged in")
 
     def _start_download(self) -> None:
         # self.stat.set_text("Downloading QAI data...")
@@ -366,8 +357,14 @@ For this to work, the stocky computer must be plugged in to ethernet and you mus
     def stop_download(self, resdct: dict) -> None:
         """ This is called when the server tells us that the QAI download has completed."""
         # self.stat.set_text("Downloading successful...")
+        did_dbreq = resdct.get("did_dbreq", False)
+        dbreq_ok = resdct.get("dbreq_ok", False)
+        dbreq_msg = resdct.get("dbreq_msg", "")
         tmp_dct = resdct.get('db_stats', None)
-        print("SB stats {}".format(tmp_dct))
+        print("ST stats 1 did_dbreq: {}, dbreq_ok: {}, dbreq_msg; {}".format(did_dbreq,
+                                                                             dbreq_ok,
+                                                                             dbreq_msg))
+        print("SB stats 2 {}".format(tmp_dct))
         db_stat_dct = dict(tmp_dct)
         if self.stat_tab is None:
             tab_attrdct = {'class': 'w3-container'}
@@ -781,7 +778,3 @@ during Stock Check. For this to work, the stocky computer must be plugged in to 
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
         # self.stat_tab: typing.Optional[simpletable.dict_table] = None
-
-
-
-        

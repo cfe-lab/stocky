@@ -1,7 +1,7 @@
 Stocky Server Documentation
 ***************************
-.. image:: bla.svg
-   :width: 100%
+#.. image:: bla.svg
+#   :width: 100%
 
 Module serverlib.stockyserver
 ================================

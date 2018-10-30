@@ -64,7 +64,7 @@ class Reagent(Base):
     disposed = sql.Column(sql.String)
     expiry_time = sql.Column(sql.Integer)
     hazards = sql.Column(sql.String)
-    location = sql.Column(sql.String)
+    # location = sql.Column(sql.String)
     msds_filename = sql.Column(sql.String)
     needs_validation = sql.Column(sql.String)
     notes = sql.Column(sql.String)
@@ -313,28 +313,34 @@ class ChemStockDB:
             rdct[idname] = s.query(classname).count()
         return rdct
 
-    def update_from_QAI(self) -> None:
+    def update_from_QAI(self) -> dict:
         """Update the local ChemStock using the qaisession.
-
-           If the qaisession is None or we have not yet logged in to QAI,
-        this routine silently returns,
+           Returns:
+              A dict describing what happened (success, error messages)
         """
         qaisession = self.qaisession
         if qaisession is None or not qaisession.is_logged_in():
-            return
+            return dict(ok=False, msg="User not logged in")
         # get the locally stored timestamp data from our database
         cur_tsdata = self.load_TS_data()
-        newds = qai_helper.QAIDataset(None, cur_tsdata)
+        try:
+            newds = qai_helper.QAIDataset(None, cur_tsdata)
+        except RuntimeError as e:
+            return dict(ok=False, msg="QAI access error: {}".format(str(e)))
         # load those parts from QAI that are out of date
         update_dct = qaisession.clever_update_QAI_dump(newds)
-        # if any values is True, then we did get something from QAI...
-        did_load_from_qai = sum(update_dct.values()) > 0
-        if did_load_from_qai:
-            self._haschanged = self.loadQAI_data(newds, update_dct)
+        # if any value is True, then we did get something from QAI...
+        num_updated = sum(update_dct.values())
+        if num_updated > 0:
+            try:
+                self._haschanged = self.loadQAI_data(newds, update_dct)
+            except TypeError as e:
+                return dict(ok=False, msg="database error: {}".format(str(e)))
+        return dict(ok=True, msg="Successfully updated {} tables for QAI".format(num_updated))
 
     def loadQAI_data(self,
                      qaiDS: qai_helper.QAIDataset,
-                     update_dct: typing.Optional[qai_helper.QAIUpdatedct]=None) -> bool:
+                     update_dct: typing.Optional[qai_helper.QAIUpdatedct] = None) -> bool:
         """Replace the database contents with the data contained in qaiDS
         if update_dct is provided, only update those tables for which
         update_dct[idname] is True.
@@ -345,14 +351,28 @@ class ChemStockDB:
         qaidct = qaiDS.get_data()
         upd_dct = update_dct or {}
         for idname, classname in ChemStockDB._ITM_LIST:
+            do_msg = True
             do_update = upd_dct.get(idname, True)
             if do_update:
                 # first, empty the table, then reload from scratch
                 s.query(classname).delete()
                 s.commit()
+                # get the column names defined in this table
+                kset = set(classname.__table__.columns.keys())
                 for r_dct in qaidct[idname]:
+                    got_keys = set(r_dct.keys())
+                    unwanted_keys = got_keys - kset
+                    if do_msg and len(unwanted_keys) > 0:
+                        logger.warning("class {}: QAI provided unwanted keys {}".format(classname, unwanted_keys))
+                    for k in unwanted_keys:
+                        del r_dct[k]
+                    if do_msg:
+                        missing_keys = kset - got_keys
+                        if len(missing_keys) > 0:
+                            logger.warning("class {}: missing keys {}".format(classname, missing_keys))
                     # print("BLA {}".format(r_dct))
                     s.add(classname(**r_dct))
+                    do_msg = False
                 s.commit()
         # now add the timestamps
         tsdct = qaiDS.get_timestamp()
@@ -601,7 +621,7 @@ class ChemStockDB:
             lm = Locmutation(**dict(reag_item_id=reag_itm_id, locid=locid, op=opstring))
             s.merge(lm)
 
-    def get_loc_changes(self, oldhash: typing.Optional[str]=None) -> \
+    def get_loc_changes(self, oldhash: typing.Optional[str] = None) -> \
             typing.Tuple[str, typing.Optional[typing.Dict[int, LocChangeList]]]:
         """Return all location changes in the database.
 

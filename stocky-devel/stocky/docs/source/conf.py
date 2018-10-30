@@ -49,7 +49,7 @@ extensions = [
     'sphinxcontrib.napoleon',
     'sphinx_autodoc_typehints',
     'sphinxcontrib.plantuml',
-    'scopyreverse'
+    'source.scopyreverse'
 ]
 
 napoleon_use_param = True

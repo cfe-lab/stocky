@@ -6,14 +6,19 @@ import serverlib.commlink as commlink
 
 
 class dummyserialdevice:
-    def __init__(self, cont: bytes=b'') -> None:
+    """A dummy serial device that is loaded with content, which can
+    be accessed by issuing reads"""
+
+    def __init__(self, cont: bytes = b'') -> None:
         assert isinstance(cont, bytes), "expected bytes"
         self.cont = cont
         self.pos = 0
         self.doraise = False
+        self._isclosed = False
 
-    def read(self, size: int=1) -> bytes:
+    def read(self, size: int = 1) -> bytes:
         assert size == 1, 'only support size = 1'
+        assert not self._isclosed, "device is closed"
         if self.pos < len(self.cont):
             retbyte = self.cont[self.pos:self.pos+1]
             self.pos += 1
@@ -24,9 +29,11 @@ class dummyserialdevice:
 
     def write(self, b: bytes) -> None:
         assert isinstance(b, bytes), 'write wants bytes!'
+        assert not self._isclosed, "device is closed"
         self.cont += b
 
     def flush(self) -> None:
+        assert not self._isclosed, "device is closed"
         if self.doraise:
             raise RuntimeError('Raise on Flush')
 
@@ -36,11 +43,28 @@ class dummyserialdevice:
     def raise_on_flush(self, on: bool) -> None:
         self.doraise = on
 
+    def close(self) -> None:
+        self._isclosed = True
+
+
+class timeout_dummyserialdevice(dummyserialdevice):
+    """A dummy serial device that always times out on reads"""
+
+    def read(self, size: int = 1) -> bytes:
+        assert size == 1, 'only support size = 1'
+        return b''
+
 
 class DummySerialCommLink(commlink.SerialCommLink):
 
     def open_device(self) -> typing.Any:
         return dummyserialdevice(b'bla')
+
+
+class TimeoutDummySerialCommLink(commlink.SerialCommLink):
+
+    def open_device(self) -> typing.Any:
+        return timeout_dummyserialdevice(b'bla')
 
 
 class DummyCommLink(commlink.BaseCommLink):
@@ -54,7 +78,7 @@ class DummyCommLink(commlink.BaseCommLink):
         super().__init__(cfgdct)
         self.resplst: typing.List[str] = []
 
-    def is_alive(self, doquick: bool=True) -> bool:
+    def is_alive(self, doquick: bool = True) -> bool:
         return True
 
     def id_string(self) -> str:
@@ -134,6 +158,55 @@ DummyCommLinkClass = DummyCommLink
 CommLinkClass = DummyCommLink
 
 
+class Test_timeout_commlink:
+    """Test the proper handling of serial device time outs."""
+
+    def setup_method(self) -> None:
+        self.logger = logging.Logger("testing")
+        cfgdct = {'logger': self.logger}
+        self.cl = CommLinkClass(cfgdct)
+        if not self.cl.is_alive():
+            print("Test cannot be performed: commlink is not alive")
+        idstr = self.cl.id_string()
+        print("commlink is alive. Ident is {}".format(idstr))
+        self.dscl = TimeoutDummySerialCommLink(cfgdct)
+
+    def test_read_TO_01(self) -> None:
+        retval = self.dscl._str_readline()
+        assert retval is None, "None expected"
+
+    def test_rawread01(self) -> None:
+        clresp = self.dscl.raw_read_response()
+        assert isinstance(clresp, commlink.CLResponse), "clresponse expected"
+        retcode = clresp.return_code()
+        assert retcode == commlink.BaseCommLink.RC_TIMEOUT, "time out expected"
+
+    def test_clresp01(self) -> None:
+        clresp = commlink.CLResponse([])
+        retcode = clresp.return_code()
+        assert retcode == commlink.BaseCommLink.RC_FAULTY, "RC faulty expected"
+
+    def test_handlestatechange01(self) -> None:
+        self.dscl.HandleStateChange(True)
+        is_alive = self.dscl.is_alive()
+        assert isinstance(is_alive, bool), "bool expected"
+        assert is_alive, "commlink should be alive"
+        id_expected = "ID string cannot be determined: commlink timed out"
+        idstr = self.dscl.id_string()
+        print(" got idstr: {}".format(idstr))
+        assert idstr == id_expected, "unexpected id string"
+
+    def test_handlestatechange02(self) -> None:
+        self.dscl.HandleStateChange(False)
+        is_alive = self.dscl.is_alive()
+        assert isinstance(is_alive, bool), "bool expected"
+        assert not is_alive, "commlink should be alive"
+        id_expected = "ID string cannot be determined: commlink is down"
+        idstr = self.dscl.id_string()
+        print(" got idstr: {}".format(idstr))
+        assert idstr == id_expected, "unexpected id string"
+
+
 class Test_commlink:
 
     def setup_method(self) -> None:
@@ -145,6 +218,12 @@ class Test_commlink:
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
         self.dscl = DummySerialCommLink(cfgdct)
+
+    def test_idstr01(self) -> None:
+        exp_id = "ID string cannot be determined: response is faulty"
+        idstr = self.dscl.id_string()
+        print("idstr: {}".format(idstr))
+        assert idstr == exp_id, "unexpected idstring"
 
     def test_Hextostr(self):
         lverb = False
@@ -311,6 +390,17 @@ class Test_commlink:
         assert isinstance(csgot, str), "Str expected"
         assert csgot == csval, "CS mismatch"
 
+    def test_clresponse02(self) -> None:
+        """Test CLResponse when the serial connection has timed out (return list is None)"""
+        clresp = commlink.CLResponse(None)
+        assert clresp is not None, "Failed to instantiate CLResponse"
+        cslst = clresp["CS"]
+        assert cslst is None, "Non expected"
+        rc = clresp.return_code()
+        assert rc == commlink.BaseCommLink.RC_TIMEOUT
+        cmt_dct = clresp.get_comment_dct()
+        assert cmt_dct is None, "expected None"
+
     def test_cl_return_message01(self) -> None:
         testy_lst = [([("ME", "hello")], "hello"),
                      ([("AA", "funny")], None)]
@@ -364,6 +454,9 @@ class Test_commlink:
 
     def test_dummyCL_invalid01(self):
         """Issuing an invalid command should raise a RuntimeError"""
-        with pytest.raises(RuntimeError):
-            self.cl._blocking_cmd(".bla -p")
+        # with pytest.raises(RuntimeError):
+        ret = self.cl._blocking_cmd(".bla -p")
+        assert isinstance(ret, commlink.CLResponse), "CLResponse expected"
+        ret_code = ret.return_code()
+        assert ret_code == commlink.BaseCommLink.RC_TIMEOUT
         # assert False, "force fail"

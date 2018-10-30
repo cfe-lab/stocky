@@ -181,6 +181,10 @@ class stocky_mainprog(widgets.base_controller):
             if cmd == CommonMSG.MSG_SV_RFID_STATREP:
                 print("GOT RFID state {}".format(val))
                 self.wcstatus.set_RFID_state(val)
+                print("state set OK")
+            elif cmd == CommonMSG.MSG_SV_RFID_ACTIVITY:
+                self.wcstatus.set_RFID_state(CommonMSG.RFID_ON)
+                self.wcstatus.set_rfid_activity(val)
             elif cmd == CommonMSG.MSG_SV_RAND_NUM:
                 # print("GOT number {}".format(val))
                 newnum = val
@@ -198,8 +202,6 @@ class stocky_mainprog(widgets.base_controller):
                 self.set_login_status(val)
             elif cmd == CommonMSG.MSG_SV_LOGOUT_RES:
                 self.wcstatus.set_logout_status()
-            elif cmd == CommonMSG.MSG_SV_RFID_ACTIVITY:
-                self.wcstatus.set_rfid_activity(val)
             elif cmd == CommonMSG.MSG_SV_STOCK_INFO_RESP:
                 self.set_qai_update(val)
             elif cmd == CommonMSG.MSG_SV_ADD_STOCK_RESP:
@@ -253,6 +255,7 @@ class stocky_mainprog(widgets.base_controller):
         elif msgdesc == base.MSGD_COMMS_ARE_UP:
             # this happens when the websocket first comes online. Use it for
             # some initial caching.
+            print("COMMS ARE UP")
             self.wcstatus.refresh_locmut_dct()
             # print("sending config request to server")
             # self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_CONFIG_REQUEST, 1))
@@ -264,5 +267,6 @@ class stocky_mainprog(widgets.base_controller):
             pw = msgdat.get('password', None) if msgdat is not None else None
             dd = {'username': un, 'password': pw}
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGIN_TRY, dd))
+            print("OK: sent message")
         else:
             print("unhandled message {}".format(msgdesc))

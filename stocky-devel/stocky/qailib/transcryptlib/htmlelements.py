@@ -4,7 +4,7 @@
 # https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
 
 import typing
-from org.transcrypt.stubs.browser import document
+from org.transcrypt.stubs.browser import document, alert
 
 
 import qailib.common.base as base
@@ -825,3 +825,8 @@ class LEDElement(div):
         """Move to the next colour in the list."""
         self.cnum = (self.cnum + 1) % len(self.cols)
         self.setAttribute('class', self.cols[self.cnum])
+
+
+def scoalert(txt: str) -> None:
+    """Opens a blocking dialog with an 'OK' button The txt is presented."""
+    alert(txt)

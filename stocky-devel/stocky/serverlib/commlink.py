@@ -5,6 +5,7 @@ import typing
 import serial
 
 import serverlib.qai_helper as qai_helper
+from webclient.commonmsg import CommonMSG
 
 OK_RESP = 'OK'
 ER_RESP = 'ER'
@@ -102,22 +103,33 @@ def HexStrtoStr(instr: str) -> str:
 
 class CLResponse:
     """ A class that contains the data that was sent from the RFID reader
-    in response to a TLS command."""
-    def __init__(self, rl: ResponseList) -> None:
-        self.rl = CLResponse._hexify(rl)
-        dd: typing.Dict[str, StringList] = {}
-        self._mydct = dd
-        for resp_code, msg in self.rl:
-            dd.setdefault(resp_code, []).append(msg)
-        # now, from the CS field, extract the comment dict
-        cdict = None
-        cslst = dd.get(CS_VAL, None)
-        if cslst is not None:
-            if len(cslst) != 1:
-                raise RuntimeError("CS field must be present exactly once")
-            cs_string = cslst[0]
-            cdict = BaseCommLink.extract_comment_dict(cs_string)
-        self._cdict = cdict
+    in response to a TLS command.
+
+    Arguments:
+       rl: a list containing the response from the RFID reader.
+          if rl is None, this means that communication with the RFID reader timed out.
+          if rl is am empty list, this means there was a protocol error during communication.
+    """
+    def __init__(self, rl: typing.Optional[ResponseList]) -> None:
+        if rl is None:
+            self.rl = None
+            self._mydct: typing.Dict[str, StringList] = {}
+            self._cdict = None
+        else:
+            self.rl = CLResponse._hexify(rl)
+            dd: typing.Dict[str, StringList] = {}
+            self._mydct = dd
+            for resp_code, msg in self.rl:
+                dd.setdefault(resp_code, []).append(msg)
+            # now, from the CS field, extract the comment dict
+            cdict = None
+            cslst = dd.get(CS_VAL, None)
+            if cslst is not None:
+                if len(cslst) != 1:
+                    raise RuntimeError("CS field must be present exactly once")
+                cs_string = cslst[0]
+                cdict = BaseCommLink.extract_comment_dict(cs_string)
+            self._cdict = cdict
 
     @staticmethod
     def _hexify(rl: ResponseList) -> ResponseList:
@@ -154,6 +166,8 @@ class CLResponse:
         For the error codes, see the document 'TLS ASCII protocol 2.5 rev B', page 14.
         We include an error code zero here to indicate a success.
         """
+        if self.rl is None:
+            return BaseCommLink.RC_TIMEOUT
         if len(self.rl) == 0:
             return BaseCommLink.RC_FAULTY
         last_tup = self.rl[-1]
@@ -184,6 +198,7 @@ class BaseCommLink:
     # Return codes of the RFID reader, see _tlsretcode_dct
     RC_OK = 0
     RC_FAULTY = 1
+    RC_TIMEOUT = 2
 
     RC_NO_TAGS = 5
     RC_NO_BARCODE = 6
@@ -283,25 +298,56 @@ class BaseCommLink:
         self.raw_send_cmd(cmdstr)
         self._cmdnum += 1
 
-    def _filterbyte(self) -> bytes:
-        """Every now and again, the RFID reader sends us bytes 0x00 and 0xff which cannot
-        be translated into ASCII.
+    def _filterbyte(self) -> typing.Optional[bytes]:
+        """Filter unwanted bytes from the RFID reader.
+
+        Every now and again, the RFID reader sends us strings of bytes of
+        0x00 and 0xff which cannot be translated into ASCII.
         As far as I know, we don't need these, so just filter them out here.
+        Furthermore, we sometimes encounter a SerialException, so just catch this
+        and treat it the same as a timeout.
+
+        Returns:
+           The required byte, or None if a timeout occurred on reading.
         """
         mydev = self.mydev
         doread = True
         skipset = frozenset([b'\xff', b'\x00'])
         while doread:
-            b = mydev.read(size=1)
-            doread = (b in skipset)
+            try:
+                b = mydev.read(size=1)
+            except serial.serialutil.SerialException as e:
+                self.logger.error("error reading from serial device: {}".format(str(e)))
+                # same as a timeout...
+                b = ""
+            # print(" b: '{}'".format(b))
+            if len(b) == 0:
+                # time out occurred
+                b = None
+                doread = False
+            else:
+                doread = (b in skipset)
         return b
 
-    def _str_readline(self) -> str:
-        """Read bytes (not strings) from the serial device until we hit
-        a (CR, LF) then collect the bytes together into a line and return as a string"""
+    def _str_readline(self) -> typing.Optional[str]:
+        """Read a CR-LF-terminated string from the serial device.
+
+        Read bytes (not strings) from the serial device until we hit
+        a (CR, LF) then collect the bytes together into a line and return as a string.
+
+        Returns:
+           A string or None if a tim out occurred on reading.
+
+        Raises:
+            RuntimeError: if a CR character is read without a following LF character, or
+                if conversion into a utf-8 string fails.
+        """
         retbytes, doread = b'', True
         while doread:
             newbyte = self._filterbyte()
+            # print("newbyte: {}".format(newbyte))
+            if newbyte is None:
+                return None
             if newbyte != byteCR:
                 retbytes += newbyte
             else:
@@ -319,7 +365,11 @@ class BaseCommLink:
     def raw_send_cmd(self, cmdstr: str) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
-        An exception is raised if something goes wrong.
+
+        Arguments:
+           cmdstr: the string to write to the device
+        Raises:
+           RuntimeError: is raised if something goes wrong.
         """
         if self.mydev is None:
             msg = 'CL: raw_send_cmd: Device is not alive!'
@@ -330,26 +380,38 @@ class BaseCommLink:
             self.mydev.write(bytes(cmdstr, 'utf-8') + byteCRLF)
             self.mydev.flush()
         except Exception as e:
-            self.logger.error("write failed '{}'".format(e))
-            raise
+            msg = "write failed '{}'".format(e)
+            self.logger.error(msg)
+            raise RuntimeError(msg)
 
     def raw_read_response(self) -> CLResponse:
         """Read a sequence of response tuples from the device.
+
         This code blocks until a terminating response tuple is returned, i.e.
-        either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF>.
-        The response is packed up into a CLResponse instance and returned.
+        either an OK:<CRLF><CRLF> or an ER:nnn<CRLF><CRLF>, or until
+        an error occurs.
+
+        Errors can be of two main types:
+        a) no response is received from the reader, in which case the
+           connection will time out.
+        b) a response that cannot be deciphered (unknown characters) is returned.
+        In either case, the generated CLResponse will reflect these errors.
+        Returns:
+           The response is packed up into a CLResponse instance and returned.
         """
-        self.logger.debug("raw_read...")
         rlst, done = [], False
         while not done:
             try:
                 cur_line = self._str_readline()
-            except Exception as e:
+            except RuntimeError as e:
                 self.logger.error("readline failed '{}'".format(e))
-                # raise
                 cur_line = ""
-            self.logger.debug("rr '{}' ({})".format(cur_line, len(cur_line)))
-            if len(cur_line) > 0:
+            if cur_line is None:
+                # time out
+                rlst = None
+                done = True
+            elif len(cur_line) > 0:
+                print("rr '{}' ({})".format(cur_line, len(cur_line)))
                 resp_tup = BaseCommLink._line_2_resptup(cur_line)
                 if resp_tup is not None:
                     rlst.append(resp_tup)
@@ -357,8 +419,8 @@ class BaseCommLink:
                     self.logger.error("line_2_resptup failed '{}'".format(cur_line))
             else:
                 # we have reached a 'terminal' message (OK or ER)
-                done = True        # --
-        self.logger.debug("raw_read got {}...".format(rlst))
+                done = True
+        self.logger.debug("raw_read_response got {}...".format(rlst))
         return CLResponse(rlst)
 
     def is_alive(self) -> bool:
@@ -370,8 +432,17 @@ class BaseCommLink:
     def _blocking_cmd(self, cmdstr: str,
                       comment: str=None) -> CLResponse:
         """Send a command string to the reader, returning its list of response strings."""
-        self.send_cmd(cmdstr, comment)
-        return self.raw_read_response()
+        print("_blocking_cmd 1")
+        try:
+            self.send_cmd(cmdstr, comment)
+        except RuntimeError as e:
+            # write failed despite the device being open: a time-out problem
+            print("write failed.. timeout")
+            return CLResponse(None)
+        print("_blocking_cmd 2")
+        res = self.raw_read_response()
+        print("_blocking_cmd 3")
+        return res
 
 
 _tlsretcode_dct = {0: 'No Error',
@@ -406,9 +477,10 @@ class SerialCommLink(BaseCommLink):
         """Try to open a device for IO with the RFID scanner.
 
         The exact device to open depends on the configuration dict cfgdct.
+        A typical name for this device would be /dev/rfcomm0.
 
         Returns:
-           The device opened, or None is this fails.
+           The device opened, or None if this fails.
         """
         cfgdct = self.cfgdct
         devname = cfgdct['RFID_READER_DEVNAME']
@@ -431,22 +503,48 @@ class SerialCommLink(BaseCommLink):
         if self.mydev is not None:
             self.mydev.close()
 
+    def _is_responsive(self) -> bool:
+        """Return := 'the RFID reader is responding to commands'"""
+        cl_resp = self._blocking_cmd('.vr')
+        retcode = cl_resp.return_code()
+        return retcode != BaseCommLink.RC_TIMEOUT
+
+    def get_RFID_state(self) -> int:
+        if self.is_alive():
+            if self._is_responsive():
+                return CommonMSG.RFID_ON
+            else:
+                return CommonMSG.RFID_TIMEOUT
+        return CommonMSG.RFID_OFF
+
     def id_string(self) -> str:
+        """Determine a string showing information about the connected RFID reader
+
+        Returns:
+           A string describing the RFID reader if the connection is alive.
+           If the connection (serial device) is not active, or the connection
+           blocks (timeout), then this is reported instead."""
         if self._idstr is None:
             if self.is_alive():
                 cl_resp = self._blocking_cmd('.vr')
                 self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
-                klst = [('Manufacturer', 'MF'),
-                        ('Unit serial number', 'US'),
-                        ('Unit firmware version', 'UF'),
-                        ('Unit bootloader version', 'UB'),
-                        ('Antenna serial number', 'AS'),
-                        ('Radio serial number', 'RS'),
-                        ('Radio firmware version', 'RF'),
-                        ('Radio bootloader version', 'RB'),
-                        ('BT address', 'BA'),
-                        ('Protocol version', 'PV')]
-                self._idstr = ", ".join(["{}: {}".format(title, cl_resp[k]) for title, k in klst])
+                retcode = cl_resp.return_code()
+                if retcode == BaseCommLink.RC_TIMEOUT:
+                    self._idstr = "ID string cannot be determined: commlink timed out"
+                elif retcode == BaseCommLink.RC_FAULTY:
+                    self._idstr = "ID string cannot be determined: response is faulty"
+                else:
+                    klst = [('Manufacturer', 'MF'),
+                            ('Unit serial number', 'US'),
+                            ('Unit firmware version', 'UF'),
+                            ('Unit bootloader version', 'UB'),
+                            ('Antenna serial number', 'AS'),
+                            ('Radio serial number', 'RS'),
+                            ('Radio firmware version', 'RF'),
+                            ('Radio bootloader version', 'RB'),
+                            ('BT address', 'BA'),
+                            ('Protocol version', 'PV')]
+                    self._idstr = ", ".join(["{}: {}".format(title, cl_resp[k]) for title, k in klst])
             else:
                 self._idstr = "ID string cannot be determined: commlink is down"
         return self._idstr
