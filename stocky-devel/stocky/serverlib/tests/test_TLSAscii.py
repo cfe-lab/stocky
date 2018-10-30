@@ -21,7 +21,7 @@ class DeadCommLink(commlink.BaseCommLink):
     def open_device(self) -> typing.Any:
         return None
 
-    def is_alive(self, doquick: bool=True) -> bool:
+    def is_alive(self, doquick: bool = True) -> bool:
         return False
 
     def id_string(self) -> str:
@@ -229,7 +229,7 @@ class Test_TLSAscii:
                  ('EP', '000000000000000000001236'), ('RI', '-60'),
                  ('EP', '000000000000000000001242'), ('RI', '-67'),
                  ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
-        len_rfive = len(rfive)
+        # len_rfive = len(rfive)
         rsix = [t for t in rfive if t[0] != 'RI']
         radar_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.radar)
         stock_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.stock)
@@ -238,7 +238,7 @@ class Test_TLSAscii:
         rad_dat = CommonMSG.MSG_RF_RADAR_DATA
         # stk_dat = CommonMSG.MSG_RF_STOCK_DATA
         stk_dat = CommonMSG.MSG_RF_CMD_RESP
-        cmd_dat = CommonMSG.MSG_RF_CMD_RESP
+        # cmd_dat = CommonMSG.MSG_RF_CMD_RESP
         testvals = [(rone, radar_mode, rad_dat, 9),
                     (rone, stock_mode, stk_dat, len_rone),
                     # (rone, undef_mode, cmd_dat, len(rone)),
@@ -260,31 +260,31 @@ class Test_TLSAscii:
         #
         # pass in messages with a radarsetup comment
         # one OK, one error message
-        ivcmd = '.iv A{"MSG":"31","CMT":"radarsetup"}B'
-        rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
-        rad2 = [('CS', ivcmd),
-                ('EP', '000000000000000000001242'), ('RI', '-67'),
-                ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
+        # ivcmd = '.iv A{"MSG":"31","CMT":"radarsetup"}B'
+        # rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
+        # rad2 = [('CS', ivcmd),
+        #        ('EP', '000000000000000000001242'), ('RI', '-67'),
+        #        ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
         # testvals.append((rad1, undef_mode, cmd_dat, 3))
         # testvals.append((rad2, undef_mode, rad_dat, None))
 
         #
         # pass in messages with an IVreset comment
-        ivcmd = '.iv A{"MSG":"31","CMT":"IVreset"}B'
-        rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
-        rad2 = [('CS', ivcmd),
-                ('EP', '000000000000000000001242'), ('RI', '-67'),
-                ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
+        # ivcmd = '.iv A{"MSG":"31","CMT":"IVreset"}B'
+        # rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
+        # rad2 = [('CS', ivcmd),
+        #        ('EP', '000000000000000000001242'), ('RI', '-67'),
+        #        ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
         # testvals.append((rad1, undef_mode, cmd_dat, 3))
         # testvals.append((rad2, undef_mode, rad_dat, None))
 
         # pass in messages with an unknown commentstring
         # should return None in both cases
-        ivcmd = '.iv A{"MSG":"31","CMT":"WONKYCOMMENT"}B'
-        rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
-        rad2 = [('CS', ivcmd),
-                ('EP', '000000000000000000001242'), ('RI', '-67'),
-                ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
+        # ivcmd = '.iv A{"MSG":"31","CMT":"WONKYCOMMENT"}B'
+        # rad1 = [('CS', ivcmd), ('ME', 'No Transponder found'), ('ER', '005')]
+        # rad2 = [('CS', ivcmd),
+        #        ('EP', '000000000000000000001242'), ('RI', '-67'),
+        #        ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
         # testvals.append((rad1, undef_mode, cmd_dat, None))
         # testvals.append((rad2, undef_mode, rad_dat, None))
 

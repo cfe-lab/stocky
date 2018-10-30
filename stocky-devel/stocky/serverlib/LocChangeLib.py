@@ -77,7 +77,7 @@ class LocChange:
 
 class LocChangeList:
 
-    def __init__(self, fname: str=None) -> None:
+    def __init__(self, fname: str = None) -> None:
         """Initialise an empty location change file.
         if fname is None, then create a db in memory.
         """

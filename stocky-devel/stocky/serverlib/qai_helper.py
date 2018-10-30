@@ -168,10 +168,10 @@ class Session(requests.Session):
     def _retry_response(self,
                         method,
                         path: str,
-                        data: typing.Any=None,
-                        params: dict=None,
-                        retries: int=3,
-                        expect_json: bool=True) ->requests.Response:
+                        data: typing.Any = None,
+                        params: dict = None,
+                        retries: int = 3,
+                        expect_json: bool = True) ->requests.Response:
         if not self._islogged_in:
             raise RuntimeError("Must log in before using the call API")
         json_data = data and tojson(data)
@@ -226,14 +226,14 @@ class Session(requests.Session):
                 retries_remaining -= 1
                 average_delay += 600
 
-    def _retry_json(self, method, path, data=None, params=None, retries: int =3) -> RequestValue:
+    def _retry_json(self, method, path, data=None, params=None, retries: int = 3) -> RequestValue:
         r = self._retry_response(method, path, data=data, params=params, retries=retries)
         return (r.status_code, r.json())
 
-    def patch_json(self, path: str, data: typing.Any, params=None, retries: int=3) -> RequestValue:
+    def patch_json(self, path: str, data: typing.Any, params=None, retries: int = 3) -> RequestValue:
         return self._retry_json(self.patch, path, data=data, params=params, retries=retries)
 
-    def post_json(self, path: str, data: typing.Any, retries: int=3) -> RequestValue:
+    def post_json(self, path: str, data: typing.Any, retries: int = 3) -> RequestValue:
         """ Post a JSON object to the web server, and return a JSON object.
 
         Args:
@@ -268,7 +268,7 @@ class Session(requests.Session):
         arglst.append("rfids=" + ",".join(["{}".format(rfid) for rfid in rfidlst]))
         return ustr + "&".join(arglst)
 
-    def _rawget(self, path: str, params: dict=None, retries: int=3) -> requests.Response:
+    def _rawget(self, path: str, params: dict = None, retries: int = 3) -> requests.Response:
         """Perform a get call to the server, in which we do NOT expect a json response
         from the server.
         """
@@ -278,7 +278,7 @@ class Session(requests.Session):
                                     retries=retries,
                                     expect_json=False)
 
-    def get_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
+    def get_json(self, path: str, params: dict = None, retries=3) -> RequestValue:
         """Retrieve a JSON object from the web server using a http GET call.
         Args:
            path: the relative path to add to settings.qai_path.
@@ -289,7 +289,7 @@ class Session(requests.Session):
         """
         return self._retry_json(self.get, path, params=params, retries=retries)
 
-    def delete_json(self, path: str, params: dict=None, retries=3) -> RequestValue:
+    def delete_json(self, path: str, params: dict = None, retries=3) -> RequestValue:
         """Make a HTTP delete call
         Args:
            path: the relative path to add to settings.qai_path.

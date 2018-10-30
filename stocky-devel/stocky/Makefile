@@ -53,4 +53,4 @@ chemstock-qai-test: ## run the unit tests (chemstock with access to qai)
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py serverlib
 pep8: ## analyse the server code for compliance with pep8 using codestyle
-	pytest --codestyle serverlib
+	pytest --cache-clear --codestyle serverlib

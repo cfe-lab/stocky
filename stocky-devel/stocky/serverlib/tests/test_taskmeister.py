@@ -33,7 +33,7 @@ class DummyWebsocket:
         self.sec_interval = sec_interval
         self._set_data(data)
 
-    def _set_data(self, data: typing.Any=None) -> None:
+    def _set_data(self, data: typing.Any = None) -> None:
         self.retdat: typing.Optional[bytes] = None if data is None else bytes(qai_helper.tojson(data), 'utf-8')
 
     def _set_json_val(self, newjson: bytes) -> None:

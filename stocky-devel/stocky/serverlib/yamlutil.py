@@ -20,7 +20,7 @@ def yamldump(data: typing.Any) -> str:
     return yaml.dump(data, Dumper=yaml.CDumper)  # type: ignore
 
 
-def get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
+def get_filename(yamlfilename: str, ENV_NAME: str = None) -> str:
     """Determine a complete file name using an optional environment variable.
 
     If yamlfilename starts with a period ('.') or backslash ('/') or ENV_NAME is None,
@@ -46,7 +46,7 @@ def get_filename(yamlfilename: str, ENV_NAME: str=None) -> str:
     return os.path.join(dirname, yamlfilename)
 
 
-def writeyamlfile(data: typing.Any, yamlfilename: str, ENV_NAME: str=None) -> None:
+def writeyamlfile(data: typing.Any, yamlfilename: str, ENV_NAME: str = None) -> None:
     yamlfilename = get_filename(yamlfilename, ENV_NAME)
     with open(yamlfilename, "w") as fo:
         fo.write(yamldump(data))
@@ -67,7 +67,7 @@ def _massage_td(data: typing.Any) -> typing.Any:
         return data
 
 
-def readyamlfile(yamlfilename: str, ENV_NAME: str=None) -> typing.Any:
+def readyamlfile(yamlfilename: str, ENV_NAME: str = None) -> typing.Any:
     """Open and read a file containing a data structure in YAML format and return the
     data structure read.
 
@@ -100,6 +100,6 @@ def readyamlfile(yamlfilename: str, ENV_NAME: str=None) -> typing.Any:
                 raise RuntimeError("YAML scanning error reading from '{}'\n{}".format(yamlfilename, e))
             except yaml.parser.ParserError as e:
                 raise RuntimeError("YAML parse error reading from '{}'\n{}".format(yamlfilename, e))
-    except (FileNotFoundError, IsADirectoryError) as e:
+    except (FileNotFoundError, IsADirectoryError):
         raise RuntimeError("YAML: file not found '{}'".format(yamlfilename))
     return _massage_td(data)

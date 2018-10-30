@@ -96,11 +96,11 @@ class TrackerSession(qai_helper.QAISession):
         _callset.add(('post', path))
         return super().post_json(path, data, retries=retries)
 
-    def get_json(self, path: str, params: dict=None, retries=3) -> qai_helper.RequestValue:
+    def get_json(self, path: str, params: dict = None, retries: int = 3) -> qai_helper.RequestValue:
         _callset.add(('get', path))
         return super().get_json(path, params, retries=retries)
 
-    def delete_json(self, path: str, params: dict=None, retries=3) -> qai_helper.RequestValue:
+    def delete_json(self, path: str, params: dict = None, retries: int = 3) -> qai_helper.RequestValue:
         _callset.add(('delete', path))
         return super().delete_json(path, params, retries=retries)
 
@@ -120,16 +120,16 @@ class FaultySession(qai_helper.QAISession):
     def post_json(self, path: str, data: typing.Any, retries=3) -> qai_helper.RequestValue:
         return [HTTP_OK+1, None]
 
-    def get_json(self, path: str, params: dict=None, retries=3) -> qai_helper.RequestValue:
+    def get_json(self, path: str, params: dict = None, retries: int = 3) -> qai_helper.RequestValue:
         return [HTTP_OK+1, None]
 
-    def delete_json(self, path: str, params: dict=None, retries=3) -> qai_helper.RequestValue:
+    def delete_json(self, path: str, params: dict = None, retries: int = 3) -> qai_helper.RequestValue:
         return [HTTP_OK+1, None]
 
     def generate_receive_url(self, locid: int, rfidlst: typing.List[str]) -> str:
         return [HTTP_OK+1, None]
 
-    def _rawget(self, path: str, params: dict=None, retries: int=3) -> requests.Response:
+    def _rawget(self, path: str, params: dict = None, retries: int = 3) -> requests.Response:
         """Perform a get call to the server, in which we do NOT expect a json response
         from the server.
         """
