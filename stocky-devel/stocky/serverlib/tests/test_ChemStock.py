@@ -24,12 +24,12 @@ class Test_funcs:
     """
     def test_sortloclist01(self) -> None:
         """ """
-        olst = [{'name': 'SPH\West wing'},
-                {'name': 'SPH\West wing\dog house'},
-                {'name': 'SPH\East Wing'},
-                {'name': 'SPH\West wing\cat house'},
-                {'name': 'SPH'},
-                {'name': 'SPH\East Wing\Aviary'}]
+        olst = [{'name': r'SPH\West wing'},
+                {'name': r'SPH\West wing\dog house'},
+                {'name': r'SPH\East Wing'},
+                {'name': r'SPH\West wing\cat house'},
+                {'name': r'SPH'},
+                {'name': r'SPH\East Wing\Aviary'}]
 
         sortlst = ChemStock.sortloclist(olst)
         print("GOOT {}".format(sortlst))

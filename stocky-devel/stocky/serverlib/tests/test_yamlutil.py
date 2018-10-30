@@ -44,7 +44,7 @@ class Test_yamlutil:
         """A YAML scanning error should raise an exception."""
         locfname = str(tmpdir.join('/bla.yaml'))
         with open(locfname, "w") as fo:
-            fo.write("!?\}")
+            fo.write(r"!?\}")
         with pytest.raises(RuntimeError):
             yamlutil.readyamlfile(locfname)
         # print("got '{}'".format(d))
