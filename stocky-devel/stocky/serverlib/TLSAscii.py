@@ -335,7 +335,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             self.BT_set_stock_check_mode()
         self.runningave = RunningAve(logger, radar_ave_num)
 
-    def _sendcmd(self, cmdstr: str, comment: str=None) -> None:
+    def _sendcmd(self, cmdstr: str, comment: str = None) -> None:
         cl = self._cl
         if cl.is_alive():
             cl.send_cmd(cmdstr, comment)

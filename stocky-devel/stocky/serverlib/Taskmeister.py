@@ -215,8 +215,8 @@ class WebSocketReader(BaseTaskMeister):
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
                  ws: WS.BaseWebSocket,
-                 sec_interval: float=0.0,
-                 do_activate: bool=True) -> None:
+                 sec_interval: float = 0.0,
+                 do_activate: bool = True) -> None:
         """
         Args:
            msqG: the queue to put messages onto.
@@ -248,7 +248,7 @@ class WebSocketReader(BaseTaskMeister):
                 # now make sure we have a legal msg field
                 try:
                     retmsg = CommonMSG(dct['msg'], dct['data'])
-                except (ValueError, TypeError) as e:
+                except (ValueError, TypeError):
                     self.logger.error("illegal msgtype= '{}'".format(dct['msg']))
                     retmsg = None
                 xtra_keys = got_keys - need_keys

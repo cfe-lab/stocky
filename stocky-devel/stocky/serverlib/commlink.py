@@ -289,7 +289,7 @@ class BaseCommLink:
             raise RuntimeError("unknown error code {}".format(ret_code))
         return ret_str
 
-    def send_cmd(self, cmdstr: str, comment: str=None) -> None:
+    def send_cmd(self, cmdstr: str, comment: str = None) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
         """
@@ -399,7 +399,8 @@ class BaseCommLink:
         Returns:
            The response is packed up into a CLResponse instance and returned.
         """
-        rlst, done = [], False
+        rlst: typing.Optional[typing.List[ResponseTuple]] = []
+        done = False
         while not done:
             try:
                 cur_line = self._str_readline()
@@ -430,12 +431,12 @@ class BaseCommLink:
         raise NotImplementedError("id_string not defined")
 
     def _blocking_cmd(self, cmdstr: str,
-                      comment: str=None) -> CLResponse:
+                      comment: str = None) -> CLResponse:
         """Send a command string to the reader, returning its list of response strings."""
         print("_blocking_cmd 1")
         try:
             self.send_cmd(cmdstr, comment)
-        except RuntimeError as e:
+        except RuntimeError:
             # write failed despite the device being open: a time-out problem
             print("write failed.. timeout")
             return CLResponse(None)
@@ -493,7 +494,7 @@ class SerialCommLink(BaseCommLink):
         except IOError as e:
             self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname, e))
             myser = None
-        except Exception as e:
+        except Exception:
             self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname))
             myser = None
         self.logger.debug("serial commlink '{}' OK".format(devname))
