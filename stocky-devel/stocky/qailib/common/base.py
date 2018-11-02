@@ -1,3 +1,6 @@
+"""Define a base_obj that provide the observer mechanism used by all other classes.
+      This module is designed to be compiled by both Cpython and Transcrypt.
+"""
 
 import typing
 
@@ -61,15 +64,26 @@ MSGD_DEAD_PARROT = MSGdesc_Type("MSG_DEAD_PARROT")
 
 
 class base_obj:
+    """A base class that provides a subscriber based observer mechanism
+    between instances of objects.
+    """
+
     def __init__(self, idstr: str) -> None:
         self._idstr = idstr or ""
         self._obsdct: typing.Dict[MSGdesc_Type, list] = {}
 
     def addObserver(self, observer: 'base_obj', msgdesc: MSGdesc_Type) -> None:
         """ Add an observer object to this class's list of dependent objects.
+
+        In effect, the observer is 'subscribing' to any messages of msgdesc type
+        that this instance emits in future.
         When this object sends a message self.sndMsg('msgdesc', msgdata)
         all of the observers who have registered for this kind of msgdesc
         will be called with rcvMsg(whofrom, 'msgdesc', msgdat)
+
+        Args:
+           observer: The instance that will be notified by this instance.
+           msgdesc: The kind of message the observer is subscribing to.
         """
         if observer == self:
             print("BIG MISTAKE object observing itself")
@@ -79,14 +93,25 @@ class base_obj:
             obslst.append(observer)
 
     def remObserver(self, observer: 'base_obj', msgdesc: MSGdesc_Type) -> None:
-        """Remove a previously added observer
+        """Remove a previously added observer to a msgdesc type.
 
+        This routine silently fails if the observer was not previously added.
+
+        Args:
+           observer: the observer to remove from this list of observers.
+           msgdesc: the msg type the observer previously subscribed to.
         """
         obslst = self._obsdct.get(msgdesc, None)
         if obslst is not None:
             obslst.remove(observer)
 
-    def sndMsg(self, msgdesc: MSGdesc_Type, msgdat: MSGdata_Type) -> None:
+    def sndMsg(self, msgdesc: MSGdesc_Type, msgdat: typing.Optional[MSGdata_Type]) -> None:
+        """Send a message of a certain type (description) to all observers.
+
+        Args:
+           msgdesc: Describes the type of message
+           msgdat: Includes additional data specific to the message
+        """
         idstr = self._idstr or ""
         # print("SNDMSG: msg '{}' from '{}'".format(msgdesc, idstr))
         obslst = self._obsdct.get(msgdesc, [])
@@ -99,10 +124,18 @@ class base_obj:
                whofrom: 'base_obj',
                msgdesc: MSGdesc_Type,
                msgdat: typing.Optional[MSGdata_Type]) -> None:
-        """This method should be overridden in the sub-classes in order to respond
+        """The callback function used to receive a message from an observed object.
+
+        This method should be overridden in the sub-classes in order to respond
         to a change event from an object that is being observed.
         Here, we just log information to the console so that un-handled messages
-        can be found easily."""
+        can be found easily.
+
+        Args:
+           whofrom: the instance sending the message
+           msgdesc: the kind of message being sent
+           msgdat: additional data specific to the message
+        """
         idstr = "empty_idstr" or self._idstr
         fromid = whofrom._idstr or "empty_whofrom"
         print("EMPTY RCV MSG obj '{}' received msg '{}' from '{}'".format(idstr, msgdesc, fromid))
@@ -110,7 +143,16 @@ class base_obj:
     def relayMsg(self, whofrom: 'base_obj',
                  msgdesc: MSGdesc_Type,
                  msgdat: typing.Optional[MSGdata_Type]) -> None:
-        """Pass on a message as if it came from whofrom, rather than from self..."""
+        """Pass on a message as if it came from whofrom, rather than from self.
+
+        This routine sends messages to all observer subscribed **to this instance**
+        as if the message came from another instance (whofrom).
+
+        Args:
+           whofrom: the instance we are posing as.
+           msgdesc: the kind of message being sent.
+           msgdat: additional data specific to the message
+        """
         obslst = self._obsdct.get(msgdesc, [])
         for obs in obslst:
             obs.rcvMsg(whofrom, msgdesc, msgdat)

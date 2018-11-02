@@ -86,7 +86,7 @@ def readyamlfile(yamlfilename: str, ENV_NAME: str = None) -> typing.Any:
 
        However, when reading this back, the time is converted to the same point in time, but
        is returned in UTC time in a timezone *UNAWARE* datetime instance.
-       For example, the time in the above example would be 16:44:43.
+       For example, the time in the above example would be 16:55:43.
        In other words, the time read back is implicitly in UTC.
        We convert these datetime records to be timezone aware, that is explicitly in UTC,
        in order to avoid confusion.

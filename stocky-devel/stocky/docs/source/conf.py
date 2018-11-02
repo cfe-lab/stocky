@@ -15,6 +15,8 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../'))
 
 
 # -- Project information -----------------------------------------------------
@@ -52,8 +54,12 @@ extensions = [
     'source.scopyreverse'
 ]
 
+# see here for configuration info:
+# http://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 napoleon_use_param = True
 autoclass_content = 'both'
+autodoc_member_order = "bysource"
+autodoc_inherit_docstrings = True
 
 
 plantuml = 'java -jar /plantuml/plantuml.jar'
@@ -87,6 +93,10 @@ pygments_style = None
 
 
 # -- Options for HTML output -------------------------------------------------
+
+
+# sco trying this...
+html_domain_indices = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.

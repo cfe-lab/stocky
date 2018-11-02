@@ -489,6 +489,7 @@ class ChemStockDB:
             'needs_validation': None,
             'notes': None, 'qcs_document_id': None,
             'storage': '-20 C', 'supplier': None}
+
         """
         # NOTE: as we want dicts and not Location instances, we go directly to
         # the 'SQL level' (session.execute() and not the 'ORM level' (session.query())
@@ -607,10 +608,13 @@ class ChemStockDB:
 
     def add_loc_changes(self, locid: int, locdat: LocChangeList) -> None:
         """Add a location change to the database.
-        The locdat is a list of tuple with an id and a string indicating the change.
-           (reagent item ID, string)
-        For example:
-          (18023, 'missing')
+
+        Args:
+           locid: the id of the new location of the reagent items in locdat
+           locdat: a list of tuple with an id and a string indicating the items to change
+              the location of.
+              (reagent item ID, string)
+              For example: (18023, 'missing')
         """
         if not isinstance(locid, int):
             raise ValueError("locid must be an int")

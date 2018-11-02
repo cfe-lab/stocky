@@ -14,9 +14,14 @@ log = genutils.log
 class base_controller(base.base_obj):
 
     def __init__(self, idstr: str) -> None:
+        """A base class of a controller
+
+        Args:
+           idstr: The id of the controller.
+        """
         super().__init__(idstr)
         self._lktab: T.Dict[str,
-                          T.Callable[[base.base_obj, T.Optional[dict]], None]] = {
+                            T.Callable[[base.base_obj, T.Optional[dict]], None]] = {
                               base.MSGD_BUTTON_CLICK: self.button_press,
                               base.MSGD_LOG_MESSAGE: self.log_event,
                               base.MSGD_FORM_SUBMIT: self.form_submit,
@@ -69,7 +74,6 @@ class base_controller(base.base_obj):
 class base_widget(html.div):
     """The base class of all widgets.
     A widget is a visual html element which is associated with a controller.
-
     """
     def __init__(self, contr: base_controller, parent: 'base_widget',
                  idstr: str, attrdct: dict, jsel) -> None:

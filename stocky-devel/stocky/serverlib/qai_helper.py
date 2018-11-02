@@ -75,6 +75,7 @@ class Session(requests.Session):
 
     def __init__(self, qai_path: str) -> None:
         """
+
         Args:
            qai_path: the base string to be used to contact the QAI server.
         """
@@ -158,7 +159,7 @@ class Session(requests.Session):
             raise RuntimeError("call {}  failed with status {}".format(url, rcode))
         self._islogged_in = False
 
-    def is_logged_in(self):
+    def is_logged_in(self) -> bool:
         """
         Returns:
            whether a successful login to QAI has been performed.
@@ -280,6 +281,7 @@ class Session(requests.Session):
 
     def get_json(self, path: str, params: dict = None, retries=3) -> RequestValue:
         """Retrieve a JSON object from the web server using a http GET call.
+
         Args:
            path: the relative path to add to settings.qai_path.
            params: URL parameters to be added to the URL.
@@ -291,6 +293,7 @@ class Session(requests.Session):
 
     def delete_json(self, path: str, params: dict = None, retries=3) -> RequestValue:
         """Make a HTTP delete call
+
         Args:
            path: the relative path to add to settings.qai_path.
            params: URL parameters to be added to the URL.
@@ -427,6 +430,7 @@ class QAISession(Session):
 
     def _get_reagent_items(self, reagent_lst: typing.List[dict]) -> typing.Dict[int, dict]:
         """Retrieve the reagent items for each reagent dict provided.
+
         Args:
            reagent_lst: a list of reagent dicts.
         Returns:

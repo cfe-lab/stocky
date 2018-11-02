@@ -1,21 +1,34 @@
+""" A client-side websocket library
+"""
+import typing
 
-# client websocket library...
+try:
+    from org.transcrypt.stubs.browser import Array, typeof
+except ModuleNotFoundError:
+    pass
+
 from qailib.transcryptlib.websocket import BaseRawWebSocket, JSONWebsocket
 from qailib.common.serversocketbase import base_server_socket
 import qailib.common.base as base
 
-from org.transcrypt.stubs.browser import Array, typeof
 
-
-def is_js_dict(v):
-    """Return := v is a javascript 'dict', i.e. an object, but not an array.
+def is_js_dict(v) -> bool:
+    """
+    Return := v is a javascript 'dict', i.e. an object, but not an array.
     (in javascript, both arrays and objects are objects)
+
+    Returns:
+       True iff v is a javascript object, i.e. dict, but not a javascript array.
     """
     return typeof(v) == 'object' and not Array.isArray(v)
 
 
-def is_js_array(v):
-    """Return := v is a javascript array"""
+def is_js_array(v) -> bool:
+    """Return := v is a javascript array
+
+    Returns:
+       v is a javascrypt array.
+    """
     return Array.isArray(v)
 
 
@@ -23,20 +36,31 @@ class clientsocket(base_server_socket):
     """A virtual base class for websockets on the client side of things..."""
 
     def on_open_cb(self, event) -> None:
-        """This routine is called whenever the socket is open for communication."""
+        """This routine is called whenever the socket is open for communication.
+           Simply send a base_obj message to signal that the websocket has come
+           online.
+        """
         # print('BLU-BLU-BLU')
         self.sndMsg(base.MSGD_COMMS_ARE_UP, {})
 
     def on_close_cb(self, event) -> None:
-        """This routine is called whenever the socket is closed for communication."""
+        """This routine is called whenever the socket is closed for communication.
+
+        This can happen, e.g., when the server has crashed.
+           Simply send a base_obj message to signal that the websocket has
+           gone offline.
+        """
         # print('BLU-BLU-BLU')
         self.sndMsg(base.MSGD_COMMS_ARE_DOWN, {})
 
-    def on_message_JSON(self, data_from_server) -> None:
+    def on_message_JSON(self, data_from_server: typing.Any) -> None:
         """This is called with a javascript data structure whenever the client
         receives a message from the server.
         Here, convert the data into a python one and then pass the message to any
         observers listening.
+
+        Args:
+           data_from_server: a javascript dict data structure.
         """
         # NOTE: we must convert the javascript data into a python dict
         msg_dct = self.pythonify_dct(data_from_server)
@@ -44,9 +68,14 @@ class clientsocket(base_server_socket):
         print("on_messag_JSON: incoming message..")
         self.sndMsg(base.MSGD_SERVER_MSG, msg_dct)
 
-    def pythonify_dct(self, in_js):
+    def pythonify_dct(self, in_js) -> typing.Any:
         """Convert a hierarchical javascript structure (typically a dict converted from JSON)
         into a python dict structure.
+
+        Args:
+           in_js: The javascript data structure.
+        Returns:
+           A dict, a list or the original object if its neither.
         """
         if is_js_dict(in_js):
             retval = dict(in_js)

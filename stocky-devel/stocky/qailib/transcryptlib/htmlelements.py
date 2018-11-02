@@ -1,10 +1,11 @@
-
-# python overlay of DOM objects
-# implement things from here
-# https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
-
+"""A python overlay of HTML DOM objects as defined
+   here: https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
+"""
 import typing
-from org.transcrypt.stubs.browser import document, alert
+try:
+    from org.transcrypt.stubs.browser import document, alert
+except ModuleNotFoundError:
+    pass
 
 
 import qailib.common.base as base
@@ -45,7 +46,19 @@ def getPyElementByJsEl(idstr: str,
                        jsel,
                        classname,
                        attrdct: typing.Optional[dict]) -> "base_element":
-    """Return a python instance of a designated class classname"""
+    """Return a python instance of a designated class classname.
+    If a python instance of the given js element with the provided idstr exists
+    already, this is returned.
+    Otherwise, a new object of the specified class is created.
+
+    Args:
+       idstr: the name of the instance to be created
+       jsel: the javascript object that this object mirrors.
+       classname: the classname of the python instance that should be returned.
+       attrdct: the HTML attribute dict to use for the HTML object.
+    Returns:
+       The created python object.
+    """
     py_obj = _mm.get_self(jsel.getAttribute('scoself'))
     py_obj = py_obj or classname(None, idstr, attrdct, jsel)
     return py_obj
@@ -64,13 +77,19 @@ def getPyElementById(idstr: str) -> typing.Optional["base_element"]:
 
 
 def getPyElementByIdClass(idstr: str, classname, attrdct: dict) -> typing.Optional["base_element"]:
-    """Return a python element given the id string of an HTML element.
-    Return a new python class of class classname that wraps the HTML element.
-    Return None if no existing js element with the idsr is found.
+    """Return a python element given the id string of an existing HTML element.
 
-    NOTE: we do not check whether the existing HTML element is of the same
-    type as the desired python object; i.e. there is nothing to stop
-    a caller from creating an html.a object for a predefined HTML select object.
+    Args:
+       idstr: the idstr of the HTML element existing in the DOM.
+       classname: the class of the instance to create
+       attrdct: the attribute dict of the newly created instance.
+    Returns:
+       A new python class of class classname that wraps the HTML element.
+       None if no existing js element with the idstr is found.
+    Note:
+       We do not check whether the existing HTML element is of the same
+       type as the desired python object; i.e. there is nothing to stop
+       a caller from creating an html.a object for a predefined HTML select object.
     """
     jsel_found = document.getElementById(idstr)
     if jsel_found is None:
@@ -89,29 +108,60 @@ class base_element(base.base_obj):
     STARATTR_ONCLICK = '*buttonpressmsg'
 
     def __init__(self, jsel, idstr: str) -> None:
+        """
+        Args:
+           jsel: the javascript object that this instance is mirroring.
+           idstr: the id string of this instance.
+        """
         super().__init__(idstr)
         self._el = jsel
         self.setAttribute('scoself', _mm.add_self(self))
         if idstr is not None:
             self.setAttribute('id', idstr)
 
-    def setAttribute(self, k: str, v) -> None:
+    def setAttribute(self, k: str, v: str) -> None:
+        """Set the HTML attribute k to value v.
+
+        Args:
+           k: the name of the attribute to set.
+           v: the value to set the attribute to.
+        """
         self._el.setAttribute(k, v)
 
     def getAttribute(self, k: str) -> str:
+        """Retrieve the value of the attribute k.
+
+        Args:
+           k: the name of the attribute, the value of which is retrieved.
+        """
         return self._el.getAttribute(k)
 
     def removeAttribute(self, k: str) -> None:
+        """Remove the attribute with the name k.
+
+        Args:
+           k: the name of the attribute to remove.
+        """
         self._el.removeAttribute(k)
 
     def hasAttribute(self, k: str) -> bool:
+        """
+        Args:
+           k: the name of the attribute
+        Returns:
+           the element has attribute called k
+        """
         return self._el.hasAttribute(k)
 
-    # special handling of the 'hidden' attribute
-    # this allows an element to be visible or not
     def set_visible(self, is_visible: bool) -> None:
         """Set this element to be hidden or visible.
         Initially, upon creation, all elements are visible.
+
+        Args:
+           is_visible: True switches the element on, i.e. visible.
+        Note:
+           This routine is implemented by setting/unsetting of the
+           'hidden' HTML attribute. It is possible, to set this directly.
         """
         if is_visible:
             self.removeAttribute('hidden')
@@ -119,69 +169,153 @@ class base_element(base.base_obj):
             self.setAttribute('hidden', True)
 
     def getID(self) -> str:
-        """Short form of self.getAttribute('id')"""
+        """
+        Returns:
+           The id of this instance.
+        Note:
+           This is a short form of self.getAttribute('id')
+        """
         return self._el.getAttribute("id")
 
     def getNodeName(self) -> str:
         """Return the javascript elements nodeName string.
-        This is an upper-case description of the html tag, e.g. 'DIV', 'SPAN'
+
+        Returns:
+           The name of HTML node name. This is an upper-case description of the
+           html tag, e.g. 'DIV', 'SPAN'.
         """
         return self._el.nodeName
 
     # child manipulation
     def appendChild(self, child: "base_element") -> None:
+        """Add a child to this element.
+
+        Args:
+           child: the python object to add as a child.
+
+        Note:
+           It is assumed that the python object also has a javascript element. Appending
+           only happens between the javascript objects. No linking
+           between the python objects is performed.
+        """
         self._el.appendChild(child._el)
 
     def removeChild(self, child: "base_element") -> None:
-        """Remove a child from this element"""
+        """Remove a child from this element.
+
+        Args:
+           child: The python instance to remove from this instance.
+
+        Note:
+           The operation is performed at the level of the javascript elements.
+        """
         self._el.removeChild(child._el)
 
     def replaceChild(self, new_child: "base_element", old_child: "base_element") -> None:
+        """Replace an existing python child element with another.
+
+        Args:
+           new_child: the new child object
+           old_child: the python child object to be replaced.
+        Note:
+           The operation is performed at the level of the javascript elements.
+        """
         self._el.replaceChild(new_child._el, old_child._el)
 
     def setInnerHTML(self, newhtml: str) -> None:
-        """Set this element's innerHTML contents to the provided HTML string"""
+        """Set this element's innerHTML contents to the provided HTML string
+
+        Args:
+           newhtml: the new HTML contents in string form.
+        """
         self._el.innerHTML = newhtml
 
     def getInnerHTML(self) -> str:
-        """Return this element's innerHTML contents as a string"""
+        """
+        Returns:
+           This element's innerHTML contents as a string
+        """
         return self._el.innerHTML
 
     def removeAllChildren(self) -> None:
+        """Remove all javascript elements from this instance.
+
+        Note:
+           The operation is performed at the level of the javascript elements.
+        """
         jsel = self._el
         while jsel.firstChild:
             jsel.removeChild(jsel.firstChild)
 
     def get_WH(self) -> typing.Tuple[int, int]:
-        """Return the width and height of the element in pixels."""
+        """Return the width and height of the element in pixels.
+
+        Returns: the (width, height) of this element in pixels.
+        """
         rc = self._el.getBoundingClientRect()
         return (rc.width, rc.height)
 
-    # manipulate class attributes
-    # see https://developer.mozilla.org/en-US/docs/Web/API/Element/classList for
-    # how these work.
     def addClass(self, cls_name: str) -> None:
-        """Add a new class value. If the value exists already, then nothing is done."""
+        """Add a new class value.
+
+        Args:
+           cls_name: the class name to add. If the value exists already,\
+           then nothing is done.
+
+        Note:
+           See https://developer.mozilla.org/en-US/docs/Web/API/Element/classList for
+           how to manipulate class attributes.
+        """
         self._el.classList.add(cls_name)
 
     def removeClass(self, cls_name: str) -> None:
+        """Remove class attribute.
+
+        Args:
+           cls_name: the class name to remove
+        """
         self._el.classList.remove(cls_name)
 
     def toggleClass(self, cls_name: str) -> bool:
+        """Toggle a class attribute, i.e. if it already exists, it is removed.
+        If it does not exist, it is added.
+
+        Args:
+           cls_name: the class name to toggle.
+        """
         return self._el.classList.toggle(cls_name)
 
     def toggleForceClass(self, cls_name: str, force: bool) -> bool:
         return self._el.classList.toggle(cls_name, force)
 
     def containsClass(self, cls_name: str) -> bool:
+        """Determine whether this instance contains a class attribute.
+
+        Args:
+           cls_name: the name of the class attribute to query.
+        """
         return self._el.classList.contains(cls_name)
 
     def replaceClass(self, oldcls_name: str, newcls_name: str) -> None:
+        """Replace a class attribute with another.
+
+        Args:
+           oldcls_name: the class name to be removed
+           newcls_name: the class name to be added.
+        """
         self._el.classList.replace(oldcls_name, newcls_name)
 
     def add_attrdct(self, attrdct: dict) -> None:
-        """Try to set all of the attributes in the dict.
-        Remember to to treate class attributes differently"""
+        """Add all attributes in this dict to this instance.
+
+        Args:
+           attrdct: k, v of attribute name, value pairs.
+
+        Note:
+           The key 'class', if present, is treated differently from other attributes:
+           its value is assumed to consist of a string consisting of space-separated classnames.
+           These are classnames are added by calling self.addClass(classname)
+        """
         for k, v in attrdct.items():
             if k == 'class':
                 for cn in v.split():
@@ -191,7 +325,15 @@ class base_element(base.base_obj):
 
     def rem_attrdct(self, attrdct: dict) -> None:
         """Try to set all of the attributes in the dict.
-        Remember to to treate class attributes differently"""
+
+        Args:
+           attrdct: k, v of attribute name, value pairs to remove.
+           The values v are ignored when removing attributes, **except**
+           when the attribute name k is 'class'.
+           In this case, the corresponding value is assumed to consist of a string with
+           space-separated class names. These class names are removed by calling
+           self.removeClass(classname)
+        """
         for k, v in attrdct.items():
             if k == 'class':
                 for cn in v.split():
@@ -203,13 +345,27 @@ class base_element(base.base_obj):
 
 
 class textnode(base_element):
+    """A base element with an HTML textnode."""
+
     def __init__(self, parent: base_element, text: str) -> None:
+        """
+
+        Args:
+           parent: this instance's parent object
+           text: the text of the text node. This can be changed later
+           with self.set_text() .
+        """
         text = text or ""
         self._el = document.createTextNode(text)
         if parent is not None:
             parent.appendChild(self)
 
     def set_text(self, newtext: str) -> None:
+        """Change the text of the textnode.
+
+        Args:
+           newtext: The new text to set.
+        """
         self._el.nodeValue = newtext
         # print("newtextset to '{}'".format(newtext))
 
@@ -218,51 +374,57 @@ def create_elementstring(parent: base_element, idstr: str, attrdct: dict,
                          elementclass, text: str) -> "element":
     """Helper function to create a specified HTML element of class 'elementclass'
     with a textnode in it.
-    The element created is returned.
-    Example of use:
-    title_el = html.create_elementstring(view, 'dashtitle', None,
+
+    Args:
+       parent: the parent instance of the newly created object.
+       idstr: the id string of the newly created object
+       attrdct: the attribute dict of the newly created object
+       elementclass: the class of the newly created instance
+       text: the text of the textnode to be added as a child to the newly created object.
+    Returns:
+       The element created is returned.
+
+    Example:
+      title_el = html.create_elementstring(view, 'dashtitle', None,
                                          html.h1, "User Dashboard")
-    This creates an html.h1 element in the provided view with the text 'User Dashboard'
+      This creates an html.h1 element in the provided view with the text 'User Dashboard'
     """
     el = elementclass(parent, idstr, attrdct)
     textnode(el, text)
     return el
-
-# a context manager for uncoupling the JS element from a parent
-# during update.
 
 
 class generic_element(base_element):
     def __init__(self,
                  tagname: str,
                  parent: base_element,
-                 idstr: str,
+                 idstr: typing.Optional[str],
                  attrdct: typing.Optional[dict],
                  jsel) -> None:
         """Add an HTML element of type tagname to the parent. The new element
         will have an idstr and certain additional attributes as defined in attrdct.
 
-        tagname: the kind of html tag to create (e.g. 'p', or 'h1')
-        parent: the newly created element is placed under the parent.
-        If this is None, the element is created in the
-        document.body (i.e. globally in the document)
-        idstr: a string identifying the object.
-        If this is None, no id attribute is set.
-        NOTE: this string, if provided, should be unique within the scope of the complete
-        document in order to be uniquely found.
-        attrdct: a dictionary of HTML attributes to set. The exact attributes
-        allowed will depend on the element type.
-        There are additional keys of the attrdct which are recognised by this class
-        and kept in a separate directory for later use. These reserved keyword attributes
-        are not used as html attributes.
-        A reserved attribute is recognised because its name starts with a star '*'.
-        For example, *buttonpressmsg is a locally reserved attribute.
+        Args:
+           tagname: the kind of html tag to create (e.g. 'p', or 'h1')
+           parent: the newly created element is placed under the parent, a python object.\
+              If this is None, the element is created in the\
+              document.body (i.e. globally in the document)
+           idstr: a string identifying the object. If this is None, no id attribute is set.\
+              This string, if provided, should be unique within the scope of the complete\
+              document in order to be uniquely found.
+           attrdct: a dictionary of HTML attributes to set. The exact attributes\
+              allowed will depend on the element type.
+           jsel: The HTML dom object to wrap around. If this is not provided,\
+              a new object is created in the document.\
+              If jsel *IS* provided, then the place of the existing element in\
+              the DOM hierarchy *is NOT* modified and no addObserver calls are issued.\
+              In other words, the parent argument is ignored.
 
-        jsel: The HTML dom object to wrap around. If this is not provided,
-        a new object is created in the document.
-        NOTE: if jsel IS provided, then the place of the existing element in the DOM hierarchy
-        is NOT modified and no addObserver calls are issued.
-        In other words, the parent argument is ignored.
+        Note:
+           This class recognises special keys of attrdct which are treated separately from
+           normal html attributes.
+           The names of these attributes start with a star '*', for example, *buttonpressmsg.
+           These predefined reserved attributes are used internally to this class.
         """
         do_create = jsel is None
         if do_create:
@@ -305,18 +467,40 @@ class generic_element(base_element):
         self._el.addEventListener(event_name, cbfunc, False)
 
     def setAttribute(self, k: str, v) -> None:
+        """Set attribute names k to value v.
+
+        Args:
+           k: name of attribute to set.
+           v: value to set the attribute to.
+              This should a string for an HTML attribute, but can be anything\
+              for a reserved attribute.
+        """
         if k.startswith('*'):
             self._locattrdct[k] = v
         else:
             self._el.setAttribute(k, v)
 
-    def getAttribute(self, k: str) -> str:
+    def getAttribute(self, k: str) -> typing.Optional[typing.Any]:
+        """Get the value of an attribute k.
+
+        Args:
+           k: the name of the attribute
+        Returns:
+           None if the attribute does not exist.\
+           A string in the case of an HTML attribute.\
+           Any data type in the case of a reserved attribute.
+        """
         if k.startswith('*'):
             return self._locattrdct.get(k, None)
         else:
             return self._el.getAttribute(k)
 
     def removeAttribute(self, k: str) -> None:
+        """Remove attribute k.
+
+        Args:
+           k: the name of the attribute to remove.
+        """
         if k.startswith('*'):
             if k in self._locattrdct:
                 del self._locattrdct[k]
@@ -324,6 +508,11 @@ class generic_element(base_element):
             self._el.removeAttribute(k)
 
     def hasAttribute(self, k: str) -> bool:
+        """Determine whether this attribute is set or not.
+
+        Args:
+           k: the name of the attribute to check.
+        """
         if k.startswith('*'):
             return self._locattrdct.get(k, None) is not None
         else:
@@ -332,15 +521,22 @@ class generic_element(base_element):
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
                msgdat: typing.Optional[base.MSGdata_Type]):
-        """Unless overridden, every object simply passes on a message to its parent"""
+        """
+        Note:
+           Unless overridden, every object simply passes on a message to its parent.
+        """
         print("element.RECV({}): msg {} from {}: passing to parent..".format(self._idstr, msgdesc, whofrom._idstr))
         if self._parent is not None:
             self._parent.rcvMsg(whofrom, msgdesc, msgdat)
 
     # parent manipulation -- these are best used in a context manager (ParentUncouple, see below)
     def _removeJSfromParent(self) -> int:
-        """Remove this object's js item from its parent, returning its child index
-        before removal. This will allow returning to the same place afterwards."""
+        """Remove this python object's js item from its parent, returning its child index
+        before removal. This will allow returning to the same place afterwards.
+
+        Returns:
+           The index of the child element removed from the parent.
+"""
         jsel = self._el
         jsparent = jsel.parentNode
         child_col = jsparent.children
@@ -361,7 +557,8 @@ class generic_element(base_element):
 
 
 class ParentUncouple:
-    """Uncouple the js element from its parent while we update its
+    """A context manager for uncoupling the JS element from a parent during update.
+    Uncouple the js element from its parent while we update its
     appearance for speed.
     Recouple the js element at the same location in the parent's list of children on exit."""
     def __init__(self, el: generic_element) -> None:
@@ -382,10 +579,22 @@ class element(generic_element):
     instead of simply super()...
     """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+        """
+        Args:
+           parent: the parent instance of the object
+           idstr: the id string of the object
+           attrdct: the attribute dict of the object to create.
+           jsel: the optional javascript object to wrap.
+        """
         pass
 
 
 class button(element):
+    """An HTML button element.
+
+    Note:
+       See https://www.w3schools.com/tags/tag_button.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'button', parent, idstr, attrdct, jsel)
 
@@ -398,11 +607,21 @@ class textbutton(button):
 
 
 class h1(element):
+    """An HTML h1 (header level 1) element
+
+    Note:
+     See https://www.w3schools.com/html/html_headings.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'h1', parent, idstr, attrdct, jsel)
 
 
 class h2(element):
+    """An HTML h2 (header level 2) element
+
+    Note:
+     See https://www.w3schools.com/html/html_headings.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'h2', parent, idstr, attrdct, jsel)
 
@@ -410,7 +629,7 @@ class h2(element):
 # NOTE: 2018-07-30 For some reason, cannot use super() in h1text or h2 text, as this
 # leads to infinite recursion in javascript...
 class h1text(h1):
-    """A predefined h2 text element."""
+    """A predefined h1 text element."""
     def __init__(self, parent: base_element, h1text: str) -> None:
         idstr = ""
         h1.__init__(self, parent, idstr, {}, None)
@@ -426,37 +645,61 @@ class h2text(h2):
 
 
 class h3(element):
+    """An HTML h3 (header level 3) element
+    Note:
+     See https://www.w3schools.com/html/html_headings.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'h3', parent, idstr, attrdct, jsel)
 
 
 class p(element):
-    """A paragraph element."""
+    """A paragraph element.
+
+    Note:
+     See https://www.w3schools.com/html/html_paragraphs.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'p', parent, idstr, attrdct, jsel)
 
 
 class div(element):
-    """A div element."""
+    """A HTML div element.
+
+    Note:
+       See https://www.w3schools.com/html/html_blocks.asp
+    """
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'div', parent, idstr, attrdct, jsel)
 
 
 class span(element):
-    """A span element."""
+    """A span element.
+
+    Note:
+       See https://www.w3schools.com/html/html_blocks.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'span', parent, idstr, attrdct, jsel)
 
 
 class header(element):
-    """A header element."""
+    """A header element.
+
+    Note:
+       See https://www.w3schools.com/html/html_blocks.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'header', parent, idstr, attrdct, jsel)
 
 
 class footer(element):
-    """A footer element."""
+    """A footer element.
+
+    Note:
+       See https://www.w3schools.com/html/html_blocks.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'footer', parent, idstr, attrdct, jsel)
 
@@ -496,7 +739,11 @@ class spanerrortext(spantext):
 
 class a(element):
     """A link element.
-    NOTE: set the href attribute in attrdct for the link destination.
+
+    Note:
+       Set the href attribute in attrdct for the link destination.
+
+    Note: https://www.w3schools.com/html/html_links.asp
     """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'a', parent, idstr, attrdct, jsel)
@@ -504,12 +751,16 @@ class a(element):
 
 class img(element):
     """An image element.
-    https://www.w3schools.com/html/html_images.asp
-    Set the following attributes:
-    src    with image URL,
-    alt    text to display when no image can be displayed
-    style  describe height, and width OR alternatively, set
-    width height  attributes directly.
+
+    Note:
+       See https://www.w3schools.com/html/html_images.asp
+
+    Note:
+       Set the following attributes:
+       src    with image URL,
+       alt    text to display when no image can be displayed
+       style  describe height, and width OR alternatively, set
+       width height  attributes directly.
     """
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
@@ -595,7 +846,11 @@ class table(element):
 
 
 class tr(element):
-    """A table row element"""
+    """A table row element
+
+    Note:
+       See https://www.w3schools.com/html/html_tables.asp
+    """
 
     def __init__(self, parent: base_element,
                  idstr: str,
@@ -633,14 +888,22 @@ class tr(element):
 
 
 class th(element):
-    """A table header element"""
+    """A table header element.
+
+    Note:
+     See https://www.w3schools.com/html/html_tables.asp
+    """
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'th', parent, idstr, attrdct, jsel)
 
 
 class td(element):
-    """A table data cell element"""
+    """A table data cell element.
+
+    Note:
+       See https://www.w3schools.com/html/html_tables.asp
+    """
 
     def __init__(self, parent: base_element, idstr: str, attrdct: typing.Optional[dict], jsel) -> None:
         generic_element.__init__(self, 'td', parent, idstr, attrdct, jsel)
@@ -648,14 +911,21 @@ class td(element):
 
 # orders and unordered lists, and list items
 class ol(element):
-    """An ordered list of li items"""
+    """An ordered list of li items.
 
+    Note:
+       See https://www.w3schools.com/html/html_lists.asp
+    """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'ol', parent, idstr, attrdct, jsel)
 
 
 class ul(element):
-    """An unordered list (bullet list) of list items"""
+    """An unordered list (bullet list) of list items.
+
+    Note:
+     See See https://www.w3schools.com/html/html_lists.asp
+"""
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'ul', parent, idstr, attrdct, jsel)
@@ -669,8 +939,11 @@ class li(element):
 
 
 class label(element):
-    """A label element"""
+    """A label element.
 
+    Note:
+       See See https://www.w3schools.com/html/html_lists.asp
+    """
     def __init__(self,
                  parent: base_element,
                  idstr: str,
@@ -689,15 +962,22 @@ class label(element):
 
 
 class option(element):
-    """An option element that goes inside a select element."""
+    """An option element that goes inside a select element.
+
+    Note:
+       See https://www.w3schools.com/html/html_form_elements.asp
+    """
 
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'option', parent, idstr, attrdct, jsel)
 
 
 class select(element):
-    """A select element. We also keep a list of options (python objects)"""
+    """A select element. We also keep a list of options (python objects).
 
+    Note:
+       See https://www.w3schools.com/html/html_form_elements.asp
+"""
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'select', parent, idstr, attrdct, jsel)
         self._optlst: typing.List[option] = []
@@ -741,11 +1021,16 @@ class select(element):
 
 
 class input(element):
+    """An input HTML element."""
     def __init__(self, parent: base_element, idstr: str,
                  inp_type: str, attrdct: dict, jsel) -> None:
-        """Create a new input HTML element.
-        inp_type: one of the HTML-defined input types e.g. 'button', 'checkbox' etc.
-        https://www.w3schools.com/tags/tag_input.asp
+        """
+        Args:
+           parent: the python parent instance
+           idstr: the id string
+           inp_type: one of the HTML-defined input types e.g. 'button', 'checkbox' etc.\
+              see https://www.w3schools.com/tags/tag_input.asp
+           attrdct: a dict of HTML attributes.
         """
         if attrdct is None:
             attrdct = {'type': inp_type}
@@ -794,7 +1079,9 @@ class input_submit(input):
 
 class LEDElement(div):
     """A coloured round LED indicator button.
-    NOTE: the colours of this element are created by CSS style sheets (assets/css/leds.css).
+
+    Note:
+       The colours of this element are created by CSS style sheets (assets/css/leds.css).
     """
     RED = 0
     YELLOW = 1
@@ -828,7 +1115,11 @@ class LEDElement(div):
 
 
 def scoalert(txt: str) -> None:
-    """Opens a blocking dialog with an 'OK' button The txt is presented."""
+    """Opens a blocking dialog with an 'OK' button The txt is presented.
+
+    Args:
+       txt: the text to display to the user.
+    """
     alert(txt)
 
 

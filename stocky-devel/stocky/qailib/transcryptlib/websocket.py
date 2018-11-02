@@ -1,23 +1,34 @@
-# provide a low-level pythonic interface to the client side WebSockets
+"""Provide a low-level pythonic interface to the client-side WebSockets
+   This is a thin python interface to the underlying Javascript API for websockets
+   on the client side.
+   See https://developer.mozilla.org/en/docs/Web/API/WebSocket for complete documentation
+   of the websocket API.
+"""
 
 import typing
-from org.transcrypt.stubs.browser import WebSocket,\
-    __new__, __pragma__, JSON
+try:
+    from org.transcrypt.stubs.browser import WebSocket,\
+        __new__, __pragma__, JSON
+except ModuleNotFoundError:
+    pass
 
 
 class BaseRawWebSocket:
+    """An abstract web socket interface. Raw means that data is not converted
+    before sending over the websocket.
+    """
     def __init__(self) -> None:
         print("RAW open")
         self._isopen = False
         self._cbhandler = None
 
-    def send_raw(self, data_to_server) -> None:
+    def send_raw(self, data_to_server: typing.Any) -> None:
         raise NotImplementedError('send_raw not implemented')
 
     def is_open(self) -> bool:
         return self._isopen
 
-    def send(self, data_to_server) -> None:
+    def send(self, data_to_server: typing.Any) -> None:
         self.send_raw(data_to_server)
 
     def close(self) -> None:
@@ -51,10 +62,6 @@ class BaseRawWebSocket:
 
 class RawWebsocket(BaseRawWebSocket):
     """A websocket that sends raw data to and fro without any data conversion.
-    This is a thin python interface to the underlying Javascript API for websockets
-    on the client side.
-    See https://developer.mozilla.org/en/docs/Web/API/WebSocket for complete documentation
-    of the websocket API.
     """
 
     def __init__(self, url: str, protocol_lst: list) -> None:

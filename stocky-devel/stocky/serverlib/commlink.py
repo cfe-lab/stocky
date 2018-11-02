@@ -396,6 +396,7 @@ class BaseCommLink:
            connection will time out.
         b) a response that cannot be deciphered (unknown characters) is returned.
         In either case, the generated CLResponse will reflect these errors.
+
         Returns:
            The response is packed up into a CLResponse instance and returned.
         """

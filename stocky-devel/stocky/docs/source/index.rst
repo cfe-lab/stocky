@@ -12,10 +12,13 @@ Welcome to StockyDocs's documentation!
 
    usermanual
    stockyserverdoc
-   
+   stockywebclientdoc
+
 Indices and tables
 ==================
 
 * :ref:`genindex`
+  
 * :ref:`modindex`
+  
 * :ref:`search`
