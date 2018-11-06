@@ -1,0 +1,18 @@
+@startuml
+
+skinparam class {
+    BackgroundColor White
+    ArrowColor Grey
+    BorderColor Black
+}
+title classes 
+class base_obj {
+    +addObserver(self, observer:'base_obj', msgdesc:MSGdesc_Type)
+    +rcvMsg(self, whofrom:'base_obj', msgdesc:MSGdesc_Type, msgdat:typing.Optional[MSGdata_Type])
+    +relayMsg(self, whofrom:'base_obj', msgdesc:MSGdesc_Type, msgdat:typing.Optional[MSGdata_Type])
+    +remObserver(self, observer:'base_obj', msgdesc:MSGdesc_Type)
+    +sndMsg(self, msgdesc:MSGdesc_Type, msgdat:typing.Optional[MSGdata_Type])
+}
+
+
+@enduml

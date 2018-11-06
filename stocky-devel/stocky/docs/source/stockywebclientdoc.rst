@@ -4,8 +4,8 @@ This is the documentation of the Stocky webclient.
 
 Module qailib.common
 ====================
-This directory contains modules containing base classes from which other
-classes are derived. These modules are designed to be compiled under Cpython
+This directory contains modules containing foundation classes of the GUI framework,
+from which other classes are derived. These modules are designed to be compiled under Cpython
 (to make testing easy) as well as to javascript using Transcrypt.
 
 
@@ -62,6 +62,7 @@ Module qailib.transcryptlib.handlebars
 .. automodule:: qailib.transcryptlib.handlebars
 	:members:
 	:show-inheritance:
+
 Module qailib.transcryptlib.htmlelements
 ----------------------------------------
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/htmlelements.py

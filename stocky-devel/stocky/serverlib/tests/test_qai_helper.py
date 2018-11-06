@@ -29,7 +29,8 @@ dumpchemstock = pytest.mark.skipif(not pytest.config.option.dump_chemstock,
                                    reason="needs --dump_chemstock and --with_qai option in order to run")
 
 # this is James Nakagawa's test server
-TESTqai_url = "http://192.168.69.170:4567"
+# TESTqai_url = "http://192.168.69.170:4567"
+TESTqai_url = "http://192.168.93.190:4567"
 TESTauth_uname = 'wscott'
 TESTauth_password = 'abc123'
 

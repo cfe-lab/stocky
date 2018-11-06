@@ -57,6 +57,7 @@ Module ChemStock.ChemStock
 .. scopyreverse:: /stockysrc/serverlib/ChemStock
     :gooly:
     :bla:
+
 .. uml:: chemstock.plantuml
    :scale: 50%
    :caption: The database schema of the sqlalchemy database implemented in ChemStock.

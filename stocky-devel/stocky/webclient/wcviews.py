@@ -771,6 +771,12 @@ class CheckStockView(SwitcheeView):
 
 
 class UploadLocMutView(SwitcheeView):
+    """This is the view that the user will use to review the location changes and upload
+    them to QAI.
+    a) retrieve all location mutations from the stocky server.
+    b) allow user to ignore certain mutations in the table.
+    c) Instruct the server to upload the changes to QAI.
+    """
     def __init__(self,
                  contr: widgets.base_controller,
                  parent: widgets.base_widget,

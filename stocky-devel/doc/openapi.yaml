@@ -1,0 +1,151 @@
+openapi: "3.0.0"
+info:
+  version: "1.0.0"
+  title: "QAI chemical stock API"
+components:
+  schemas:
+    location:
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    oldreagent:
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+    reagent:
+      properties:
+        id:
+          type: string
+        basetype:
+          type: string
+        name:
+          type: string
+        catalog_number:
+          type: string
+        category:
+          type: string
+        date_msds_expires:
+          type: string
+        disposed:
+          type: string
+        expiry_time:
+          type: string
+        hazards:
+          type: string
+        msds_filename:
+          type: string
+        needs_validation:
+          type: string
+        notes:
+          type: string
+        qcs_document_id:
+          type: integer
+        storage:
+          type: string
+        supplier_company_id:
+          type: integer
+    reagent_item:
+      properties:
+        id:
+          type: integer
+        last_seen:
+          type: string
+        lot_num:
+          type: string
+        notes:
+          type: string
+        qcs_location_id:
+          type: integer
+        qcs_reag_id:
+          type: integer
+        rfid:
+          type: string
+        
+paths:
+  /qcs_location/list:
+    get: 
+      summary: List all possible locations
+      responses:
+        '200':
+          description: an array of locations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/location"
+  /qcs_reagent/list_suppliers:
+    get:
+      summary: List all reagent supplier names
+      responses:
+        '200':
+          description: an array of strings (supplier names)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /qcs_reagent/receive:
+    get:
+      summary: Pass a collection of RFID tags to qai when adding new stock
+      parameters:
+        - name: rfids
+          in: query
+          required: true
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: redirect to QAI website
+  /qcs_reagent/list_reagents:
+    get:
+      summary: List all reagents
+      responses:
+        '200':
+          description: an array of reagents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/reagent"
+  /qcs_reagent/list_reagent_items/{reag_id}:
+    get:
+      summary: List all reagent items of a given reagent
+      parameters:
+        - name: reag_id
+          description: reagent id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: an array of reagent items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/reagent_item"
+  /table_dump/qcs_reag:
+    get:
+      summary: return the list of all reagents
+      responses:
+        '200':
+          description: an array of reagents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/reagent"

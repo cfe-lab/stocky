@@ -6,11 +6,8 @@
 """
 
 import typing
-try:
-    from org.transcrypt.stubs.browser import WebSocket,\
+from org.transcrypt.stubs.browser import WebSocket,\
         __new__, __pragma__, JSON
-except ModuleNotFoundError:
-    pass
 
 
 class BaseRawWebSocket:

@@ -5,3 +5,4 @@ sphinxcontrib-plantuml>=0.12
 sadisplay>=0.4.9
 sphinx-pyreverse>=0.0.12
 pylint>=2.1.1
+mock>=2.0.0

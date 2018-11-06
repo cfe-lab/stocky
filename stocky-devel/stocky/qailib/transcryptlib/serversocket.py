@@ -1,11 +1,7 @@
 """ A client-side websocket library
 """
 import typing
-
-try:
-    from org.transcrypt.stubs.browser import Array, typeof
-except ModuleNotFoundError:
-    pass
+from org.transcrypt.stubs.browser import Array, typeof
 
 from qailib.transcryptlib.websocket import BaseRawWebSocket, JSONWebsocket
 from qailib.common.serversocketbase import base_server_socket

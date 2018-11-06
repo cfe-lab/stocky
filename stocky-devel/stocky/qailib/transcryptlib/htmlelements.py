@@ -2,10 +2,7 @@
    here: https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
 """
 import typing
-try:
-    from org.transcrypt.stubs.browser import document, alert
-except ModuleNotFoundError:
-    pass
+from org.transcrypt.stubs.browser import document, alert
 
 
 import qailib.common.base as base
@@ -385,9 +382,11 @@ def create_elementstring(parent: base_element, idstr: str, attrdct: dict,
        The element created is returned.
 
     Example:
-      title_el = html.create_elementstring(view, 'dashtitle', None,
-                                         html.h1, "User Dashboard")
-      This creates an html.h1 element in the provided view with the text 'User Dashboard'
+      This creates an html.h1 element in the provided view with the
+      text 'User Dashboard'::
+
+         title_el = html.create_elementstring(view, 'dashtitle', None,
+                                              htmlelements.h1, "User Dashboard")
     """
     el = elementclass(parent, idstr, attrdct)
     textnode(el, text)

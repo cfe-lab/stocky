@@ -1,5 +1,7 @@
 """A module to manage a local copy of the QAI reagent database
-using sqlite3 and sqlalchemy."""
+using sqlite3 https://www.sqlite.org/index.html
+and sqlalchemy  https://www.sqlalchemy.org/  .
+"""
 
 import typing
 import logging

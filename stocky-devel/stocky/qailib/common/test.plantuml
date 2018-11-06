@@ -1,0 +1,10 @@
+@startuml
+
+title classes serversocketbase
+class base_server_socket {
+    +on_message_JSON(self, data_from_server)
+    +send(self, data_to_server:typing.Any)
+}
+
+
+@enduml

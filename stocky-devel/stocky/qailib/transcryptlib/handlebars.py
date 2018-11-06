@@ -3,10 +3,7 @@
 """
 
 import typing
-try:
-    from org.transcrypt.stubs.browser import document, Handlebars
-except ModuleNotFoundError:
-    pass
+from org.transcrypt.stubs.browser import document, Handlebars
 
 handycache: typing.Dict[str, typing.Any] = {}
 

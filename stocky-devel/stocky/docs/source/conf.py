@@ -14,9 +14,16 @@
 #
 import os
 import sys
+# SCO
+import mock
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../'))
+
+# try to mock some transcrypt modules...
+scomocks = ["org.transcrypt.stubs.browser"]
+for modname in scomocks:
+    sys.modules[modname] = mock.Mock()
 
 
 # -- Project information -----------------------------------------------------
@@ -86,7 +93,13 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = ['test*.py']
+
+
+# SCO mock the transcrypt special modules
+# autodock_mock_imports = ["org"]
+# , "org.transcrypt.stubs.browser"]
+
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
@@ -101,7 +114,8 @@ html_domain_indices = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+# html_theme = 'alabaster'
+html_theme = 'classic'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

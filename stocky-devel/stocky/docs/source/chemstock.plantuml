@@ -22,7 +22,6 @@ Class Reagent {
     VARCHAR ⚪ disposed           
     INTEGER ⚪ expiry_time        
     VARCHAR ⚪ hazards            
-    VARCHAR ⚪ location           
     VARCHAR ⚪ msds_filename      
     VARCHAR ⚪ name               
     VARCHAR ⚪ needs_validation   

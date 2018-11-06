@@ -6,10 +6,8 @@
 """
 
 import typing
-try:
-    from org.transcrypt.stubs.browser import SVG
-except ModuleNotFoundError:
-    pass
+from org.transcrypt.stubs.browser import SVG
+
 import qailib.transcryptlib.htmlelements as html
 
 SVGShape = typing.Any
