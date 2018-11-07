@@ -124,15 +124,49 @@ class Test_Chemstock_EMPTYDB(commontests):
         # assert False, " force fail"
 
     def test_addlocchanges01(self) -> None:
+        """Calling add_loc_changes() with invalid location change data must raise
+        a ValueError exception. The database must not be modified if a ValueError
+        exception is raised.
+        """
         csdb = self.csdb
+        # reset should remove all records
+        csdb.reset_loc_changes()
+        ngot = csdb.number_of_loc_changes()
+        assert isinstance(ngot, int), "int expected"
+        assert ngot == 0, "n should be zero!"
+
+        # a) location id is not an integer.
         wrong_locid = '99'
         locdat = [(1, 'missing'), (2, 'found'), (3, 'missing')]
         with pytest.raises(ValueError):
             csdb.add_loc_changes(wrong_locid, locdat)
-        #
-        wronglocdat = [('1', 'missing'), ('2', 'found'), ('3', 'missing')]
+        ngot = csdb.number_of_loc_changes()
+        assert isinstance(ngot, int), "int expected"
+        assert ngot == 0, "n should be zero!"
+
+        # b) reagent item ids (1,2,3) are not all integers.
+        wronglocdat = [(1, 'missing'), ('2', 'found'), ('3', 'missing')]
         with pytest.raises(ValueError):
             csdb.add_loc_changes(99, wronglocdat)
+        ngot = csdb.number_of_loc_changes()
+        assert isinstance(ngot, int), "int expected"
+        assert ngot == 0, "n should be zero!"
+
+        # c) opstrings are not strings
+        wronglocdat = [(1, 'missing'), (2, 1001), (3, 'missing')]
+        with pytest.raises(ValueError):
+            csdb.add_loc_changes(99, wronglocdat)
+        ngot = csdb.number_of_loc_changes()
+        assert isinstance(ngot, int), "int expected"
+        assert ngot == 0, "n should be zero!"
+
+    def test_set_ignore_flag01(self) -> None:
+        """Calling set_ignore_flag with wrong parameter types must raise ValueError"""
+        csdb = self.csdb
+        with pytest.raises(ValueError):
+            csdb.set_ignore_flag('100', True)
+        with pytest.raises(ValueError):
+            csdb.set_ignore_flag(100, 'False')
 
     def test_addlocchanges02(self) -> None:
         csdb = self.csdb
@@ -147,12 +181,51 @@ class Test_Chemstock_EMPTYDB(commontests):
         csdb.add_loc_changes(locid, locdat)
         ngot = csdb.number_of_loc_changes()
         assert ngot == 3, "expected three!"
+        # read them back and check the contents
+        hashcode, retdct = csdb.get_loc_changes(None)
+        assert isinstance(retdct, dict), "dict expected"
+        assert len(retdct.keys()) == 1, "single key expected in dict"
+        rlst = retdct[locid]
+        assert len(rlst) == 3, "list len of three expected"
+        for reag_item_id, opstring, ignore, created_at in rlst:
+            assert isinstance(reag_item_id, int), "int expected"
+            assert isinstance(opstring, str), "string expected"
+            assert isinstance(ignore, bool), "bool expected"
+            assert not ignore, "ignore == False expected"
+            assert isinstance(created_at, str), "string expected"
+        # --
         # adding the same records again -- expect no change..
         csdb.add_loc_changes(locid, locdat)
         ngot = csdb.number_of_loc_changes()
         assert ngot == 3, "expected three!"
-        # add a different loc change..
-        locdat = [(1, 'found'), (2, 'found'), (3, 'missing')]
+        # read back the data (check that created_at entries was not changed
+        # by previous add_loc_changes)
+        newhashcode, newretdct = csdb.get_loc_changes(None)
+        assert isinstance(newretdct, dict), "dict expected"
+        assert len(newretdct.keys()) == 1, "single key expected in dict"
+        assert hashcode == newhashcode, "unexpected hash code!"
+        assert retdct == newretdct, "expected the same dict!"
+
+        # change the ignore flag of an existing locmutation record
+        test_reag_item = 1
+        stat_dct = csdb.set_ignore_flag(test_reag_item, True)
+        assert isinstance(stat_dct, dict), "dict expected"
+        assert stat_dct["ok"], " stat_dct ok == True expected"
+        # should have same number of records, but a different hash...
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 3, "expected three!"
+        newhashcode, newretdct = csdb.get_loc_changes(None)
+        assert isinstance(newretdct, dict), "dict expected"
+        assert len(newretdct.keys()) == 1, "single key expected in dict"
+        assert hashcode != newhashcode, "unexpected hash code!"
+        assert retdct != newretdct, "expected a different dict!"
+        # now make sure the ignore flag was actually set
+        for reag_item_id, opstring, ignore, created_at in newretdct[locid]:
+            my_cond = (reag_item_id == test_reag_item) ^ (not ignore)
+            assert my_cond, "unexpected ignore flag {}: {}".format(reag_item_id, ignore)
+
+        # add a different loc change opstring...
+        locdat = [(test_reag_item, 'found'), (2, 'found'), (3, 'missing')]
         csdb.add_loc_changes(locid, locdat)
         ngot = csdb.number_of_loc_changes()
         assert ngot == 3, "expected three!"
@@ -160,7 +233,15 @@ class Test_Chemstock_EMPTYDB(commontests):
         hashkey, dct = csdb.get_loc_changes()
         assert isinstance(dct, dict), "dict expected"
         assert isinstance(hashkey, str), "string expected"
-        print("dd {}".format(dct))
+        # changing the opstring should also have reset the do_ignore flag to False.
+        for reag_item_id, opstring, ignore, created_at in dct[locid]:
+            assert not ignore, "ignore == False expected"
+        # print("dd {}".format(dct))
+        # attempt to set the ignore flag of an non-existant locmutation
+        stat_dct = csdb.set_ignore_flag(test_reag_item+100, True)
+        assert isinstance(stat_dct, dict), "dict expected"
+        assert not stat_dct["ok"], " stat_dct ok == False expected"
+
         # next, pass the hash back in.. we should get a None for dct indicating 'no changes'
         oldhashkey = hashkey
         hashkey, none_dct = csdb.get_loc_changes(oldhashkey)

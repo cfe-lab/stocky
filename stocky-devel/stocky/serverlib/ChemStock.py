@@ -157,6 +157,11 @@ class Locmutation(Base):
     locid = sql.Column(sql.Integer)
     # rfid = sql.Column(sql.String)
     op = sql.Column(sql.String)
+    # ignore flag: the user can, upon verification, choose to ignore a location change
+    # before it is uploaded to QAI
+    ignore = sql.Column(sql.Boolean, default=False, nullable=False)
+    # keep track of when the location change was recorded on the laptop
+    created_at = sql.Column(sql.TIMESTAMP(timezone=True), default=timelib.utc_nowtime)
 
 
 class node:
@@ -611,21 +616,59 @@ class ChemStockDB:
     def add_loc_changes(self, locid: int, locdat: LocChangeList) -> None:
         """Add a location change to the database.
 
+        Any location mutation with an existing reagent_item id will be silently overwritten
+        by any location id, and opstring. In addition, do_ignore will be set to False.
+
         Args:
            locid: the id of the new location of the reagent items in locdat
-           locdat: a list of tuple with an id and a string indicating the items to change
-              the location of.
+           locdat: a list of tuple with an reagent_item id (int) and an opstring (str)
+           indicating the items to change the location of.
               (reagent item ID, string)
               For example: (18023, 'missing')
+        Raises:
+           ValueError: if the data types are not as expected.
         """
+        # NOTE: type check all records before adding any records. In this way,
+        # any type exception does no change the database.
         if not isinstance(locid, int):
             raise ValueError("locid must be an int")
-        s = self._sess
         for reag_itm_id, opstring in locdat:
             if not isinstance(reag_itm_id, int):
                 raise ValueError("reag_itm_id must be an int")
-            lm = Locmutation(**dict(reag_item_id=reag_itm_id, locid=locid, op=opstring))
+            if not isinstance(opstring, str):
+                raise ValueError("opstring must be a string")
+        s = self._sess
+        for reag_itm_id, opstring in locdat:
+            lm = Locmutation(**dict(reag_item_id=reag_itm_id,
+                                    locid=locid,
+                                    op=opstring,
+                                    ignore=False))
             s.merge(lm)
+
+    def set_ignore_flag(self, reag_item_id: int, do_ignore: bool) -> dict:
+        """Set/reset the ignore location change flag.
+
+        Args:
+           reag_item_id: the reagent item with a location change
+           do_ignore: set this to True (the location change is ignored) or False
+        Returns:
+           A dict with a response that can be sent back to the webclient for diagnostics.
+           The dict will have an 'ok' boolean entry, and a 'msg' string entry.
+        """
+        if not isinstance(reag_item_id, int):
+            raise ValueError("reag_item_id must be an int")
+        if not isinstance(do_ignore, bool):
+            raise ValueError("do_ignore must be a bool")
+        s = self._sess
+        locmut = s.query(Locmutation).filter_by(reag_item_id=reag_item_id).first()
+        if locmut is None:
+            retdct = dict(ok=False,
+                          msg="no locmutation record for reag_item_id={}".format(reag_item_id))
+        else:
+            locmut.ignore = do_ignore
+            s.commit()
+            retdct = dict(ok=True, msg="record successfully updated")
+        return retdct
 
     def get_loc_changes(self, oldhash: typing.Optional[str] = None) -> \
             typing.Tuple[str, typing.Optional[typing.Dict[int, LocChangeList]]]:
@@ -636,12 +679,21 @@ class ChemStockDB:
         Returns:
            If oldhash does not match our current hash,
            return the new hash and a new dictionary.
-           If it does match, return the newhash and None.
+           The dictionary keys are location id's, and the values are a list of tuples.
+           The tuples are of the form (reagent item id, operation string,
+                                       row id, row ignore boolean)
+           If the hash does match, return the newhash and None. In this case, the stocky server
+           will know that the webclient already has an a uo-to-date version of the location changes.
         """
         oldhash = oldhash or ""
         ret_dct: typing.Dict[int, LocChangeList] = {}
+        # NOTE: we sort by reag_item_id in order to make hashing reproducible.
         for row in self._sess.execute(Locmutation.__table__.select().order_by(Locmutation.reag_item_id)):
-            ret_dct.setdefault(row.locid, []).append((row.reag_item_id, row.op))
+            time_str = timelib.datetime_to_str(row.created_at, in_local_tz=True)
+            ret_dct.setdefault(row.locid, []).append((row.reag_item_id,
+                                                      row.op,
+                                                      row.ignore,
+                                                      time_str))
         newhash = do_hash(ret_dct)
         if oldhash != newhash:
             return newhash, ret_dct
