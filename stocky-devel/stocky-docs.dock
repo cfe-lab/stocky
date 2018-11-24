@@ -5,7 +5,7 @@ FROM stocky-base:latest
 
 MAINTAINER wscott@cfenet.ubc.ca
 
-RUN apt-get install -y graphviz default-jre vim
+RUN apt-get install -y graphviz default-jre vim unzip
 
 COPY stocky/requirements-docs.txt /stockysrc/requirements-docs.txt
 
@@ -16,3 +16,21 @@ RUN  pip install --no-cache-dir -r requirements-docs.txt
 # install plantuml
 WORKDIR /plantuml
 RUN /stockysrc/plantuml/download_jar.sh
+
+# also install the locally modified pyplantuml module
+# this generates class diagrams using pyreverse and plantuml
+WORKDIR /stockysrc/scocustom/pyplantuml
+RUN python3 setup.py develop
+
+# also install snakefood (a fork from the official, outdated version on pypi which has no
+# python3 support)
+# WORKDIR /snakefood
+# RUN wget https://bitbucket.org/hajek/snakefood/get/abc8b1652d44.zip
+# RUN unzip abc8b1652d44.zip && cd hajek-snakefood-abc8b1652d44  && python3 setup.py install
+
+
+
+
+
+WORKDIR /stockysrc
+

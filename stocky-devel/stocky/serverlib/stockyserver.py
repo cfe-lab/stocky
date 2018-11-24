@@ -194,7 +194,8 @@ class serverclass:
             dct = msg.data
             rfidstrlst = dct.get('rfids', None)
             locid = dct.get('location', None)
-            qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst)
+            new_stock = dct.get('newstock', False)
+            qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst, new_stock)
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
         elif msg.msg == CommonMSG.MSG_SV_FILE_STATE_CHANGE:
             print("state change enter")

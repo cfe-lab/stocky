@@ -26,6 +26,16 @@ User will also choose location if one is not provided in the query string.
 }
 Responds with: HTML
 
+** GET /qcs_reagent/connect
+GET /qcs_reagent/receive
+Description: Pass a collection of RFIDs to be entered as items. User will fill in
+reagent name, lot number, notes, etc.
+User will also choose location if one is not provided in the query string.
+{
+        location_id?: number
+        rfids: string[]
+}
+Responds with: HTML
 
 
 ** GET /qcs_reagent/list_suppliers

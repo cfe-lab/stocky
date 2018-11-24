@@ -70,7 +70,10 @@ class stocky_mainprog(widgets.base_controller):
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
         """Send a message to the server via websocket."""
-        self._ws.send(msg.as_dict())
+        if self.wcstatus.is_WS_up():
+            self._ws.send(msg.as_dict())
+        else:
+            print("SEND IS NOOOT HAPPENING")
 
     def init_view(self):
         topdoc = html.getPyElementById('stockyframe')
@@ -90,7 +93,7 @@ class stocky_mainprog(widgets.base_controller):
         self.switch = switch = widgets.SwitchView(self, topdoc, "switchview", switchattrdct, None)
         log("SWITCHVIEW OK")
         # initialise the authentication machinery
-        popup = forms.modaldiv(topdoc, "loginpopup", "Log In to QAI", {}, "w3-teal")
+        popup = forms.modaldiv(topdoc, "loginpopup", "Log In to QAI", {}, "w3-green")
         log("POPUP OK")
         # self.popbutton = popup.get_show_button(theview, "Press Me Now!")
         lf = self.loginform = forms.loginform(popup.get_content_element(),
@@ -151,7 +154,7 @@ class stocky_mainprog(widgets.base_controller):
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_STOCK_INFO_REQ, dict(do_update=True)))
 
     def addnewstock(self, url: str):
-        """Redirect to a new window with the given URL ro allow user to
+        """Redirect to a new window with the given URL to allow the user to
         add stock."""
         vv = self.switch.getView(ADDSTOCK_VIEW_NAME)
         vv.redirect(url)
@@ -242,12 +245,14 @@ class stocky_mainprog(widgets.base_controller):
             elif cmd == 'logout':
                 # the logout button was pressed
                 self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGOUT_TRY, 1))
-            elif cmd == wcviews.AddNewStockView.GO_ADD_NEW_STOCK:
-                # the GO button of ad new stock was pressed:
+            elif cmd == wcviews.AddNewStockView.GO_ADD_NEW_STOCK or \
+                 cmd == wcviews.AddNewStockView.GO_ADD_NEW_RFIDTAG:
+                # the GO button of add new stock was pressed:
                 # get the selected RFID tags and request an add URL from the server.
                 print("GOT addnewstock GO button!")
                 vv = self.switch.getView(ADDSTOCK_VIEW_NAME)
                 add_info_dct = vv.get_selection_dct()
+                add_info_dct['newstock'] = cmd == wcviews.AddNewStockView.GO_ADD_NEW_STOCK
                 if add_info_dct is not None:
                     self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_ADD_STOCK_REQ, add_info_dct))
             else:
@@ -260,7 +265,7 @@ class stocky_mainprog(widgets.base_controller):
             self.wcstatus.set_WS_state(True)
             self.wcstatus.refresh_locmut_dct()
         elif msgdesc == base.MSGD_COMMS_ARE_DOWN:
-            # this happens id the stocky server crashes, taking
+            # this happens when the stocky server crashes, taking
             # the websocket connection with it
             self.wcstatus.set_WS_state(False)
         elif msgdesc == base.MSGD_FORM_SUBMIT:

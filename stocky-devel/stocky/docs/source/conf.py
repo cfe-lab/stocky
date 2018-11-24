@@ -58,7 +58,9 @@ extensions = [
     'sphinxcontrib.napoleon',
     'sphinx_autodoc_typehints',
     'sphinxcontrib.plantuml',
-    'source.scopyreverse'
+    'source.scopyreverse',
+    'source.snakenibbles',
+    'sphinxcontrib.test_reports'
 ]
 
 # see here for configuration info:

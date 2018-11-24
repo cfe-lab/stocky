@@ -246,7 +246,10 @@ class Session(requests.Session):
         """
         return self._retry_json(self.post, path, data=data, retries=retries)
 
-    def generate_receive_url(self, locid: typing.Optional[int], rfidlst: typing.List[str]) -> str:
+    def generate_receive_url(self,
+                             locid: typing.Optional[int],
+                             rfidlst: typing.List[str],
+                             newstock: bool) -> str:
         """Generate the URL in string form that can be used to add new chemical stock
         items to QAI.
 
@@ -257,12 +260,18 @@ class Session(requests.Session):
            locid: the id of the location at which the new items are to be added.
            rfidlst: a non-empty list of RFID label strings (typically of the form 'CHEMxxxxx')
               that are to be added.
+           newstock: whether the RFID's should be added to new stock items in the QAI (true)
+        or to existing stock items (i.e. if false, we are adding RFID stickers to existing
+        stock items)
         Returns:
            a string containing the required to add these RFID's to QAI.
         """
         if rfidlst is None or len(rfidlst) == 0:
             raise RuntimeError("Empty rfidlst")
-        ustr = self.qai_path + PATH_REAGENT_RECEIVE + '?'
+        if newstock:
+            ustr = self.qai_path + PATH_REAGENT_RECEIVE + '?'
+        else:
+            ustr = self.qai_path + PATH_REAGENT_CONNECT + '?'
         arglst = []
         if locid is not None:
             arglst.append("location_id={}".format(locid))
@@ -317,6 +326,7 @@ PATH_REAGENT_LIST_REAGENTS = '/qcs_reagent/list_reagents'
 PATH_REAGENT_LOCITEMS = '/qcs_reagent/location_items'
 PATH_REAGENT_SHOW = '/qcs_reagent/show'
 PATH_REAGENT_RECEIVE = '/qcs_reagent/receive'
+PATH_REAGENT_CONNECT = '/qcs_reagent/connect'
 
 # reagent patch
 PATH_REAGENT_VERIFY_LOCATION = '/qcs_reagent/verify_location'

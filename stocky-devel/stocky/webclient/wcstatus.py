@@ -26,7 +26,10 @@ STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 
 
 class WCstatus(base.base_obj):
-    """Visualise and store the webclient's bluetooth and logged-in status.
+    """Visualise and store
+    a) the webclient's bluetooth status
+    b) logged-in status to QAIChangedct
+    c) the stocky webserver status over websocket.
     Also store the stock information on the webclient that was sent
     from the stocky server.
     """
@@ -62,6 +65,7 @@ class WCstatus(base.base_obj):
         """
         super().__init__(idstr)
         self._stat_is_loggedin = False
+        self._stat_WS_isup = False
         # empty stock information.. these are set in _setstockdata
         self._stockloc_lst: typing.List[dict] = []
         self._locid_item_dct: dict = {}
@@ -102,18 +106,18 @@ class WCstatus(base.base_obj):
             #
             mytab.set_alignment(rownum, WCstatus.INFO_COL, "center")
         # the login led is an opener for the login form
-        login_popup.attach_opener(self.ledlst[WCstatus.QAI_ROW])
+        # login_popup.attach_opener(self.ledlst[WCstatus.QAI_ROW])
 
         # Set up the information for the QAI user name
         cell = mytab.getcell(WCstatus.QAI_ROW, WCstatus.INFO_COL)
         if cell is not None:
-            txt = self.uname_text = html.spantext(cell,
-                                                  "unametext",
-                                                  {'class': "w3-tag w3-red",
-                                                   "title": "Click here to log in to QAI"},
-                                                  "not logged in")
+            self.uname_text = html.spantext(cell,
+                                            "unametext",
+                                            {'class': "w3-tag w3-red",
+                                             "title": "Click here to log in to QAI"},
+                                            "not logged in")
             # the txt is opener for the login form
-            login_popup.attach_opener(txt)
+            # login_popup.attach_opener(txt)
         else:
             log("cell table error 2")
             # self.uname_text = None
@@ -133,11 +137,11 @@ class WCstatus(base.base_obj):
         cell = mytab.getcell(WCstatus.QAI_ROW, WCstatus.QAI_UPD_COL)
         if cell is not None:
             ustr = "The time of last QAI Stock list download. (log in and download stock list to update)"
-            txt = self.qai_upd_text = html.spantext(cell,
-                                                    "unametext",
-                                                    {'class': "w3-tag w3-red",
-                                                     "title": ustr},
-                                                    "unknown")
+            self.qai_upd_text = html.spantext(cell,
+                                              "unametext",
+                                              {'class': "w3-tag w3-red",
+                                               "title": ustr},
+                                              "unknown")
         else:
             log("cell table error 2b")
             return
@@ -173,7 +177,7 @@ class WCstatus(base.base_obj):
             txt.addClass(in_col)
             txt.setAttribute(STARATTR_ONCLICK, {'cmd': 'logout'})
             # the username text is NOT an opener for the login form
-            self.login_popup.remove_opener(txt)
+            # self.login_popup.remove_opener(txt)
             txt.addObserver(self.mainprog, base.MSGD_BUTTON_CLICK)
         else:
             # error:
@@ -225,12 +229,38 @@ class WCstatus(base.base_obj):
         "Set the websocket communication to stocky server status to up or down"""
         print("WC status : {}".format(is_up))
         statusled = self.ledlst[WCstatus.SRV_ROW]
+        self._stat_WS_isup = is_up
         if is_up:
             # set to green
             statusled.setcolour(html.LEDElement.GREEN)
         else:
             # set to red
             statusled.setcolour(html.LEDElement.RED)
+        self._enable_login_popup(is_up)
+
+    def _enable_login_popup(self, do_enable: bool) -> None:
+        """Enable. disable the login popup. The popup should be disabled
+        if the websocket comms are down...
+        """
+        login_popup = self.login_popup
+        txt = self.uname_text
+        if do_enable:
+            # the login led is an opener for the login form
+            login_popup.attach_opener(self.ledlst[WCstatus.QAI_ROW])
+            if self.is_QAI_logged_in():
+                # the username text is NOT an opener for the login form
+                login_popup.remove_opener(txt)
+            else:
+                # if we are NOT logged in to QAI already,
+                # the txt is opener for the login form
+                login_popup.attach_opener(txt)
+        else:
+            login_popup.remove_opener(self.ledlst[WCstatus.QAI_ROW])
+            login_popup.remove_opener(txt)
+
+    def is_WS_up(self) -> bool:
+        """Return the status of the websocket communication to the stocky server."""
+        return self._stat_WS_isup
 
     def set_QAIupdate_state(self, d: dict) -> None:
         """Set the string describing when the local DB was last

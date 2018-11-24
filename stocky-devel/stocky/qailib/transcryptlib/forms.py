@@ -111,7 +111,7 @@ class modaldiv(htmlelements.div):
 
     def attach_opener(self, opener: htmlelements.base_element) -> None:
         """Modify the opener element such that, when it is clicked,
-        The modal dialog opens."""
+        this modal dialog opens."""
         # the opener object will produce an buttonclick event with msgdat=OPN_MSG when
         # it is clicked.
         opener.setAttribute(STARATTR_ONCLICK, dict(msg=modaldiv._OPN_MSG))

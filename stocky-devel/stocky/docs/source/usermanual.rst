@@ -5,6 +5,16 @@ User Manual
 Background
 ==========
 
+
+Test Results
+============
+
+this is where the test results should be:
+
+.. test-results:: /stockysrc/goo.xml
+
+just above this line		
+
 General Work flow
 =================
 
@@ -12,8 +22,11 @@ General Work flow
 	    :scale: 80 %
 
 	    The Stocky application as it appears in the browser. The grey area in the top right
-	    is the status bar. The top row in this shows the status of the RFID reader (green LED = RFID reader is connected). The lower row shows whether stocky is logged in to QAI or not,
+	    is the status bar. This has three status lights (green light = connection established, red light= connection is down). The top light shows the status of the connection between the browser and the stocky server on the laptop. **If this light is red, the stocky server is not working correctly**. The middle light shows the status of the RFID reader. This light should be green if you are using the RFID reader.
+	    The bottom row shows whether stocky is logged in to QAI or not,
 	    and the last time that the stocky database was downloaded from the QAI database.
+	    Depending on what stock-taking operations you are performing, you do not need to
+	    be connected to QAI.
 
 .. uml::
    

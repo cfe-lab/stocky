@@ -8,9 +8,11 @@ Class Location {
 }
 
 Class Locmutation {
-    INTEGER ★ reag_item_id
-    INTEGER ⚪ locid       
-    VARCHAR ⚪ op          
+    INTEGER   ★ reag_item_id
+    TIMESTAMP ⚪ created_at  
+    BOOLEAN   ⚪ ignore      
+    INTEGER   ⚪ locid       
+    VARCHAR   ⚪ op          
 }
 
 Class Reagent {

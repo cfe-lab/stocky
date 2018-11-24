@@ -3,12 +3,22 @@ Stocky Server Documentation
 #.. image:: bla.svg
 #   :width: 100%
 
+Module Overview
+===============
+
+# .. snakenibbles::
+#    :source_directory: /stockysrc 
+#    :infiles: './*.py serverlib'
+#    :outfile: overview.plantuml
+#    :exclude: test
+
+
 Module serverlib.stockyserver
 ================================
 
 .. scopyreverse:: /stockysrc/serverlib/stockyserver
-    :gooly:
-    :bla:
+    :gooly: hello
+    :bla: bli
 
 .. automodule:: serverlib.stockyserver
 	:members:

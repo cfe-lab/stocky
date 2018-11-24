@@ -105,9 +105,9 @@ class TrackerSession(qai_helper.QAISession):
         _callset.add(('delete', path))
         return super().delete_json(path, params, retries=retries)
 
-    def generate_receive_url(self, locid: int, rfidlst: typing.List[str]) -> str:
+    def generate_receive_url(self, locid: int, rfidlst: typing.List[str], newstock: bool) -> str:
         _callset.add(('get', PATH_REAGENT_RECEIVE))
-        return super().generate_receive_url(locid, rfidlst)
+        return super().generate_receive_url(locid, rfidlst, newstock)
 
 
 class FaultySession(qai_helper.QAISession):
@@ -127,7 +127,7 @@ class FaultySession(qai_helper.QAISession):
     def delete_json(self, path: str, params: dict = None, retries: int = 3) -> qai_helper.RequestValue:
         return [HTTP_OK+1, None]
 
-    def generate_receive_url(self, locid: int, rfidlst: typing.List[str]) -> str:
+    def generate_receive_url(self, locid: int, rfidlst: typing.List[str], newstock: bool) -> str:
         return [HTTP_OK+1, None]
 
     def _rawget(self, path: str, params: dict = None, retries: int = 3) -> requests.Response:
@@ -579,16 +579,18 @@ class Test_creation(SimpleQAItester):
         """Generating a receive URL with an empty rfidlst should raise an exception."""
         test_locid = self.testlocs[1]['id']
         for rfidlst in [None, []]:
-            with pytest.raises(RuntimeError):
-                self.s.generate_receive_url(test_locid, rfidlst)
+            for isnew in [True, False]:
+                with pytest.raises(RuntimeError):
+                    self.s.generate_receive_url(test_locid, rfidlst, isnew)
 
     def test_gen_receive_url02(self):
         """Create a receive URL for existing and missing loc_ids"""
         rfidlst = ['RFID' + random_string(6) for i in range(2)]
         for test_locid in [None, 9999]:
-            urlstr = self.s.generate_receive_url(test_locid, rfidlst)
-            assert isinstance(urlstr, str), "string expected"
-            print("the URL IS {}".format(urlstr))
+            for isnew in [True, False]:
+                urlstr = self.s.generate_receive_url(test_locid, rfidlst, isnew)
+                assert isinstance(urlstr, str), "string expected"
+                print("the URL IS {}".format(urlstr))
         # assert False, "force fail"
 
 

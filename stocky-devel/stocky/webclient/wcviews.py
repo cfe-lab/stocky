@@ -1,5 +1,6 @@
+"""define specific views for the webclient here
+"""
 
-# define specific views for the webclient here
 import typing
 from org.transcrypt.stubs.browser import window
 import qailib.common.base as base
@@ -167,7 +168,8 @@ class BaseScanList:
 
 
 class AddScanList(simpletable.simpletable, BaseScanList):
-    """This class is used when adding new stock to the inventory.
+    """This class is used when adding new stock to the inventory or adding RFID tags
+    to existing stock.
     It displays a list of RFID tags (left column) that have been scanned, and allows
     the user to choose whether they should be added or not (right column).
     """
@@ -228,12 +230,14 @@ class AddScanList(simpletable.simpletable, BaseScanList):
 
 
 class AddNewStockView(SwitcheeView):
-    """This is the view that the user will use to add new stock to the QAI system.
+    """This is the view that the user will use to add new stock to the QAI system
+    or attach RFID labels to existing stock.
     a) We allow the user to scan RFID tags and display them.
-    b) Once happy, the user hits a button and is redirected to a QAI window.
+    b) Once happy, the user hits one of two buttons and is redirected to a QAI window.
     """
 
     GO_ADD_NEW_STOCK = 'go_add_new_stock'
+    GO_ADD_NEW_RFIDTAG = 'go_add_new_rfidtag'
 
     def __init__(self, contr: widgets.base_controller,
                  parent: widgets.base_widget,
@@ -247,6 +251,7 @@ items to be added to QAI for the first time."""
                               title_text, help_text)
         print("AddNewStockView!!!")
         self.gobutton: typing.Optional[html.textbutton] = None
+        self.tgbutton: typing.Optional[html.textbutton] = None
         self.scanlist: typing.Optional[AddScanList] = None
         contr.addObserver(self, base.MSGD_RFID_CLICK)
 
@@ -263,13 +268,21 @@ items to be added to QAI for the first time."""
             self.scanlist.reset()
         # now add a 'GO' button
         if self.gobutton is None:
-            idstr = "addloc-but"
+            idstr = "addloc-but1"
             attrdct = {'class': 'w3-button',
-                       'title': "Add selected RFID tags to QAI",
+                       'title': "Add new stock items with RFID tags to QAI",
                        STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_ADD_NEW_STOCK)}
-            buttontext = "Add to QAI"
+            buttontext = "Add new stock item to QAI"
             self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
             self.gobutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
+        if self.tgbutton is None:
+            idstr = "addloc-but2"
+            attrdct = {'class': 'w3-button',
+                       'title': "Add RFID tags to existing items in QAI",
+                       STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_ADD_NEW_RFIDTAG)}
+            buttontext = "Add RFID label to existing stock item in QAI"
+            self.tgbutton = html.textbutton(self, idstr, attrdct, buttontext)
+            self.tgbutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
 
     def rcvMsg(self,
                whofrom: 'base.base_obj',

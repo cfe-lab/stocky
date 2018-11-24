@@ -1,0 +1,163 @@
+@startuml
+title classes htmlelements
+class selfmapper {
+    +add_self(self, self_ptr)
+    +get_self(self, self_string)
+}
+class base_element {
+    +STARATTR_ONCLICK
+    +addClass(self, cls_name:str)
+    +add_attrdct(self, attrdct:dict)
+    +appendChild(self, child:'base_element')
+    +containsClass(self, cls_name:str)
+    +getAttribute(self, k:str)
+    +getID(self)
+    +getInnerHTML(self)
+    +getNodeName(self)
+    +get_WH(self)
+    +hasAttribute(self, k:str)
+    +rem_attrdct(self, attrdct:dict)
+    +removeAllChildren(self)
+    +removeAttribute(self, k:str)
+    +removeChild(self, child:'base_element')
+    +removeClass(self, cls_name:str)
+    +replaceChild(self, new_child:'base_element', old_child:'base_element')
+    +replaceClass(self, oldcls_name:str, newcls_name:str)
+    +setAttribute(self, k:str, v:str)
+    +setInnerHTML(self, newhtml:str)
+    +set_visible(self, is_visible:bool)
+    +toggleClass(self, cls_name:str)
+    +toggleForceClass(self, cls_name:str, force:bool)
+}
+class textnode {
+    +set_text(self, newtext:str)
+}
+class generic_element {
+    +getAttribute(self, k:str)
+    +hasAttribute(self, k:str)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +removeAttribute(self, k:str)
+    +setAttribute(self, k:str, v)
+}
+class ParentUncouple {
+    +obj
+    +pos
+}
+class element 
+class button 
+class textbutton 
+class h1 
+class h2 
+class h1text 
+class h2text 
+class h3 
+class p 
+class div 
+class span 
+class header 
+class footer 
+class spantext {
+    +set_text(self, newtext:str)
+}
+class spanhelptext 
+class spanerrortext 
+class a 
+class img 
+class Img 
+class table {
+    +sort_colnum
+    +columnsort(self, colnum:int)
+    +get_header_cells(self)
+    +getrows(self)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+}
+class tr {
+    +getcells(self)
+}
+class th 
+class td 
+class ol 
+class ul 
+class li 
+class label {
+    +get_text(self)
+    +set_text(self, labeltext:str)
+}
+class option 
+class select {
+    +add_or_set_option(self, idstr:str, name:str)
+    +get_selected(self)
+    +has_option_id(self, idstr:str)
+    +num_options(self)
+}
+class input {
+    +getIDvaltuple(self)
+    +get_stringval(self)
+    +set_stringval(self, newstr:str)
+}
+class input_list {
+    +idstr
+    +addItem(self, el:input)
+    +getIDvaltuple(self)
+}
+class input_button 
+class input_submit 
+class LEDElement {
+    +BLUE
+    +GREEN
+    +RED
+    +YELLOW
+    +cnum
+    +cols
+    +setcolour(self, newcol:int)
+    +stepcolour(self)
+}
+class alertbox {
+    +txt
+    +set_text(self, newtext:str)
+}
+
+base_element <|-- textnode
+base_element <|-- generic_element
+generic_element <|-- element
+element <|-- button
+button <|-- textbutton
+element <|-- h1
+element <|-- h2
+h1 <|-- h1text
+h2 <|-- h2text
+element <|-- h3
+element <|-- p
+element <|-- div
+element <|-- span
+element <|-- header
+element <|-- footer
+element <|-- spantext
+spantext <|-- spanhelptext
+spantext <|-- spanerrortext
+element <|-- a
+element <|-- img
+img <|-- Img
+element <|-- table
+element <|-- tr
+element <|-- th
+element <|-- td
+element <|-- ol
+element <|-- ul
+element <|-- li
+element <|-- label
+element <|-- option
+element <|-- select
+element <|-- input
+input <|-- input_list
+input <|-- input_button
+input <|-- input_submit
+div <|-- LEDElement
+div <|-- alertbox
+textbutton o-- textnode
+h1text o-- textnode
+h2text o-- textnode
+spantext o-- textnode
+alertbox o-- textnode
+
+@enduml
