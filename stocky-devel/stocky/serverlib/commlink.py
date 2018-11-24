@@ -173,8 +173,10 @@ class CLResponse:
         last_tup = self.rl[-1]
         if last_tup == OK_RESP_TUPLE:
             return BaseCommLink.RC_OK
-        else:
+        elif last_tup[0] == ER_RESP:
             return CLResponse._check_get_int_val(last_tup, ER_RESP)
+        else:
+            return BaseCommLink.RC_FAULTY
 
     def _return_message(self) -> typing.Optional[str]:
         """Return a message sent from the RFID reader in the ME: field of the
