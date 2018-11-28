@@ -103,6 +103,7 @@ class base_element(base.base_obj):
     # predefined special attributes that start with a '*'
     # see generic_element for an example of how this is used.
     STARATTR_ONCLICK = '*buttonpressmsg'
+    STARATTR_ONCHANGE = '*onchangemsg'
 
     def __init__(self, jsel, idstr: str) -> None:
         """
@@ -555,6 +556,28 @@ class generic_element(base_element):
             jsparent.insertBefore(self._el, bef_node)
 
 
+class OnChangeMixin:
+    """This is a mixin class that will attach a _changefunc method to the javascript
+    onchange event.
+    This event is triggered whenever certain HTML elements have been modified by the user,
+    see https://developer.mozilla.org/en-US/docs/Web/Events/change
+
+    HTML elements that produce these events include <input>, <select> and <textarea> HTML elements.
+    Note: this functionality is provided as a mixin class, because not all HTML elements
+    produce the change event.
+    """
+    def __init__(self) -> None:
+        self._addEventListener("change", self._changefunc, False)
+
+    def _changefunc(self):
+        msgdat = self._locattrdct.get(base_element.STARATTR_ONCHANGE, None)
+        if msgdat is not None:
+            print("element._changefunc: '{}' creating onchange event".format(self._idstr))
+            self.sndMsg(base.MSGD_ON_CHANGE, msgdat)
+        else:
+            print("element._changefunc: '{}': got None, ignoring event".format(self._idstr))
+
+
 class ParentUncouple:
     """A context manager for uncoupling the JS element from a parent during update.
     Uncouple the js element from its parent while we update its
@@ -939,9 +962,11 @@ class li(element):
 
 class label(element):
     """A label element.
+    A label tag defines a label (i.e. some text that accompanies another element) for
+    another element such as a button, input or output element etc.
 
     Note:
-       See See https://www.w3schools.com/html/html_lists.asp
+       See https://www.w3schools.com/tags/tag_label.asp
     """
     def __init__(self,
                  parent: base_element,
@@ -971,7 +996,7 @@ class option(element):
         generic_element.__init__(self, 'option', parent, idstr, attrdct, jsel)
 
 
-class select(element):
+class select(element, OnChangeMixin):
     """A select element. We also keep a list of options (python objects).
 
     Note:
@@ -979,6 +1004,7 @@ class select(element):
 """
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'select', parent, idstr, attrdct, jsel)
+        OnChangeMixin.__init__(self)
         self._optlst: typing.List[option] = []
         self._optdct: typing.Dict[str, option] = {}
 
@@ -1020,7 +1046,11 @@ class select(element):
 
 
 class input(element):
-    """An input HTML element."""
+    """An input HTML element.
+    Input elements are primarily used in HTML forms as the various ways of allowing
+    the user to enter data (such as text, toggle buttons, submit buttons)
+    into the HTML form.
+    """
     def __init__(self, parent: base_element, idstr: str,
                  inp_type: str, attrdct: dict, jsel) -> None:
         """

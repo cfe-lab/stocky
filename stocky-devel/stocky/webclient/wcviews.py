@@ -158,13 +158,23 @@ class BaseScanList:
 
         We only add BC and EP fields, and also only if the tags begin with 'CHEM'
         """
-        for tag, cont in newdat:
-            if (tag == 'EP' or tag == 'BC') and cont[:4] == 'CHEM':
+        add_lst = [cont for tag, cont in newdat if (tag == 'EP' or tag == 'BC') and cont[:4] == 'CHEM']
+        add_lst.sort()
+        if len(add_lst) > 0:
+            for cont in add_lst:
                 self._register_RFID_token(cont)
+            self.post_add_scan_CB()
 
     def _register_RFID_token(self, newtk: str) -> None:
         """This routine should be overridden in the subclasses"""
         print("BaseScanList: _register_RFID_token is being called. This is probably an error")
+
+    def post_add_scan_CB(self) -> None:
+        """This method is called whenever any new RFID labels have been added to the
+        table. It can be overridden, e.g. to sort table rows
+        """
+        pass
+        
 
 
 class AddScanList(simpletable.simpletable, BaseScanList):
@@ -183,7 +193,7 @@ class AddScanList(simpletable.simpletable, BaseScanList):
         self.reset()
 
     def reset(self):
-        """Empty any list in the table and display a placeholder..."""
+        """Empty any list in the table and ensure the column headers are in place..."""
         self._tkdct = {}
         self.adjust_row_number(0)
         if not self.has_header_row():
@@ -196,7 +206,7 @@ class AddScanList(simpletable.simpletable, BaseScanList):
                     html.label(kcell, "", kattrdct, txt, None)
 
     def _register_RFID_token(self, newtk: str) -> None:
-        """This method is called when a RFID tag has been produced by
+        """This method is called when an RFID tag has been produced by
         the RFID reader. Handle it here.
         This method is overridden from BaseScanList.
 
@@ -212,13 +222,13 @@ class AddScanList(simpletable.simpletable, BaseScanList):
             rownum = self.append_row()
             kcell = self.getcell(rownum, AddScanList._RFID_COL)
             if kcell is not None:
-                kattrdct = {'class': "w3-tag w3-red"}
+                kattrdct = {'class': "w3-tag w3-border w3-purple"}
                 html.label(kcell, "", kattrdct, newtk, None)
             vcell = self.getcell(rownum, AddScanList._ACTIV_COL)
             if vcell is not None:
-                tog_lab = cleverlabels.ToggleLabel(vcell, "rfid_lsb{}".format(rownum),
-                                                   on_attrdct, on_text,
-                                                   off_attrdct, off_text)
+                tog_lab = cleverlabels.DropToggleLabel(vcell, "rfid_lsb{}".format(rownum),
+                                                       on_attrdct, on_text,
+                                                       off_attrdct, off_text)
                 self._tkdct[newtk] = tog_lab
             self.set_alignment(rownum, AddScanList._ACTIV_COL, "center")
 
@@ -228,6 +238,13 @@ class AddScanList(simpletable.simpletable, BaseScanList):
         """
         return [k for k, tog in self._tkdct.items() if tog.is_A_state()]
 
+    def post_add_scan_CB(self) -> None:
+        """This method is called whenever any new RFID labels have been added to the
+        table. It can be overridden, e.g. to sort table rows
+        """
+        print("BEGIN SORTO !")
+        w3.sortHTML("scoaddscanlist", ".item", "td:nth-child(1)")
+        print("END SORTO !")
 
 class AddNewStockView(SwitcheeView):
     """This is the view that the user will use to add new stock to the QAI system
@@ -236,6 +253,7 @@ class AddNewStockView(SwitcheeView):
     b) Once happy, the user hits one of two buttons and is redirected to a QAI window.
     """
 
+    GO_RESET_TABLE = 'go_reste_table'
     GO_ADD_NEW_STOCK = 'go_add_new_stock'
     GO_ADD_NEW_RFIDTAG = 'go_add_new_rfidtag'
 
@@ -250,6 +268,7 @@ items to be added to QAI for the first time."""
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, help_text)
         print("AddNewStockView!!!")
+        self.resetbutton: typing.Optional[html.textbutton] = None
         self.gobutton: typing.Optional[html.textbutton] = None
         self.tgbutton: typing.Optional[html.textbutton] = None
         self.scanlist: typing.Optional[AddScanList] = None
@@ -267,20 +286,30 @@ items to be added to QAI for the first time."""
         else:
             self.scanlist.reset()
         # now add a 'GO' button
-        if self.gobutton is None:
+        button_classes = 'w3-button w3-border'
+        if self.resetbutton is None:
             idstr = "addloc-but1"
-            attrdct = {'class': 'w3-button',
+            attrdct = {'class': button_classes,
+                       'title': "Remove all RFID labels from the table",
+                       STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_RESET_TABLE)}
+            buttontext = "Reset the table"
+            self.resetbutton = html.textbutton(self, idstr, attrdct, buttontext)
+            # NOTE: this class (NOT the controller) responds to this click...
+            self.resetbutton.addObserver(self, base.MSGD_BUTTON_CLICK)
+        if self.gobutton is None:
+            idstr = "addloc-but2"
+            attrdct = {'class': button_classes,
                        'title': "Add new stock items with RFID tags to QAI",
                        STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_ADD_NEW_STOCK)}
-            buttontext = "Add new stock item to QAI"
+            buttontext = "Add new stock items to QAI"
             self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
             self.gobutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
         if self.tgbutton is None:
-            idstr = "addloc-but2"
-            attrdct = {'class': 'w3-button',
-                       'title': "Add RFID tags to existing items in QAI",
+            idstr = "addloc-but3"
+            attrdct = {'class': button_classes,
+                       'title': "Add RFID labels to existing stock items in QAI",
                        STARATTR_ONCLICK: dict(cmd=AddNewStockView.GO_ADD_NEW_RFIDTAG)}
-            buttontext = "Add RFID label to existing stock item in QAI"
+            buttontext = "Add RFID labels to existing QAI items"
             self.tgbutton = html.textbutton(self, idstr, attrdct, buttontext)
             self.tgbutton.addObserver(self._contr, base.MSGD_BUTTON_CLICK)
 
@@ -292,6 +321,12 @@ items to be added to QAI for the first time."""
             print("GOT SCAN DATA {}".format(msgdat))
             if self.scanlist is not None and msgdat is not None:
                 self.scanlist.add_scan(msgdat)
+        elif msgdesc == base.MSGD_BUTTON_CLICK:
+            if self.resetbutton is not None and whofrom == self.resetbutton:
+                if self.scanlist is not None:
+                    self.scanlist.reset()
+            else:
+                super().rcvMsg(whofrom, msgdesc, msgdat)
         else:
             super().rcvMsg(whofrom, msgdesc, msgdat)
 

@@ -43,6 +43,18 @@ class stockyapp(flask.Flask):
     def __init__(self):
         super().__init__(__name__.split('.')[0])
 
+    def app_protocol(self, unused) -> str:
+        """This method is called by geventwebsocket (handler.py) in order to set the
+        websocket protocol.
+        The name of the method is significant (it must be called exactly this)
+        The websocket protocol must be defined, or the server will not respond correctly
+        (missing Sec-WebSocket-Protocol entry in the response header)
+        and this will crash the stocky webclient when it is run under chrome.
+        NOTE: the websocket protocol is hardcoded to be 'json' on the webclient side.
+        """
+        # print("GOOLY json")
+        return 'json'
+
 
 logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
 app: typing.Optional[stockyapp] = stockyapp()
@@ -69,6 +81,7 @@ def init_app(cfgname: str) -> flask.Flask:
 # in the browser
 @socky.route('/goo')
 def goo(rawws: websocket):
+    # print("bla before '{}'".format(rawws))
     ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
     print("goo: got a websocket")
     if the_main is not None:

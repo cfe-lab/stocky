@@ -282,7 +282,7 @@ class simpletable(html.element):
         return row.getcell(colnum) if row is not None else None
 
     def getcellcontent(self, rownum: int, colnum: int) -> typing.Optional[html.base_element]:
-        """Return cell content a at location (rownum, colnum).
+        """Return cell content at a location (rownum, colnum).
 
         Args:
            rownum: row number

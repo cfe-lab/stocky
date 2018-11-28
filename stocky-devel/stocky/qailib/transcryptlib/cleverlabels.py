@@ -6,6 +6,8 @@ import qailib.transcryptlib.htmlelements as htmlelements
 
 
 STARATTR_ONCLICK = htmlelements.base_element.STARATTR_ONCLICK
+STARATTR_ONCHANGE = htmlelements.base_element.STARATTR_ONCHANGE
+
 
 class ToggleLabel(htmlelements.label):
     """A label that can be toggled between two states (alternate text and HTML attributes).
@@ -60,6 +62,66 @@ class ToggleLabel(htmlelements.label):
         super()._clickfunc()
 
 
+class DropToggleLabel(htmlelements.select):
+    """A label that can be toggled between two states (alternate text and HTML attributes).
+    The initial state is the A state.
+
+    This class is implemented as a select element with a drop-down selector.
+    NOTE: Our strategy to toggle the state on button click is to hijack
+    the htmlelements.select._changefunc()
+    """
+    _DOTOGGLE = 'dotoggle'
+
+    def __init__(self, parent: htmlelements.base_element,
+                 idstr: str,
+                 attrdctA: typing.Optional[dict],
+                 labeltextA: str,
+                 attrdctB: typing.Optional[dict],
+                 labeltextB: str) -> None:
+        attrdctA = attrdctA or {}
+        attrdctB = attrdctB or {}
+        dd = dict(msg=ToggleLabel._DOTOGGLE)
+        attrdctB[STARATTR_ONCHANGE] = attrdctA[STARATTR_ONCHANGE] = dd
+        htmlelements.select.__init__(self, parent, idstr, attrdctA, None)
+        self.is_astate = True
+        self.attdct: typing.Dict[bool, dict] = {True: attrdctA, False: attrdctB}
+        # NOTE: we do not need to save the texts into a separate variable, instead, we just
+        # use them as selectable options. When we toggle the values, we set the attribute
+        # dicts explicitly
+        self.add_or_set_option('blaA', labeltextA)
+        self.add_or_set_option('blaB', labeltextB)
+
+    def set_state(self, toAstate: bool) -> None:
+        """Set the visible state."""
+        if self.is_astate != toAstate:
+            self.toggle_state()
+
+    def toggle_state(self) -> None:
+        # print("TOGGLY!")
+        oldstate = self.attdct[self.is_astate]
+        self.is_astate = not self.is_astate
+        newstate = self.attdct[self.is_astate]
+        self.rem_attrdct(oldstate)
+        self.add_attrdct(newstate)
+        self.sndMsg(base.MSGD_STATE_CHANGE, self.is_astate)
+
+    def is_A_state(self) -> bool:
+        """Return is A state? """
+        return self.is_astate
+
+    def _changefunc(self):
+        """This function is called whenever the user clicks on this label.
+        We use it to change our visible appearance, then pass the click event along
+        as if nothing had happened...
+        This will allow any instances listening to the base_element.STARATTR_ONCHANGE
+        message to react to a value change as well.
+        Note that toggle_state() also emits an MSGD_STATE_CHANGE message upon completion.
+        """
+        # print("TOGGLE CHANGEFUNC")
+        self.toggle_state()
+        super()._changefunc()
+
+
 class SimpleFSM(base.base_obj):
     def __init__(self, idstr: str, numstates: int, event_lst: typing.List[str])-> None:
         """The event lst is a list of strings that describe the legal events that can happen"""
@@ -79,6 +141,7 @@ class SimpleFSM(base.base_obj):
         print("SimpleFSM.get_new_state not overriden.")
         return None
 
+
 class FSMLabel(htmlelements.label):
     """A label whose states is controlled by a FSM.
     Each state will have alternate text and HTML attributes.
@@ -88,7 +151,7 @@ class FSMLabel(htmlelements.label):
     """
     FSM_CLICK_EVENT = 'doclick'
     _DOTOGGLE = 'dotoggle'
-    
+
     def __init__(self, parent: htmlelements.base_element,
                  idstr: str,
                  fsm: SimpleFSM,

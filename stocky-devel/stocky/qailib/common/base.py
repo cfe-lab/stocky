@@ -36,8 +36,11 @@ MSGD_DATA_CACHE_READY = MSGdesc_Type("MSG_DATA_CACHE_READY")
 # error messages, for example.
 MSGD_LOG_MESSAGE = MSGdesc_Type("MSG_LOG_MESSAGE")
 
-# a button click event
+# an HTML button click event
 MSGD_BUTTON_CLICK = MSGdesc_Type("MSG_BUTTON_CLICK")
+
+# an HTML onchange event (e.g. a select input field value has changed)
+MSGD_ON_CHANGE = MSGdesc_Type("MSG_ON_CHANGE")
 
 
 # a input form has verified the input fields successfully and has data ready to pass along.

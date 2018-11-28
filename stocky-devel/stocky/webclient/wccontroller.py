@@ -32,8 +32,8 @@ menulst = [
      },
     {'name': ADDSTOCK_VIEW_NAME,
      'viewclass': wcviews.AddNewStockView,
-     'button': {'label': 'Add New Stock',
-                'title': "Add new new stock to the QAI",
+     'button': {'label': 'Add New RFID Labels',
+                'title': "Add RFID labels to new or existing stock to the QAI database",
                 'id': 'BV1'}
      },
     {'name': CHECK_STOCK_VIEW_NAME,
@@ -245,8 +245,8 @@ class stocky_mainprog(widgets.base_controller):
             elif cmd == 'logout':
                 # the logout button was pressed
                 self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGOUT_TRY, 1))
-            elif cmd == wcviews.AddNewStockView.GO_ADD_NEW_STOCK or \
-                 cmd == wcviews.AddNewStockView.GO_ADD_NEW_RFIDTAG:
+            elif cmd == wcviews.AddNewStockView.GO_ADD_NEW_STOCK or\
+                    cmd == wcviews.AddNewStockView.GO_ADD_NEW_RFIDTAG:
                 # the GO button of add new stock was pressed:
                 # get the selected RFID tags and request an add URL from the server.
                 print("GOT addnewstock GO button!")
