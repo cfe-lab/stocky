@@ -17,7 +17,10 @@ print('hello world')
 # ww = WebWorker.WebWorker('webclient/__javascript__/sockwebby.js')
 
 # all we do is open a websocket and start the main program
-rawsock = websocket.RawWebsocket('ws://localhost:5000/goo', ['/'])
+# urlstr = 'ws://localhost:5000/goo'
+urlstr = 'ws://{}/goo'.format(location.host)
+print("URLSTR is '{}'".format(urlstr))
+rawsock = websocket.RawWebsocket(urlstr, ['/'])
 # rawsock = WebWorker.SockyWebWorker(sockyWWname)
 mysock = serversock.JSONserver_socket('scosock', rawsock)
 if not mysock.is_open():
