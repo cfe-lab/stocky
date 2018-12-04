@@ -9,6 +9,7 @@ import pathlib
 
 import gevent
 import gevent.queue
+import gevent.subprocess as subprocess
 from webclient.commonmsg import CommonMSG
 
 import serverlib.ServerWebSocket as WS
@@ -43,12 +44,98 @@ class DelayTaskMeister:
         self.msg_tosend = msg_tosend
 
     def trigger(self) -> None:
-        """Trigger the DelayTaskMeister."""
+        """Trigger the DelayTaskMeister.
+        After calling this method, the instance's message will be put on the queue
+        after the prescribed interval.
+        """
         gevent.spawn(self._worker_one_shot)
 
     def _worker_one_shot(self) -> None:
         gevent.sleep(self._sec_sleep)
         self.msgQ.put(self.msg_tosend)
+
+
+class DaemonTaskMeister:
+    """Run a specified shell command, and restart it after a delay whenever it has exited.
+    """
+    STATUS_UNDEF = -1
+    STATUS_RUNNING = 0
+    STATUS_CONFIG_ERROR = 1
+    STATUS_COMMAND_FAILED = 2
+    STATUS_STOPPED = 3
+    STATUS_COMPLETED = 4
+
+    def __init__(self, logger, command: str, sec_interval: int) -> None:
+        self.logger = logger
+        self.cmdstr = command
+        self.cmdlst = command.split()
+        self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
+        self.curstat = self.STATUS_UNDEF
+        self.do_run = True
+        self.p = None
+        self.numchecks = 0
+        # NOTE: I should launch the command here, THEN spawn off the checker loop
+        # i.e. the checker loop must NOT spawn off the command itself...
+        self._launch_cmd()
+        self.greenlet = gevent.spawn(self._dorun)
+        # self._dorun()
+
+    def _launch_cmd(self) -> None:
+        try:
+            self.p = subprocess.Popen(self.cmdlst, shell=False)
+            self.curstat = self.STATUS_RUNNING
+        except FileNotFoundError as e:
+            self.curstat = self.STATUS_CONFIG_ERROR
+        self.numchecks = 0
+
+    def get_status(self) -> int:
+        return self.curstat
+
+    def stop_cmd(self, do_wait: bool = False) -> None:
+        self.do_run = False
+        self._do_kill()
+        if do_wait:
+            self.greenlet.join()
+        self.curstat = self.STATUS_STOPPED
+
+    def _do_kill(self) -> None:
+        if self.p is not None:
+            self.p.kill()
+            self.p.wait()
+            self.p = None
+
+    def _dorun(self) -> None:
+        lverb = True
+        while self.do_run:
+            if lverb:
+                print("***check daemon '{}'".format(self.cmdstr))
+            if self.p is None:
+                self._launch_cmd()
+            gevent.sleep(self._sec_sleep)
+            if self.p is not None:
+                retcode = self.p.poll()
+                self.numchecks += 1
+                if retcode is None:
+                    # the command is still running...
+                    if lverb:
+                        print("cmd still running...")
+                else:
+                    if lverb:
+                        print("***cmd '{}' exited with retcode {}".format(self.cmdstr, retcode))
+                    self.p = None
+                    if retcode == 0:
+                        self.curstat = self.STATUS_COMPLETED
+                    else:
+                        self.curstat = self.STATUS_COMMAND_FAILED
+                    print("BLA1: {}".format(self.curstat))
+            print("BLA2: {}".format(self.curstat))
+            if self.curstat != self.STATUS_RUNNING:
+                self.do_run = False
+            print("loop curstat: {}, do_run: {}".format(self.curstat, self.do_run))
+        # shut down nicely...
+        if lverb:
+            print("***Daemon exiting...")
+        self._do_kill()
 
 
 class BaseTaskMeister:
@@ -133,7 +220,8 @@ class FileChecker(BaseTaskMeister):
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
                  sec_interval: float,
-                 do_activate: bool, file_to_check: str) -> None:
+                 do_activate: bool,
+                 file_to_check: str) -> None:
         """This class is typically used to monitor removable files and devices
         such as USB devices.
 

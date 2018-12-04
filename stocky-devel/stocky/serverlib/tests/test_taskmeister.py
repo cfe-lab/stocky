@@ -52,6 +52,86 @@ class ExceptionDummyWebsocket(DummyWebsocket):
         raise geventwebsocket.exceptions.WebSocketError('hello from the dummy!')
 
 
+STATUS_RUNNING = Taskmeister.DaemonTaskMeister.STATUS_RUNNING
+STATUS_CONFIG_ERROR = Taskmeister.DaemonTaskMeister.STATUS_CONFIG_ERROR
+STATUS_COMMAND_FAILED = Taskmeister.DaemonTaskMeister.STATUS_COMMAND_FAILED
+STATUS_STOPPED = Taskmeister.DaemonTaskMeister.STATUS_STOPPED
+STATUS_COMPLETED = Taskmeister.DaemonTaskMeister.STATUS_COMPLETED
+
+
+class Test_DaemonTM:
+    """Test the DaemonTaskMeister class that uses gevent.subprocess"""
+    def setup_method(self) -> None:
+        self.sec_interval = 0.1
+        self.num_ticks = 3
+        self.test_sleep_time = self.sec_interval * self.num_ticks
+        self.logger = logging.Logger("testing")
+        # self.msgq = DummyQueue()
+
+    def test_daemon_runandsucceed(self) -> None:
+        """Running an existing command that completes with returncode 0 (succeeds)
+        must succeed."""
+        cmdstr = "sleep 3"
+        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 1.0)
+        assert dt.get_status() == STATUS_RUNNING, "command not running..."
+        ntry, stat = 0, None
+        NUM_TRY = 10
+        while ntry < NUM_TRY and stat != STATUS_COMPLETED:
+            gevent.sleep(2)
+            print("numchecks: {}".format(dt.numchecks))
+            stat = dt.get_status()
+            print("GOT STAT: {}\n\n".format(stat))
+            ntry += 1
+        assert stat == STATUS_COMPLETED, "expected completed"
+        # assert False, "force fail!"
+
+    def test_daemon_runandfail(self) -> None:
+        """Running an existing command that completes with returncode != 0 (fail)
+        must succeed."""
+        cmdstr = "sleep -1"
+        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 1.0)
+        ntry, stat = 0, dt.get_status()
+        assert stat == STATUS_RUNNING, "command not running..."
+        NUM_TRY = 10
+        while ntry < NUM_TRY and stat == STATUS_RUNNING:
+            gevent.sleep(2)
+            print("numchecks: {}".format(dt.numchecks))
+            stat = dt.get_status()
+            print("GOT STAT: {}\n\n".format(stat))
+            ntry += 1
+        assert stat == STATUS_COMMAND_FAILED, "expected failed"
+        # assert False, "force fail!"
+
+    def test_daemon_runandstop(self) -> None:
+        """Running an existing long-running command should succeed,
+        and so should stopping it before it completes.
+        """
+        cmdstr = "/usr/bin/rfcomm connect /dev/rfcomm0 88:6B:0F:86:4D:F9"
+        cmdstr = "sleep 1000"
+        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 0)
+        gevent.sleep(2)
+        stat = dt.get_status()
+        print("GOT STAT: {}".format(stat))
+        assert stat == STATUS_RUNNING, "expected status running"
+        print("numchecks: {}".format(dt.numchecks))
+        dt.stop_cmd(do_wait=True)
+        stat = dt.get_status()
+        print("GOT STAT: {}".format(stat))
+        assert stat == STATUS_STOPPED, "expected status stopped"
+        # assert False, "force fail!"
+
+    def test_daemon_nonexistant(self) -> None:
+        """Running a nonexistant command should not crash, but set the status"""
+        cmdstr = "blaacommand aux"
+        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 0)
+        gevent.sleep(2)
+        print("numchecks: {}".format(dt.numchecks))
+        stat = dt.get_status()
+        print("GOT STAT: {}".format(stat))
+        assert stat == STATUS_CONFIG_ERROR, "expected config status error"
+        # assert False, "force fail!"
+
+
 class Test_Taskmeister:
 
     def setup_method(self) -> None:

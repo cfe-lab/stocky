@@ -18,7 +18,7 @@ print('hello world')
 
 # all we do is open a websocket and start the main program
 # urlstr = 'ws://localhost:5000/goo'
-urlstr = 'ws://{}/goo'.format(location.host)
+urlstr = 'wss://{}/goo'.format(location.host)
 print("URLSTR is '{}'".format(urlstr))
 rawsock = websocket.RawWebsocket(urlstr, ['/'])
 # rawsock = WebWorker.SockyWebWorker(sockyWWname)

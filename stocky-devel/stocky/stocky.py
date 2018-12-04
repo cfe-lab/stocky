@@ -52,7 +52,6 @@ class stockyapp(flask.Flask):
         and this will crash the stocky webclient when it is run under chrome.
         NOTE: the websocket protocol is hardcoded to be 'json' on the webclient side.
         """
-        # print("GOOLY json")
         return 'json'
 
 

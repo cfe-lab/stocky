@@ -87,6 +87,11 @@ class serverclass:
         timelib.set_local_timezone(self.cfg_dct['TZINFO'])
         self.name = "Johnny"
         self.msgQ = Queue()
+
+        # start the rfcomm daemon...
+        self.rfcommtask = Taskmeister.DaemonTaskMeister(self.logger,
+                                                        "/usr/bin/rfcomm connect /dev/rfcomm0 88:6B:0F:86:4D:F9",
+                                                        1)
         self.logger.debug("serverclass: instantiating CommLinkClass...")
         self.filewatcher = Taskmeister.FileChecker(self.msgQ, self.logger, 5, True,
                                                    self.cfg_dct['RFID_READER_DEVNAME'])

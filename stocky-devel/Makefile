@@ -18,8 +18,8 @@ STOCKY_TOP_DIR = ${CURDIR}
 # variables, otherwise the docker -v option will fail when launching
 # NOTE: In addition, docker requires an absolute path name for these directories
 DEV_SRC           =${STOCKY_TOP_DIR}/stocky
-STOCKY_STATE_DIR  =${STOCKY_TOP_DIR}/stocky-devel-state
-STOCKY_CONFIG_DIR =${STOCKY_TOP_DIR}/stocky-devel-config
+STOCKY_STATE_DIR  =${STOCKY_TOP_DIR}/../stocky-state
+STOCKY_CONFIG_DIR =${STOCKY_TOP_DIR}/../stocky-config
 
 # the name of the docker container (NOT image) used for production
 STOCKY_PROD_NAME=stockyprod
@@ -38,8 +38,9 @@ DOCKER_TESTRUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
 -w /stockysrc ${ENV_OPTS} 
 
-DOCKER_RUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
--v ${STOCKY_STATE_DIR}:/stockystate \
+# -p=${PORTNUM}:${PORTNUM} 
+DOCKER_RUN_CMD = docker run  --rm --privileged --net=host \
+ -v ${STOCKY_STATE_DIR}:/stockystate \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
 -v ${DEV_DIR}:${DEV_DIR} -w /stockysrc ${ENV_OPTS} 
 
