@@ -2,12 +2,18 @@
 # a single dictionary
 #
 # configuration file version
-VERSION: 1.0
+VERSION: 1.1
 #
 #- the linux device name over which communication with the RFID reader takes place.
 # when connected by USB, this is usually something like '/dev/ttyUSB0'
 # when connected by Bluetooth, this is usually something like '/dev/rfcomm0'
 RFID_READER_DEVNAME: '/dev/rfcomm0'
+
+#- the program stocky uses to make a serial connection to the RFID reader with.
+RFCOMM_PROGRAM: '/usr/bin/rfcomm'
+
+# The bluetooth adress of the RFID reader to connect with.
+RFID_READER_BT_ADDRESS: '88:6B:0F:86:4D:F9'
 
 #-- The URL of the QAI server from where stocky gets the current stock status
 QAI_URL: "http://192.168.69.170:4567"

@@ -76,13 +76,14 @@ class Test_DaemonTM:
         assert dt.get_status() == STATUS_RUNNING, "command not running..."
         ntry, stat = 0, None
         NUM_TRY = 10
-        while ntry < NUM_TRY and stat != STATUS_COMPLETED:
-            gevent.sleep(2)
+        while ntry < NUM_TRY:
+            gevent.sleep(1)
             print("numchecks: {}".format(dt.numchecks))
             stat = dt.get_status()
             print("GOT STAT: {}\n\n".format(stat))
+            stat_ok = stat == STATUS_COMPLETED or stat == STATUS_RUNNING
+            assert stat_ok, "unexpected state!"
             ntry += 1
-        assert stat == STATUS_COMPLETED, "expected completed"
         # assert False, "force fail!"
 
     def test_daemon_runandfail(self) -> None:
@@ -93,13 +94,14 @@ class Test_DaemonTM:
         ntry, stat = 0, dt.get_status()
         assert stat == STATUS_RUNNING, "command not running..."
         NUM_TRY = 10
-        while ntry < NUM_TRY and stat == STATUS_RUNNING:
-            gevent.sleep(2)
+        while ntry < NUM_TRY:
+            gevent.sleep(1)
             print("numchecks: {}".format(dt.numchecks))
             stat = dt.get_status()
+            stat_ok = stat == STATUS_RUNNING or stat == STATUS_COMMAND_FAILED
             print("GOT STAT: {}\n\n".format(stat))
             ntry += 1
-        assert stat == STATUS_COMMAND_FAILED, "expected failed"
+            assert stat_ok, "unexpected state!"
         # assert False, "force fail!"
 
     def test_daemon_runandstop(self) -> None:
@@ -109,7 +111,7 @@ class Test_DaemonTM:
         cmdstr = "/usr/bin/rfcomm connect /dev/rfcomm0 88:6B:0F:86:4D:F9"
         cmdstr = "sleep 1000"
         dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 0)
-        gevent.sleep(2)
+        gevent.sleep(1)
         stat = dt.get_status()
         print("GOT STAT: {}".format(stat))
         assert stat == STATUS_RUNNING, "expected status running"

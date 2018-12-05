@@ -26,6 +26,11 @@ class Test_serverlib:
         with pytest.raises(RuntimeError):
             serverconfig.read_server_config(get_testfilename('test01.fail.yaml'))
 
+    def test_S_old_version(self) -> None:
+        "A serverconfig file with an out-dated version should raise a runtime error"
+        with pytest.raises(RuntimeError):
+            serverconfig.read_server_config(get_testfilename('test02.old_version.yaml'))
+
     def test_S_should_work(self) -> None:
         "Should be able to read a correct serverconfig file."
         retdct = serverconfig.read_server_config(get_testfilename('test02.OK.yaml'))

@@ -318,14 +318,17 @@ class RunningAve:
         return ret_lst
 
 
-# class TLSReader(Taskmeister.BaseReader):
 class TLSReader(Taskmeister.BaseTaskMeister):
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,
                  cl: commlink.BaseCommLink,
                  radar_ave_num: int) -> None:
-        """Create a class that can talk to the RFID reader via the provided commlink class."""
-        super().__init__(msgQ, logger, 0, True)
+        """Create a class that can talk to the RFID reader via the provided commlink class.
+        This class will convert data received from the RFID reader into CommonMSG instances
+        and put them on the provided message queue.
+        """
+        super().__init__(msgQ, logger, 0.0, True)
+        self._lverb = False
         self._cl = cl
         self.mode = tls_mode.undef
         print("TLS init")
@@ -340,7 +343,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         if cl.is_alive():
             cl.send_cmd(cmdstr, comment)
         else:
-            self.logger.error('commlink is not alive')
+            self._log_error('commlink is not alive')
             # raise RuntimeError("commlink is not alive")
 
     def is_in_radarmode(self) -> bool:
@@ -365,7 +368,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             comment_str = None
         else:
             comment_str = comm_dct.get(commlink.BaseCommLink.COMMENT_ID, None)
-            self.logger.debug("clresp comment {}, Comment: {}".format(clresp, comment_str))
+            self._log_debug("clresp comment {}, Comment: {}".format(clresp, comment_str))
         if comment_str is None:
             # we have a message because the user pressed the trigger --
             # try to determine what kind of message to send back
@@ -375,7 +378,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             elif self.mode == tls_mode.stock:
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
             else:
-                self.logger.debug('no comment_str and no mode: returning None')
+                self._log_debug('no comment_str and no mode: returning None')
                 msg_type = None
         elif comment_str == 'radarsetup':
             # the server has previously sent a command to the RFID reader to go into
@@ -388,14 +391,14 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             if not ret_is_ok:
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
         else:
-            self.logger.error('unhandled comment string {}'.format(comment_str))
+            self._log_error('unhandled comment string {}'.format(comment_str))
         # B: now try to determine ret_data.
         if msg_type is None:
             return None
         if msg_type == CommonMSG.MSG_RF_RADAR_DATA:
             self.runningave.add_clresp(clresp)
             ret_data = self.runningave.get_runningave()
-            self.logger.debug("Returning radar data {}".format(ret_data))
+            self._log_debug("Returning radar data {}".format(ret_data))
         elif msg_type == CommonMSG.MSG_RF_CMD_RESP:
             ret_data = clresp.rl
         # do something with ret_data here and return a CommonMSG or None
@@ -414,17 +417,25 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         we will send a message with the scanned data back.
         NOTE: this method overrules the method defined in BaseTaskMeister.
         """
-        if self.cur_state is None or self.cur_state == CommonMSG.RFID_TIMEOUT:
-            new_state = self._cl.get_RFID_state()
-            if new_state != self.cur_state:
-                self.cur_state = new_state
-                return CommonMSG(CommonMSG.MSG_SV_FILE_STATE_CHANGE, new_state)
+        self._log_debug("TLS GM enter")
+        # check for a change of the state of the commlink first.
+        # if the state has changed, report this.
+        new_state = self._cl.get_RFID_state()
+        if new_state != self.cur_state:
+            self.cur_state = new_state
+            self._log_debug("TLS: state change reported")
+            return CommonMSG(CommonMSG.MSG_SV_FILE_STATE_CHANGE, new_state)
+        # no state change. if its up:
+        #   read something (blocking) and return that (could be None)
+        # else:
+        #   return None the taskmeister will ignore it.
         if self.cur_state == CommonMSG.RFID_ON:
+            self._log_debug("TLS before read... ")
             clresp: commlink.CLResponse = self._cl.raw_read_response()
-            print("INCOMING {}".format(clresp))
+            self._log_debug("TLS got {}".format(clresp))
             return self._convert_message(clresp)
         else:
-            gevent.sleep(2)
+            self._log_debug("TLS state is: {}, returning None".format(self.cur_state))
             return None
 
     def set_region(self, region_code: str) -> None:
@@ -600,7 +611,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             # print("BLACMD {}".format(cmdstr))
             self._sendcmd(cmdstr, "radarsetup")
         else:
-            self.logger.warning("TLS skipping msg {}".format(msg))
+            self._log_warning("TLS skipping msg {}".format(msg))
             raise RuntimeError("do not know how to handle message")
 
     def write_user_bank(self, epc: EPCstring, data: str) -> None:

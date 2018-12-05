@@ -21,9 +21,43 @@ import serverlib.ServerWebSocket as WS
 # that a WebSocket reader passes up the chain by the queue will never be acted on
 # by its consumers because they will not be able to dequeue the message due to starvation.
 MIN_SEC_INTERVAL = 0.1
+# MIN_SEC_INTERVAL = 0.6
 
 
-class DelayTaskMeister:
+class LoggingMixin:
+    """A Mixin class that can handle logging.
+    Using gevents, logging to files can be difficult to decipher.
+    This class allows logging reports of certain instances
+    to be printed directly to terminal rather than logged.
+    This is achieved by setting a self._lverb = True
+    """
+
+    def __init__(self, logger) -> None:
+        self._logger = logger
+
+    def is_verbose(self) -> bool:
+        return hasattr(self, "_lverb") and self._lverb
+
+    def _log_error(self, msg: str) -> None:
+        if self.is_verbose():
+            print(msg)
+        else:
+            self._logger.error(msg)
+
+    def _log_debug(self, msg: str) -> None:
+        if self.is_verbose():
+            print(msg)
+        else:
+            self._logger.debug(msg)
+
+    def _log_warning(self, msg: str) -> None:
+        if self.is_verbose():
+            print(msg)
+        else:
+            self._logger.warning(msg)
+
+
+class DelayTaskMeister(LoggingMixin):
     """Put a designated message on the queue after a specified delay
     every time the class is triggered.
     """
@@ -38,8 +72,8 @@ class DelayTaskMeister:
            sec_interval: the time to wait after triggering before putting a message on the queue
            msg_tosend: the message to put on the queue.
         """
+        super().__init__(logger)
         self.msgQ = msgQ
-        self.logger = logger
         self._sec_sleep = sec_interval
         self.msg_tosend = msg_tosend
 
@@ -55,7 +89,7 @@ class DelayTaskMeister:
         self.msgQ.put(self.msg_tosend)
 
 
-class DaemonTaskMeister:
+class DaemonTaskMeister(LoggingMixin):
     """Run a specified shell command, and restart it after a delay whenever it has exited.
     """
     STATUS_UNDEF = -1
@@ -66,7 +100,8 @@ class DaemonTaskMeister:
     STATUS_COMPLETED = 4
 
     def __init__(self, logger, command: str, sec_interval: int) -> None:
-        self.logger = logger
+        super().__init__(logger)
+        self._lverb = True
         self.cmdstr = command
         self.cmdlst = command.split()
         self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
@@ -81,11 +116,14 @@ class DaemonTaskMeister:
         # self._dorun()
 
     def _launch_cmd(self) -> None:
+        if self.curstat == self.STATUS_CONFIG_ERROR:
+            return
         try:
             self.p = subprocess.Popen(self.cmdlst, shell=False)
             self.curstat = self.STATUS_RUNNING
         except FileNotFoundError as e:
             self.curstat = self.STATUS_CONFIG_ERROR
+            self._log_error("command '{}' config error: {}".format(self.cmdlst, e))
         self.numchecks = 0
 
     def get_status(self) -> int:
@@ -105,11 +143,10 @@ class DaemonTaskMeister:
             self.p = None
 
     def _dorun(self) -> None:
-        lverb = True
         while self.do_run:
-            if lverb:
-                print("***check daemon '{}'".format(self.cmdstr))
+            self._log_debug("***check daemon '{}'".format(self.cmdstr))
             if self.p is None:
+                self._log_debug("launch --")
                 self._launch_cmd()
             gevent.sleep(self._sec_sleep)
             if self.p is not None:
@@ -117,28 +154,22 @@ class DaemonTaskMeister:
                 self.numchecks += 1
                 if retcode is None:
                     # the command is still running...
-                    if lverb:
-                        print("cmd still running...")
+                    self._log_debug("cmd still running...")
                 else:
-                    if lverb:
-                        print("***cmd '{}' exited with retcode {}".format(self.cmdstr, retcode))
+                    err_str = "***cmd '{}' exited with retcode {}".format(self.cmdstr, retcode)
+                    self._log_error(err_str)
                     self.p = None
                     if retcode == 0:
                         self.curstat = self.STATUS_COMPLETED
                     else:
                         self.curstat = self.STATUS_COMMAND_FAILED
-                    print("BLA1: {}".format(self.curstat))
-            print("BLA2: {}".format(self.curstat))
-            if self.curstat != self.STATUS_RUNNING:
-                self.do_run = False
-            print("loop curstat: {}, do_run: {}".format(self.curstat, self.do_run))
+            self._log_debug("loop curstat: {}, do_run: {}".format(self.curstat, self.do_run))
         # shut down nicely...
-        if lverb:
-            print("***Daemon exiting...")
+        self._log_debug("***Daemon exiting...")
         self._do_kill()
 
 
-class BaseTaskMeister:
+class BaseTaskMeister(LoggingMixin):
     "A fundamental TaskMeister class."
 
     def __init__(self, msgQ: gevent.queue.Queue,
@@ -168,11 +199,11 @@ class BaseTaskMeister:
         Where :meth:`generate_msg` is overridden in subclasses.
         """
         self.msgQ = msgQ
-        self.logger = logger
+        super().__init__(logger)
         self._isactive = is_active
         self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
         self._do_main_loop = True
-        gevent.spawn(self._worker_loop)
+        self._greenlet = gevent.spawn(self._worker_loop)
 
     def set_active(self, is_active: bool) -> None:
         """Enable/disable the scheduling of messages.
@@ -256,7 +287,7 @@ class RandomGenerator(BaseTaskMeister):
     """Generate a random number message every sec_interval seconds. This is used for testing."""
     def generate_msg(self) -> typing.Optional[CommonMSG]:
         number = round(random.random()*10, 3)
-        self.logger.debug("random: {}".format(number))
+        self._log_debug("random: {}".format(number))
         return CommonMSG(CommonMSG.MSG_SV_RAND_NUM, number)
 
 
@@ -324,10 +355,15 @@ class WebSocketReader(BaseTaskMeister):
         as defined in :mod:`webclient.commonmsg` , it is put on the queue as
         a CommonMSG instance.
         """
+        lverb = True
+        if lverb:
+            print("WSGM: before rec msg")
         dct = self.ws.receiveMSG()
+        if lverb:
+            print("WSGM: received msg")
         # the return value is either None or a dict.
         if dct is None:
-            self.logger.error("received None over ws, returning None")
+            self._log_error("received None over ws, returning None")
             retmsg = None
         elif isinstance(dct, dict):
             need_keys = frozenset(['msg', 'data'])
@@ -337,18 +373,18 @@ class WebSocketReader(BaseTaskMeister):
                 try:
                     retmsg = CommonMSG(dct['msg'], dct['data'])
                 except (ValueError, TypeError):
-                    self.logger.error("illegal msgtype= '{}'".format(dct['msg']))
+                    self._log_error("illegal msgtype= '{}'".format(dct['msg']))
                     retmsg = None
                 xtra_keys = got_keys - need_keys
                 if xtra_keys:
-                    self.logger.warning("unexpected extra dict keys, got '{}'".format(got_keys))
+                    self._log_warning("unexpected extra dict keys, got '{}'".format(got_keys))
             else:
-                self.logger.error("unknown keys in {}".format(got_keys))
+                self._log_error("unknown keys in {}".format(got_keys))
                 retmsg = None
         #
         if retmsg is not None and retmsg.msg == CommonMSG.MSG_WC_EOF:
             self._SetTaskFinished()
         mmm = "WS.generate_msg returning commonmsg {}".format(retmsg)
-        self.logger.debug(mmm)
+        self._log_debug(mmm)
         print(mmm)
         return retmsg

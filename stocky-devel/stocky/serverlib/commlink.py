@@ -435,13 +435,27 @@ class BaseCommLink:
 
     def _blocking_cmd(self, cmdstr: str,
                       comment: str = None) -> CLResponse:
-        """Send a command string to the reader, returning its list of response strings."""
+        """Send a command string to the reader, returning its list of response strings.
+        Note: if the RFID reader goes out of range, the write command will time out,
+        however, the device will not automatically be closed.
+        The commlink must explicitly close the device so that the rfcomm program exits,
+        relinquishing the /dev/rfcomm0 device. Then rfcomm will rerun, attempting to
+        reestablish a communication channel.
+
+        If the device is closed, we attempt to open it. This allows a connection to
+        be re established when the RFID reader comes int range.
+        """
         print("_blocking_cmd 1")
+        if not self.is_alive():
+            self.HandleStateChange(True)
         try:
             self.send_cmd(cmdstr, comment)
         except RuntimeError:
             # write failed despite the device being open: a time-out problem
+            # which means the RFID reader is out of range.
             print("write failed.. timeout")
+            if self.is_alive():
+                self.HandleStateChange(False)
             return CLResponse(None)
         print("_blocking_cmd 2")
         res = self.raw_read_response()

@@ -2,7 +2,7 @@
 # a single dictionary
 #
 # configuration file version
-VERSION: 1.1
+VERSION: 1.0
 #
 # The linux device name over which communication with the RFID reader takes place.
 # when connected by USB, this is usually something like '/dev/ttyUSB0'

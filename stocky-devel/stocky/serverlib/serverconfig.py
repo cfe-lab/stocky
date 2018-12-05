@@ -16,12 +16,13 @@ CONFIG_DIR_ENV_NAME = 'STOCKY_CONFIG_DIR'
 STATE_DIR_ENV_NAME = 'STOCKY_STATE_DIR'
 
 
-VERSION_FLT = 1.0
+VERSION_FLT = 1.1
 
 # these are the kyes that must be on file
 known_set = frozenset(['VERSION', 'RFID_REGION_CODE', 'TIME_ZONE',
                        'RFID_READER_DEVNAME', 'QAI_URL',
-                       'LOCAL_STOCK_DB_FILE'])
+                       'LOCAL_STOCK_DB_FILE',
+                       'RFCOMM_PROGRAM', 'RFID_READER_BT_ADDRESS'])
 
 # these are the keys on file PLUS the ones added after reading the yaml file
 valid_keys = known_set | frozenset(['TZINFO'])

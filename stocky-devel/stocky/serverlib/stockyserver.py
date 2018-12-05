@@ -81,7 +81,11 @@ class serverclass:
         self.websocketTM: typing.Optional[Taskmeister.WebSocketReader] = None
 
         self.logger.info("serverclass: reading config file '{}'".format(cfgname))
-        self.cfg_dct = serverconfig.read_server_config(cfgname)
+        try:
+            self.cfg_dct = serverconfig.read_server_config(cfgname)
+        except RuntimeError as e:
+            self.logger.error("Error reading server config file: {}".format(e))
+            raise
         self.cfg_dct['logger'] = self.logger
         self.logger.debug("serverclass: config file read...{}".format(self.cfg_dct))
         timelib.set_local_timezone(self.cfg_dct['TZINFO'])
@@ -89,9 +93,20 @@ class serverclass:
         self.msgQ = Queue()
 
         # start the rfcomm daemon...
+        # the command to run is something along the lines of:
+        # "/usr/bin/rfcomm connect /dev/rfcomm0 88:6B:0F:86:4D:F9"
+        rfcomm_cmd = "{} connect {} {} ".format(self.cfg_dct['RFCOMM_PROGRAM'],
+                                                self.cfg_dct['RFID_READER_DEVNAME'],
+                                                self.cfg_dct['RFID_READER_BT_ADDRESS'])
+        self.logger.debug("rfcomm command : '{}'".format(rfcomm_cmd))
         self.rfcommtask = Taskmeister.DaemonTaskMeister(self.logger,
-                                                        "/usr/bin/rfcomm connect /dev/rfcomm0 88:6B:0F:86:4D:F9",
+                                                        rfcomm_cmd,
                                                         1)
+        rfstat = self.rfcommtask.get_status()
+        if rfstat != Taskmeister.DaemonTaskMeister.STATUS_RUNNING:
+            self.logger.error("rfcomm daemon is not running: status = {}".format(rfstat))
+            raise RuntimeError("rfcomm program has not started")
+        self.logger.debug("rfcomm comand is running.")
         self.logger.debug("serverclass: instantiating CommLinkClass...")
         self.filewatcher = Taskmeister.FileChecker(self.msgQ, self.logger, 5, True,
                                                    self.cfg_dct['RFID_READER_DEVNAME'])

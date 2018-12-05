@@ -3,7 +3,7 @@ encoding and/or compression approaches."""
 
 
 import typing
-import gevent
+# import gevent
 from geventwebsocket import websocket
 import geventwebsocket.exceptions
 
@@ -38,8 +38,13 @@ class BaseWebSocket:
            The message read as a python object.
            If an error occurs, a message is logged and None is returned.
         """
+        lverb = True
         try:
+            if lverb:
+                print("self.ws.receive()...")
             rawmsg = self.ws.receive()
+            if lverb:
+                print("self.ws.received!")
         except geventwebsocket.exceptions.WebSocketError as e:
             mm = "recv except {} : {}".format(self, e)
             print(mm)
