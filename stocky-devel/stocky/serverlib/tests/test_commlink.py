@@ -78,7 +78,7 @@ class DummyCommLink(commlink.BaseCommLink):
         super().__init__(cfgdct)
         self.resplst: typing.List[str] = []
 
-    def is_alive(self, doquick: bool = True) -> bool:
+    def _is_alive(self, doquick: bool = True) -> bool:
         return True
 
     def id_string(self) -> str:
@@ -165,7 +165,7 @@ class Test_timeout_commlink:
         self.logger = logging.Logger("testing")
         cfgdct = {'logger': self.logger}
         self.cl = CommLinkClass(cfgdct)
-        if not self.cl.is_alive():
+        if not self.cl._is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
@@ -188,7 +188,7 @@ class Test_timeout_commlink:
 
     def test_handlestatechange01(self) -> None:
         self.dscl.HandleStateChange(True)
-        is_alive = self.dscl.is_alive()
+        is_alive = self.dscl._is_alive()
         assert isinstance(is_alive, bool), "bool expected"
         assert is_alive, "commlink should be alive"
         id_expected = "ID string cannot be determined: commlink timed out"
@@ -198,7 +198,7 @@ class Test_timeout_commlink:
 
     def test_handlestatechange02(self) -> None:
         self.dscl.HandleStateChange(False)
-        is_alive = self.dscl.is_alive()
+        is_alive = self.dscl._is_alive()
         assert isinstance(is_alive, bool), "bool expected"
         assert not is_alive, "commlink should be alive"
         id_expected = "ID string cannot be determined: commlink is down"
@@ -213,7 +213,7 @@ class Test_commlink:
         self.logger = logging.Logger("testing")
         cfgdct = {'logger': self.logger}
         self.cl = CommLinkClass(cfgdct)
-        if not self.cl.is_alive():
+        if not self.cl._is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
@@ -302,9 +302,9 @@ class Test_commlink:
     def test_is_alive01(self):
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
-        assert dscl.is_alive(), "expected true"
+        assert dscl._is_alive(), "expected true"
         dscl.mydev = None
-        assert not dscl.is_alive(), "expected false"
+        assert not dscl._is_alive(), "expected false"
 
     def test_baseCL_notimp(self):
         """The base should raise NotImplemented errors."""

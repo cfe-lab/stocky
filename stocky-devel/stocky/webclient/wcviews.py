@@ -174,7 +174,6 @@ class BaseScanList:
         table. It can be overridden, e.g. to sort table rows
         """
         pass
-        
 
 
 class AddScanList(simpletable.simpletable, BaseScanList):
@@ -245,6 +244,7 @@ class AddScanList(simpletable.simpletable, BaseScanList):
         print("BEGIN SORTO !")
         w3.sortHTML("scoaddscanlist", ".item", "td:nth-child(1)")
         print("END SORTO !")
+
 
 class AddNewStockView(SwitcheeView):
     """This is the view that the user will use to add new stock to the QAI system
@@ -834,6 +834,27 @@ class UploadLocMutView(SwitcheeView):
         title_text = "QAI Database Upload Page"
         htext = """Update the QAI system with the modified reagent item statuses determined
 during Stock Check. For this to work, the stocky computer must be plugged in to ethernet and you must first log in."""
+        SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
+                              title_text, htext)
+        # self.stat_tab: typing.Optional[simpletable.dict_table] = None
+
+
+
+class ConfigStatusView(SwitcheeView):
+    """This is the view that the user will use to review the location changes and upload
+    them to QAI.
+    a) retrieve all location mutations from the stocky server.
+    b) allow user to ignore certain mutations in the table.
+    c) Instruct the server to upload the changes to QAI.
+    """
+    def __init__(self,
+                 contr: widgets.base_controller,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 attrdct: dict,
+                 jsel) -> None:
+        title_text = "Config Status Page"
+        htext = """Display some information about the  Stocky server."""
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
         # self.stat_tab: typing.Optional[simpletable.dict_table] = None

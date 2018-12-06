@@ -21,7 +21,7 @@ class DeadCommLink(commlink.BaseCommLink):
     def open_device(self) -> typing.Any:
         return None
 
-    def is_alive(self, doquick: bool = True) -> bool:
+    def _is_alive(self, doquick: bool = True) -> bool:
         return False
 
     def id_string(self) -> str:
@@ -35,7 +35,7 @@ class Test_TLSAscii:
         self.logger = logging.Logger("testing")
         self.cl = test_commlink.DummyCommLink({'logger': self.logger})
         self.deadcl = DeadCommLink({'logger': self.logger})
-        if not self.cl.is_alive():
+        if not self.cl._is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))

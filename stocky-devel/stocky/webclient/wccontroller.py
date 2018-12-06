@@ -32,8 +32,8 @@ menulst = [
      },
     {'name': ADDSTOCK_VIEW_NAME,
      'viewclass': wcviews.AddNewStockView,
-     'button': {'label': 'Add New RFID Labels',
-                'title': "Add RFID labels to new or existing stock to the QAI database",
+     'button': {'label': 'Add and Dispose of RFID Labels',
+                'title': "Add RFID labels to new or existing stock or to dispose of stock",
                 'id': 'BV1'}
      },
     {'name': CHECK_STOCK_VIEW_NAME,
@@ -53,6 +53,12 @@ menulst = [
      'button': {'label': 'Upload status changes to QAI',
                 'title': "Write the reviewed reagent item locations back to QAI",
                 'id': 'BV5'}
+     },
+    {'name': 'status',
+     'viewclass': wcviews.ConfigStatusView,
+     'button': {'label': 'Display Configuration',
+                'title': "Display the Stocky server configuration",
+                'id': 'BV6'}
      }
     ]
 
@@ -118,7 +124,6 @@ class stocky_mainprog(widgets.base_controller):
             vtext = mvdct.get('viewidtext', None)
             if vtext is not None:
                 html.h1text(view, vtext)
-
             # add the menu button for this view...
             butdct = mvdct['button']
             butattdct = {'title': butdct['title'],

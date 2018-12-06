@@ -161,10 +161,13 @@ class CLResponse:
             raise RuntimeError("return_code: unexpected {}, expected {}".format(cmd, resp_code))
 
     def return_code(self) -> TLSRetCode:
-        """Return a return code as an integer from a ResponseList received
+        """Determine a return code as an integer from a ResponseList received
         from the TLS reader.
         For the error codes, see the document 'TLS ASCII protocol 2.5 rev B', page 14.
         We include an error code zero here to indicate a success.
+
+        Returns: a code to indicate how succesful the communication with the
+        RFID reader was.
         """
         if self.rl is None:
             return BaseCommLink.RC_TIMEOUT
@@ -237,8 +240,14 @@ class BaseCommLink:
         pass
 
     def HandleStateChange(self, is_online: bool) -> None:
-        """This routine is called when the BT link has changed...
-        set out internal state accordingly.
+        """This routine is called when the serial device connecting to
+        BT (typically /dev/rfcomm0)should be opened or closed.
+        if is_online == True:
+           the device has just been created and now needs to be opened for communication.
+        if is_online == False:
+           the open device has timed out and needs to be closed so that the filename
+           disappears from the file system. Only when this happens can a new connection
+           be made later.
         """
         if is_online:
             self.mydev = self.open_device()
@@ -427,7 +436,7 @@ class BaseCommLink:
         self.logger.debug("raw_read_response got {}...".format(rlst))
         return CLResponse(rlst)
 
-    def is_alive(self) -> bool:
+    def _is_alive(self) -> bool:
         return self.mydev is not None
 
     def id_string(self) -> str:
@@ -443,18 +452,20 @@ class BaseCommLink:
         reestablish a communication channel.
 
         If the device is closed, we attempt to open it. This allows a connection to
-        be re established when the RFID reader comes int range.
+        be re established when the RFID reader comes into range.
         """
         print("_blocking_cmd 1")
-        if not self.is_alive():
+        if not self._is_alive():
             self.HandleStateChange(True)
         try:
             self.send_cmd(cmdstr, comment)
         except RuntimeError:
-            # write failed despite the device being open: a time-out problem
+            # Write failed despite the device being open: a time-out problem occurred,
             # which means the RFID reader is out of range.
+            # In this case, we mark the commlink as being down, and return CLResponse(None)
+            # to signal the time out condition.
             print("write failed.. timeout")
-            if self.is_alive():
+            if self._is_alive():
                 self.HandleStateChange(False)
             return CLResponse(None)
         print("_blocking_cmd 2")
@@ -528,7 +539,15 @@ class SerialCommLink(BaseCommLink):
         return retcode != BaseCommLink.RC_TIMEOUT
 
     def get_RFID_state(self) -> int:
-        if self.is_alive():
+        """Determine the state of the serial communication channel (over BT)
+        to the RFID reader.
+
+        Returns:
+        One of RFID_ON (communication is alive), RFID_OFF (communication device is closed),
+        or RFID_TIMEOUT (communication device is open, but the RFID reader is not responding,
+        probably because it is out of range).
+        """
+        if self._is_alive():
             if self._is_responsive():
                 return CommonMSG.RFID_ON
             else:
@@ -543,7 +562,7 @@ class SerialCommLink(BaseCommLink):
            If the connection (serial device) is not active, or the connection
            blocks (timeout), then this is reported instead."""
         if self._idstr is None:
-            if self.is_alive():
+            if self._is_alive():
                 cl_resp = self._blocking_cmd('.vr')
                 self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
                 retcode = cl_resp.return_code()

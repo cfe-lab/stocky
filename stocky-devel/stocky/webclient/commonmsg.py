@@ -1,8 +1,9 @@
-
-# define messages that the webclient and the server have in common
-# This module is imported by both python3 on the server and transcrypt on the
-# webclient, so must be written accordingly
-
+"""Define messages that the webclient and the server have in common.
+The CommonMSG class forms the basis of communication over websockets
+between server and webclient.
+This module is imported by both python3 on the server and transcrypt on the
+webclient, so must be written accordingly.
+"""
 
 import typing
 
@@ -45,9 +46,6 @@ class CommonMSG:
     # the device used to communicate with the RFID scanner has changed state (presence/absence)
     # This is used to signal that the RFID scanner device has come online/ gone offline.
     MSG_SV_FILE_STATE_CHANGE = 'SV_FILE_STATE'
-
-    # the RFID reader is unresponsive (communcation timed out)
-    # MSG_SV_RFID_TIMEOUT = 'SV_RFID_TIMEOUT'
 
     # the server is setting the RFID scanner in stock check mode
     # MSG_SV_STOCK_CHECK_MODE = 'SV_STOCK_CHECK_MODE'
@@ -99,16 +97,17 @@ class CommonMSG:
     # When reviewing location mutation list, wc will request all location changes
     # this data will be provided by the stocky server.
     MSG_WC_LOCMUT_REQ = 'WC_LOCMUT_REQ'
-    MSG_SV_LOCMUT_RESP = 'WC_LOCMUT_REQ'
-    
+    MSG_SV_LOCMUT_RESP = 'SV_LOCMUT_RESP'
+
     # the RFID reader has produced some radar data
     MSG_RF_RADAR_DATA = 'RF_RADAR_DATA'
 
     # the RFID reader has produced a command response
     MSG_RF_CMD_RESP = 'RF_CMD_RESP'
 
+    # total number of messages: just for cross checking.
+    NUM_MSG = 22
 
-    
     @classmethod
     def _init_class(cls):
         # NOTE: because of transcrypt, we cannot use a set..
@@ -118,20 +117,26 @@ class CommonMSG:
         # mypy gets confused, and believes that the class does not
         # have a valid_msg_lst attribute
         cls.valid_msg_lst = [cls.MSG_SV_RAND_NUM, cls.MSG_SV_TIMER_TICK,
+                             cls.MSG_SV_GENERIC_COMMAND,
+                             cls.MSG_WC_LOGIN_TRY, cls.MSG_SV_LOGIN_RES,
+                             cls.MSG_WC_LOGOUT_TRY, cls.MSG_SV_LOGOUT_RES,
                              cls.MSG_SV_FILE_STATE_CHANGE,
                              cls.MSG_SV_RFID_STATREP, cls.MSG_SV_RFID_ACTIVITY,
-                             cls.MSG_SV_GENERIC_COMMAND,
-                             cls.MSG_WC_STOCK_INFO_REQ, cls.MSG_SV_STOCK_INFO_RESP,
-                             cls.MSG_SV_LOGIN_RES,
-                             cls.MSG_WC_SET_STOCK_LOCATION, cls.MSG_WC_LOGIN_TRY,
-                             cls.MSG_SV_LOGOUT_RES, cls.MSG_WC_LOGOUT_TRY,
                              cls.MSG_WC_ADD_STOCK_REQ, cls.MSG_SV_ADD_STOCK_RESP,
-                             cls.MSG_WC_RADAR_MODE, cls.MSG_RF_RADAR_DATA,
-                             cls.MSG_RF_CMD_RESP, cls.MSG_WC_EOF,
-                             cls.MSG_WC_LOCATION_INFO]
+                             cls.MSG_WC_EOF, cls.MSG_WC_SET_STOCK_LOCATION,
+                             cls.MSG_WC_RADAR_MODE,
+                             cls.MSG_WC_STOCK_INFO_REQ,
+                             cls.MSG_SV_STOCK_INFO_RESP,
+                             cls.MSG_WC_LOCATION_INFO,
+                             cls.MSG_WC_LOCMUT_REQ, cls.MSG_SV_LOCMUT_RESP,
+                             cls.MSG_RF_RADAR_DATA,
+                             cls.MSG_RF_CMD_RESP
+                             ]
         # cls.MSG_WC_STOCK_CHECK,cls.MSG_SV_NEW_STOCK_LIST
         # , cls.MSG_RF_STOCK_DATA
         cls.valid_msg_dct = dict([(k, 1) for k in cls.valid_msg_lst])
+        if len(cls.valid_msg_lst) != len(cls.valid_msg_dct):
+            raise RuntimeError("Whacky commonmsg._init_class")
 
     def __init__(self, msg: str, data: typing.Any) -> None:
         if not isinstance(msg, str):

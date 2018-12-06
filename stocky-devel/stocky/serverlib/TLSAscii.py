@@ -334,17 +334,16 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         print("TLS init")
         self.cur_state: typing.Optional[int] = None
         print("TLS init got {}".format(self.cur_state))
-        if cl.is_alive():
+        if cl._is_alive():
             self.BT_set_stock_check_mode()
         self.runningave = RunningAve(logger, radar_ave_num)
 
     def _sendcmd(self, cmdstr: str, comment: str = None) -> None:
         cl = self._cl
-        if cl.is_alive():
+        if cl._is_alive():
             cl.send_cmd(cmdstr, comment)
         else:
             self._log_error('commlink is not alive')
-            # raise RuntimeError("commlink is not alive")
 
     def is_in_radarmode(self) -> bool:
         return self.mode == tls_mode.radar
@@ -423,8 +422,8 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         new_state = self._cl.get_RFID_state()
         if new_state != self.cur_state:
             self.cur_state = new_state
-            self._log_debug("TLS: state change reported")
-            return CommonMSG(CommonMSG.MSG_SV_FILE_STATE_CHANGE, new_state)
+            self._log_debug("TLS: state change reported. new state: {}".format(new_state))
+            return CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, new_state)
         # no state change. if its up:
         #   read something (blocking) and return that (could be None)
         # else:

@@ -41,6 +41,7 @@ class serverclass:
     MSG_FOR_ME_SET = frozenset([CommonMSG.MSG_WC_RADAR_MODE,
                                 CommonMSG.MSG_WC_STOCK_INFO_REQ,
                                 CommonMSG.MSG_SV_FILE_STATE_CHANGE,
+                                CommonMSG.MSG_SV_RFID_STATREP,
                                 CommonMSG.MSG_WC_LOGIN_TRY,
                                 CommonMSG.MSG_WC_LOGOUT_TRY,
                                 CommonMSG.MSG_WC_SET_STOCK_LOCATION,
@@ -128,6 +129,15 @@ class serverclass:
         self.logger.info("Instantiating Tickgenerator")
         self.timerTM = Taskmeister.TickGenerator(self.msgQ, self.logger, 1, 'radartick')
         self.timerTM.set_active(False)
+
+        # create messages and a delayTM for the RFID activity spinner
+        self._rfid_act_on = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, True)
+        rfid_act_off = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, False)
+        # set up the RFID activity delay timer
+        self.rfid_delay_task = Taskmeister.DelayTaskMeister(self.msgQ,
+                                                            self.logger,
+                                                            1.5,
+                                                            rfid_act_off)
         self.logger.info("End of serverclass.__init__")
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
@@ -138,6 +148,13 @@ class serverclass:
         """
         if self.ws is not None:
             self.ws.sendMSG(msg.as_dict())
+
+    def activate_RFID_spinner(self):
+        """Send messages to the webclient in order to get the 'RFID activity' spinner
+        to turn for a while.
+        """
+        self.send_WS_msg(self._rfid_act_on)
+        self.rfid_delay_task.trigger()
 
     def sleep(self, secs: int) -> None:
         gevent.sleep(secs)
@@ -217,9 +234,13 @@ class serverclass:
             new_stock = dct.get('newstock', False)
             qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst, new_stock)
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
+        elif msg.msg == CommonMSG.MSG_SV_RFID_STATREP:
+            print("state change enter")
+            self.handleRFID_CLstatechange(msg.data)
+            print("state change exit")
         elif msg.msg == CommonMSG.MSG_SV_FILE_STATE_CHANGE:
             print("state change enter")
-            self.handleRFIDstatechange(msg.data)
+            self.handleRFID_filestatechange(msg.data)
             print("state change exit")
         elif msg.msg == CommonMSG.MSG_WC_LOCATION_INFO:
             # location change information: save to DB
@@ -235,31 +256,37 @@ class serverclass:
             raise RuntimeError("unhandled message {}".format(msg))
         print("--END of server handling msg...{}".format(msg))
 
-    def handleRFIDstatechange(self, is_online: bool) -> None:
+    def handleRFID_filestatechange(self, file_is_made: bool) -> None:
+        """React to the serial device associated with the RFID reader appearing/disappearing.
+
+        Args:
+        Whether the serial device has been created/ deleted.
+        """
+        self.cl.HandleStateChange(file_is_made)
+
+    def handleRFID_CLstatechange(self, new_state: int) -> None:
         """React to the serial device associated with the RFID reader appearing/disappearing.
 
         This routine is called whenever the BT connection to the RFID reader
-        comes online/ comes offline.
+        comes online/ comes offline or times out.
         Among other things, this routine calls :meth:`BT_init_reader` to ensure
-        that the reader is in a defined state, and then
-        sends a message to the webclient so that the status LED can be changed
-        for the user to see.
+        that the reader is in a defined state.
 
         Args:
-           is_online: whether the link is now 'live'
+           new_state: the new state of the serial communication link to the RFID reader.\
+           This will be one of CommonMSG.RFID_ON, CommonMSG.RFID_OFF or CommonMSG.RFID_TIMEOUT.
         """
-        commlink = self.cl
-        commlink.HandleStateChange(is_online)
-        rfid_state = commlink.get_RFID_state()
-        self.logger.info("Commlink RFID state: {}".format(rfid_state))
-        if rfid_state == CommonMSG.RFID_ON:
+        self.logger.info("Commlink RFID state: {}".format(new_state))
+        if new_state == CommonMSG.RFID_ON:
             print("Commlink is alive")
             print("serverclass: getting id_string...")
-            idstr = commlink.id_string()
+            idstr = self.cl.id_string()
             print("Commlink idents as '{}'".format(idstr))
             self.BT_init_reader()
             self.logger.info("Bluetooth init OK")
-        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, rfid_state))
+        elif new_state == CommonMSG.RFID_TIMEOUT:
+            print("Restart RFCOMM")
+            self.rfcommtask.stop_and_restart_cmd()
 
     def send_QAI_status(self, upd_dct: typing.Optional[dict]):
         if upd_dct is not None:
@@ -297,7 +324,7 @@ class serverclass:
 
         Messages are enqueued asynchronously from the various sources
         (webclient over websocket, RFID scanner over serial link) but the mainloop
-        is the only entity dequeuing messages in this loop.
+        is the only entity dequeuing messages, and that happens in this loop.
         Some messages are either simply passed on to interested parties, while
         others are handled as requests by the server itself in
         :meth:`server_handle_msg` .
@@ -317,19 +344,12 @@ class serverclass:
         self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, self.ws)
 
         # send the RFID status to the webclient
-        is_up = self.cl.is_alive()
-        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, is_up))
+        rfid_stat = self.cl.get_RFID_state()
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, rfid_stat))
 
         # send the QAI update status to the webclient
         self.send_QAI_status(None)
 
-        rfid_act_on = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, True)
-        rfid_act_off = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, False)
-        # set up the RFID activity delay timer
-        rfid_delay_task = Taskmeister.DelayTaskMeister(self.msgQ,
-                                                       self.logger,
-                                                       1.5,
-                                                       rfid_act_off)
         do_loop = True
         while do_loop:
             if lverb:
@@ -347,8 +367,7 @@ class serverclass:
             print("step 2")
             if msg.is_from_rfid_reader():
                 self.logger.debug("GOT RFID {}".format(msg.as_dict()))
-                self.send_WS_msg(rfid_act_on)
-                rfid_delay_task.trigger()
+                self.activate_RFID_spinner()
 
             is_handled = False
             if self.ws is not None and msg.msg in serverclass.MSG_FOR_WC_SET:

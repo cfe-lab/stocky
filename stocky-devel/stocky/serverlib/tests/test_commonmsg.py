@@ -14,6 +14,8 @@ class Test_commonmsg:
         # names must be unique
         assert len(msglst) == len(msgdct), "unexpected dct length"
 
+        assert len(msglst) == CommonMSG.NUM_MSG, "inconsistent lst length"
+
         # names must allow assignment to exactly one source.
         mydat = 100.0
         for msgtype in msglst:

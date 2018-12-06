@@ -101,7 +101,7 @@ class DaemonTaskMeister(LoggingMixin):
 
     def __init__(self, logger, command: str, sec_interval: int) -> None:
         super().__init__(logger)
-        self._lverb = True
+        self._lverb = False
         self.cmdstr = command
         self.cmdlst = command.split()
         self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
@@ -130,11 +130,17 @@ class DaemonTaskMeister(LoggingMixin):
         return self.curstat
 
     def stop_cmd(self, do_wait: bool = False) -> None:
+        """Stop the command without restarting it"""
         self.do_run = False
         self._do_kill()
         if do_wait:
             self.greenlet.join()
         self.curstat = self.STATUS_STOPPED
+
+    def stop_and_restart_cmd(self) -> None:
+        """Stop the command if it is running, then restart it again"""
+        # NOTE: just kill the job. _dorun will restart it
+        self._do_kill()
 
     def _do_kill(self) -> None:
         if self.p is not None:
