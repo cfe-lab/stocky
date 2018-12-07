@@ -46,7 +46,7 @@ class ToggleLabel(htmlelements.label):
         self.rem_attrdct(oldstate)
         self.add_attrdct(newstate)
         self.setInnerHTML(newtext)
-        self.sndMsg(base.MSGD_STATE_CHANGE, self.is_astate)
+        self.sndMsg(base.MSGD_STATE_CHANGE, dict(state=self.is_astate))
 
     def is_A_state(self) -> bool:
         """Return is A state? """
@@ -103,7 +103,7 @@ class DropToggleLabel(htmlelements.select):
         newstate = self.attdct[self.is_astate]
         self.rem_attrdct(oldstate)
         self.add_attrdct(newstate)
-        self.sndMsg(base.MSGD_STATE_CHANGE, self.is_astate)
+        self.sndMsg(base.MSGD_STATE_CHANGE, dict(state=self.is_astate))
 
     def is_A_state(self) -> bool:
         """Return is A state? """
@@ -132,14 +132,14 @@ class SimpleFSM(base.base_obj):
     def get_init_state(self) -> int:
         """Return the initial state of the FSM."""
         print("SimpleFSM.get_init_state not overriden.")
-        return None
+        return -10000
 
     def get_new_state(self, curstate: int, event: str) -> int:
         """Given the current state and an event that has
         occurred (information provided in self.os)
         determine the new_state"""
         print("SimpleFSM.get_new_state not overriden.")
-        return None
+        return -10000
 
 
 class FSMLabel(htmlelements.label):

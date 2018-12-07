@@ -230,6 +230,17 @@ class simpletable(html.element):
             self._el.insertBefore(retval._el, self._el.childNodes[rowndx])
         return retval
 
+    def _reinsert_rows(self) -> None:
+        """Delete all rows in the table, then reinsertt them in the order
+        of the rows found in self._rowlst
+        This routine should be called when/iff the order of the row elements
+        in the list self._rowlst has changed.
+        """
+        self.removeAllChildren()
+        jsel = self._el
+        for row in self._rowlst:
+            jsel.appendChild(row._el)
+
     def add_header_row(self) -> None:
         """Add a header row to the table.
         The header row does not have any contents.

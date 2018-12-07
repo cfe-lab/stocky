@@ -194,6 +194,7 @@ class AddScanList(simpletable.simpletable, BaseScanList):
     def reset(self):
         """Empty any list in the table and ensure the column headers are in place..."""
         self._tkdct = {}
+        self._sortdct = {}
         self.adjust_row_number(0)
         if not self.has_header_row():
             self.add_header_row()
@@ -212,24 +213,26 @@ class AddScanList(simpletable.simpletable, BaseScanList):
         NOTE: here, we simply add any new token to the list if we haven't
         got it in the list already.
         """
-        if newtk not in self._tkdct:
-            on_attrdct = {'class': "w3-tag w3-green"}
-            off_attrdct = {'class': "w3-tag w3-red"}
-            on_text = "Add to QAI"
-            off_text = "Ignore"
-            # add the new token...
-            rownum = self.append_row()
-            kcell = self.getcell(rownum, AddScanList._RFID_COL)
-            if kcell is not None:
-                kattrdct = {'class': "w3-tag w3-border w3-purple"}
-                html.label(kcell, "", kattrdct, newtk, None)
-            vcell = self.getcell(rownum, AddScanList._ACTIV_COL)
-            if vcell is not None:
-                tog_lab = cleverlabels.DropToggleLabel(vcell, "rfid_lsb{}".format(rownum),
-                                                       on_attrdct, on_text,
-                                                       off_attrdct, off_text)
-                self._tkdct[newtk] = tog_lab
-            self.set_alignment(rownum, AddScanList._ACTIV_COL, "center")
+        if newtk in self._tkdct:
+            return
+        on_attrdct = {'class': "w3-tag w3-green"}
+        off_attrdct = {'class': "w3-tag w3-red"}
+        on_text = "Add to QAI"
+        off_text = "Ignore"
+        # add the new token...
+        rownum = self.append_row()
+        kcell = self.getcell(rownum, AddScanList._RFID_COL)
+        if kcell is not None:
+            kattrdct = {'class': "w3-tag w3-border w3-purple"}
+            html.label(kcell, "", kattrdct, newtk, None)
+        vcell = self.getcell(rownum, AddScanList._ACTIV_COL)
+        if vcell is not None:
+            tog_lab = cleverlabels.DropToggleLabel(vcell, "rfid_lsb{}".format(rownum),
+                                                   on_attrdct, on_text,
+                                                   off_attrdct, off_text)
+            self._tkdct[newtk] = tog_lab
+        self.set_alignment(rownum, AddScanList._ACTIV_COL, "center")
+        self._sortdct[newtk] = self._rowlst[rownum]
 
     def get_active_tags(self) -> typing.List[str]:
         """Return the list of RFID tags (in column 0) if the column 1
@@ -239,10 +242,14 @@ class AddScanList(simpletable.simpletable, BaseScanList):
 
     def post_add_scan_CB(self) -> None:
         """This method is called whenever any new RFID labels have been added to the
-        table. It can be overridden, e.g. to sort table rows
+        table. Here, we sort the rows in ascending order of the RFID label.
         """
-        print("BEGIN SORTO !")
-        w3.sortHTML("scoaddscanlist", ".item", "td:nth-child(1)")
+        # print("BEGIN SORTO !")
+        sortlst = list(self._sortdct.items())
+        sortlst.sort(key=lambda a: a[0])
+        self._rowlst = [row for k, row in sortlst]
+        self._reinsert_rows()
+        # w3.sortHTML("scoaddscanlist", ".item", "td:nth-child(1)")
         print("END SORTO !")
 
 
@@ -837,7 +844,6 @@ during Stock Check. For this to work, the stocky computer must be plugged in to 
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
         # self.stat_tab: typing.Optional[simpletable.dict_table] = None
-
 
 
 class ConfigStatusView(SwitcheeView):

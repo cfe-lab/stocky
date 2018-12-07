@@ -126,11 +126,13 @@ class base_element(base.base_obj):
         """
         self._el.setAttribute(k, v)
 
-    def getAttribute(self, k: str) -> str:
+    def getAttribute(self, k: str) -> typing.Optional[str]:
         """Retrieve the value of the attribute k.
 
         Args:
            k: the name of the attribute, the value of which is retrieved.
+
+        Returns: the value of the attribute or None if no attribute of the name k exists.
         """
         return self._el.getAttribute(k)
 
@@ -164,7 +166,7 @@ class base_element(base.base_obj):
         if is_visible:
             self.removeAttribute('hidden')
         else:
-            self.setAttribute('hidden', True)
+            self.setAttribute('hidden', 'true')
 
     def getID(self) -> str:
         """
@@ -429,6 +431,7 @@ class generic_element(base_element):
         do_create = jsel is None
         if do_create:
             jsel = document.createElement(tagname)
+        idstr = idstr or ""
         super().__init__(jsel, idstr)
         self._locattrdct: dict = {}
         did_add_onclick = False
@@ -559,6 +562,7 @@ class generic_element(base_element):
 class OnChangeMixin:
     """This is a mixin class that will attach a _changefunc method to the javascript
     onchange event.
+    This Mixin only works with objects that have an _addEventListener() method.
     This event is triggered whenever certain HTML elements have been modified by the user,
     see https://developer.mozilla.org/en-US/docs/Web/Events/change
 
