@@ -218,6 +218,8 @@ class stocky_mainprog(widgets.base_controller):
             elif cmd == CommonMSG.MSG_SV_LOCMUT_RESP:
                 rdct, newhash = val['data'], val['hash']
                 self.wcstatus.set_locmut_dct(rdct, newhash)
+            elif cmd == CommonMSG.MSG_SV_SRV_CONFIG_DATA:
+                self.wcstatus.set_server_cfg_data(val)
             else:
                 print("unrecognised server command {}".format(msgdat))
         elif msgdesc == base.MSGD_BUTTON_CLICK:

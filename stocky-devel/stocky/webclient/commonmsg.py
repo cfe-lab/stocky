@@ -105,8 +105,11 @@ class CommonMSG:
     # the RFID reader has produced a command response
     MSG_RF_CMD_RESP = 'RF_CMD_RESP'
 
+    # the server is sending some stocky server configuration data to the webclient
+    MSG_SV_SRV_CONFIG_DATA = "SV_CONFIG_DATA"
+    
     # total number of messages: just for cross checking.
-    NUM_MSG = 22
+    NUM_MSG = 23
 
     @classmethod
     def _init_class(cls):
@@ -130,7 +133,8 @@ class CommonMSG:
                              cls.MSG_WC_LOCATION_INFO,
                              cls.MSG_WC_LOCMUT_REQ, cls.MSG_SV_LOCMUT_RESP,
                              cls.MSG_RF_RADAR_DATA,
-                             cls.MSG_RF_CMD_RESP
+                             cls.MSG_RF_CMD_RESP,
+                             cls.MSG_SV_SRV_CONFIG_DATA
                              ]
         # cls.MSG_WC_STOCK_CHECK,cls.MSG_SV_NEW_STOCK_LIST
         # , cls.MSG_RF_STOCK_DATA

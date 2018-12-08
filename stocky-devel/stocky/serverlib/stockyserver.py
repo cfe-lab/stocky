@@ -159,6 +159,20 @@ class serverclass:
     def sleep(self, secs: int) -> None:
         gevent.sleep(secs)
 
+    def send_server_config(self) -> None:
+        """Collect information about the server configuration and send this
+        to the webclient.
+        """
+        # NOTE: the cfg_dct has keys we do not want to send to the webclient.
+        dd = self.cfg_dct
+        cfg_dct = dict([(k, dd[k]) for k in serverconfig.known_set])
+        # extract information about the RFID reader if its online.
+        rfid_info_dct = self.cl.get_info_dct()
+        if rfid_info_dct is not None:
+            for k, v in rfid_info_dct.items():
+                cfg_dct[k] = v
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_SRV_CONFIG_DATA, cfg_dct))
+
     def BT_init_reader(self):
         """Initialise the RFID reader.
         This method should only be called when/if the RFID reader comes online.
@@ -173,6 +187,7 @@ class serverclass:
         self.tls.set_date_time(loc_t.year, loc_t.month, loc_t.day,
                                loc_t.hour, loc_t.minute, loc_t.second)
         self.tls.BT_set_stock_check_mode()
+        self.send_server_config()
 
     def server_handle_msg(self, msg: CommonMSG) -> None:
         """Handle this message to me, the stocky server
@@ -346,6 +361,8 @@ class serverclass:
         # send the RFID status to the webclient
         rfid_stat = self.cl.get_RFID_state()
         self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, rfid_stat))
+        # send the stocky server config data
+        self.send_server_config()
 
         # send the QAI update status to the webclient
         self.send_QAI_status(None)

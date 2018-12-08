@@ -78,16 +78,17 @@ class clientsocket(base_server_socket):
             for k, v in retval.items():
                 if is_js_dict(v) or is_js_array(v):
                     retval[k] = self.pythonify_dct(v)
+            return retval
         elif is_js_array(in_js):
-            retval = []
+            rv: typing.List[typing.Any] = []
             for i in in_js:
                 if is_js_dict(i) or is_js_array(i):
-                    retval.append(self.pythonify_dct(i))
+                    rv.append(self.pythonify_dct(i))
                 else:
-                    retval.append(i)
+                    rv.append(i)
+            return rv
         else:
-            retval = in_js
-        return retval
+            return in_js
 
 
 class JSONserver_socket(clientsocket, JSONWebsocket):

@@ -502,6 +502,21 @@ class SerialCommLink(BaseCommLink):
     is taken from the server configuration file.
     """
 
+    _klst = [('Manufacturer', 'MF'),
+             ('Unit serial number', 'US'),
+             ('Unit firmware version', 'UF'),
+             ('Unit bootloader version', 'UB'),
+             ('Antenna serial number', 'AS'),
+             ('Radio serial number', 'RS'),
+             ('Radio firmware version', 'RF'),
+             ('Radio bootloader version', 'RB'),
+             ('BT address', 'BA'),
+             ('Protocol version', 'PV')]
+
+    def __init__(self, cfgdct: dict) -> None:
+        super().__init__(cfgdct)
+        self.rfid_info_dct: typing.Optional[typing.Dict[str, str]] = None
+
     def open_device(self) -> typing.Any:
         """Try to open a device for IO with the RFID scanner.
 
@@ -534,9 +549,20 @@ class SerialCommLink(BaseCommLink):
 
     def _is_responsive(self) -> bool:
         """Return := 'the RFID reader is responding to commands'"""
-        cl_resp = self._blocking_cmd('.vr')
-        retcode = cl_resp.return_code()
+        retcode = self._get_reader_info()
         return retcode != BaseCommLink.RC_TIMEOUT
+
+    def _get_reader_info(self) -> TLSRetCode:
+        """Get information about the RFID reader.
+        Extract useful information and store this,but also
+        return the resulting return code.
+        """
+        cl_resp = self._blocking_cmd('.vr')
+        self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
+        retcode = cl_resp.return_code()
+        if retcode == BaseCommLink.RC_OK and self.rfid_info_dct is None:
+            self.rfid_info_dct = dict([(title, cl_resp[k]) for title, k in self._klst])
+        return retcode
 
     def get_RFID_state(self) -> int:
         """Determine the state of the serial communication channel (over BT)
@@ -554,6 +580,10 @@ class SerialCommLink(BaseCommLink):
                 return CommonMSG.RFID_TIMEOUT
         return CommonMSG.RFID_OFF
 
+    def get_info_dct(self) -> typing.Optional[dict]:
+        """Return a dictionary with information about the RFID reader."""
+        return self.rfid_info_dct
+
     def id_string(self) -> str:
         """Determine a string showing information about the connected RFID reader
 
@@ -563,25 +593,14 @@ class SerialCommLink(BaseCommLink):
            blocks (timeout), then this is reported instead."""
         if self._idstr is None:
             if self._is_alive():
-                cl_resp = self._blocking_cmd('.vr')
-                self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
-                retcode = cl_resp.return_code()
+                retcode = self._get_reader_info()
                 if retcode == BaseCommLink.RC_TIMEOUT:
                     self._idstr = "ID string cannot be determined: commlink timed out"
                 elif retcode == BaseCommLink.RC_FAULTY:
                     self._idstr = "ID string cannot be determined: response is faulty"
                 else:
-                    klst = [('Manufacturer', 'MF'),
-                            ('Unit serial number', 'US'),
-                            ('Unit firmware version', 'UF'),
-                            ('Unit bootloader version', 'UB'),
-                            ('Antenna serial number', 'AS'),
-                            ('Radio serial number', 'RS'),
-                            ('Radio firmware version', 'RF'),
-                            ('Radio bootloader version', 'RB'),
-                            ('BT address', 'BA'),
-                            ('Protocol version', 'PV')]
-                    self._idstr = ", ".join(["{}: {}".format(title, cl_resp[k]) for title, k in klst])
+                    dd = self.rfid_info_dct
+                    self._idstr = ", ".join(["{}: {}".format(title, dd[title]) for title, k in self._klst])
             else:
                 self._idstr = "ID string cannot be determined: commlink is down"
         return self._idstr

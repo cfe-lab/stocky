@@ -389,25 +389,38 @@ class dict_table(simpletable):
         """
         numrows = len(tup_lst)
         super().__init__(parent, idstr, attrdct, numrows, 2)
+        self._fill_table(tup_lst)
+
+    def _fill_table(self, tup_lst) -> None:
         self._tabdct: typing.Dict[str, html.spantext] = {}
         tabdct = self._tabdct
         kattrdct = {'class': "w3-tag w3-red"}
         vattrdct = {'class': "w3-tag"}
         for rownum, tup in enumerate(tup_lst):
             k, v = tup
-            kcell = self.getcell(rownum, 0)
-            if kcell is not None:
-                html.label(kcell, "", kattrdct, k, None)
+            if k in tabdct:
+                # we already have an entry for this key...just set the value...
+                tabdct[k].set_text("{}".format(v))
             else:
-                print("ERROR in dict_table 0")
-            #
-            vcell = self.getcell(rownum, 1)
-            if vcell is not None:
-                vtext = "{}".format(v)
-                tabdct[k] = html.spantext(vcell, "", vattrdct, vtext)
-                self.set_alignment(rownum, 1, 'right')
-            else:
-                print("ERROR in dict_table 1")
+                # make a new entry for the key and value...
+                kcell = self.getcell(rownum, 0)
+                if kcell is not None:
+                    html.label(kcell, "", kattrdct, k, None)
+                else:
+                    print("ERROR in dict_table 0")
+                #
+                vcell = self.getcell(rownum, 1)
+                if vcell is not None:
+                    vtext = "{}".format(v)
+                    tabdct[k] = html.spantext(vcell, "", vattrdct, vtext)
+                    self.set_alignment(rownum, 1, 'right')
+                else:
+                    print("ERROR in dict_table 1")
+
+    def refill_table(self, tup_lst) -> None:
+        self.adjust_row_number(0)
+        self.adjust_row_number(len(tup_lst))
+        self._fill_table(tup_lst)
 
     def update_table(self, new_dct: dict) -> None:
         """Update the tables values from new_dct.

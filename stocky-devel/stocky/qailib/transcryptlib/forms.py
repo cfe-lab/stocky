@@ -37,34 +37,34 @@ class modaldiv(htmlelements.div):
         headerfooterclass: a class attribute that is used to style the header and footers
         of the modal dialog. A typical value of this would be "w3-teal"
         """
-        print("MODALDIV INIT")
+        # print("MODALDIV INIT")
         super().__init__(parent, idstr, attrdct, None)
         # htmlelements.div.__init__(self, parent, idstr, attrdct, None)
-        print("MODALDIV SUPER()")
+        # print("MODALDIV SUPER()")
         self.addClass('w3-modal')
         # the content level div
         tcidstr = "{}TCONT".format(idstr)
         tcattrdct = {'class': 'w3-modal-content'}
         tcont = self.tcont = htmlelements.div(self, tcidstr, tcattrdct, None)
         cont_attrdct = {'class': 'w3-container'}
-        print("TCONT")
+        # print("TCONT")
         # the header containing the cancel button.
         hidstr = "{}HED".format(idstr)
         head = self.head = htmlelements.header(tcont, hidstr, cont_attrdct, None)
         head.addClass(headerfooterclass)
-        print("HEADER")
+        # print("HEADER")
         # the head has a span with the cancel button
         hspan = htmlelements.span(head, "{}SPAN".format(idstr), {}, None)
-        print("SPAN")
+        # print("SPAN")
         but_attrdct = {'class': "w3-button w3-display-topright",
                        "title": "Cancel",
                        STARATTR_ONCLICK: dict(msg=modaldiv._CAN_MSG)}
         xbutton = htmlelements.textbutton(hspan, "{}CANCEL".format(idstr), but_attrdct, "X")
         xbutton.addObserver(self, base.MSGD_BUTTON_CLICK)
-        print("TEXTBUTTON")
+        # print("TEXTBUTTON")
         self.h2 = htmlelements.h2text(head, headertitle)
         spin_attrdct = {'class': "w3-display-topmiddle"}
-        print("H2TEXT")
+        # print("H2TEXT")
         self.spinner = spinner(hspan, "myspin", spin_attrdct, spinner.SPN_SPINNER, 50)
 
         # the div into which the clients will put content
@@ -75,7 +75,7 @@ class modaldiv(htmlelements.div):
         foot = self.foot = htmlelements.footer(tcont, fidstr, cont_attrdct, None)
         self.foot.addClass(headerfooterclass)
         self.errspan = htmlelements.spanerrortext(foot, "errspan", {}, "")
-        print("END MODALDIV INIT")
+        # print("END MODALDIV INIT")
 
     def set_error_text(self, errtext: str) -> None:
         self.errspan.set_text(errtext)
@@ -109,7 +109,7 @@ class modaldiv(htmlelements.div):
         self.attach_opener(but)
         return but
 
-    def attach_opener(self, opener: htmlelements.base_element) -> None:
+    def attach_opener(self, opener: htmlelements.generic_element) -> None:
         """Modify the opener element such that, when it is clicked,
         this modal dialog opens."""
         # the opener object will produce an buttonclick event with msgdat=OPN_MSG when
@@ -118,7 +118,7 @@ class modaldiv(htmlelements.div):
         # this class will get this in rcvMsg() and open/close the modal
         opener.addObserver(self, base.MSGD_BUTTON_CLICK)
 
-    def remove_opener(self, opener: htmlelements.base_element) -> None:
+    def remove_opener(self, opener: htmlelements.generic_element) -> None:
         opener.remObserver(self, base.MSGD_BUTTON_CLICK)
 
     def rcvMsg(self,
@@ -229,6 +229,7 @@ class spinner(htmlelements.div):
         else:
             self.removeClass('w3-spin')
 
+
 class form(htmlelements.element):
 
     def __init__(self, parent: htmlelements.base_element,
@@ -276,13 +277,13 @@ class loginform(form):
                  idstr: str,
                  my_popup: modaldiv,
                  attrdct: typing.Optional[dict]) -> None:
-        print("LOGINFORM")
+        # print("LOGINFORM")
         super().__init__(parent, idstr, my_popup, attrdct, None)
         self.username = BaseField(self, 'username', 'User Name', INPUT_TEXT)
         self.password = BaseField(self, 'password', 'Password', INPUT_PASSWORD)
         self.add_submit_button("Login in", None)
         my_popup.addObserver(self, base.MSGD_POPUP_OPENING)
-        print("END LOGINFORM")
+        # print("END LOGINFORM")
 
     def pre_open_init(self) -> None:
         """This method is called just before the modal is opened.
@@ -305,8 +306,8 @@ class loginform(form):
         popup.set_busy(True)
         untup = self.username.getIDvaltuple()
         pwtup = self.password.getIDvaltuple()
-        print("UN {}".format(untup))
-        print("PW {}".format(pwtup))
+        # print("UN {}".format(untup))
+        # print("PW {}".format(pwtup))
         # perform some very simple error checking...
         uname = untup[1]
         pword = pwtup[1]

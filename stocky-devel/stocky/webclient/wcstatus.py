@@ -35,7 +35,7 @@ class WCstatus(base.base_obj):
     """
 
     # the size of the spinners in pixels
-    SPIN_SZ_PIZELS = 30
+    SPIN_SZ_PIXELS = 30
 
     NUM_ROW = 3
     NUM_COL = 2
@@ -73,6 +73,7 @@ class WCstatus(base.base_obj):
         # empty locmut data..
         self.locmut_hash = "bla"
         self.locmut_dct = {}
+        self.srv_config_data = None
         #
         self.mainprog = mainprog
         self.login_popup = login_popup
@@ -129,7 +130,7 @@ class WCstatus(base.base_obj):
             spin_attrdct = {'title': "Server activity"}
             self.spinner = forms.spinner(cell, "busyspinner",
                                          spin_attrdct, forms.spinner.SPN_SPINNER,
-                                         WCstatus.SPIN_SZ_PIZELS)
+                                         WCstatus.SPIN_SZ_PIXELS)
         else:
             log("cell table error 2a")
             return
@@ -360,3 +361,9 @@ class WCstatus(base.base_obj):
         print("NEW HASH {}".format(newhash))
         self.locmut_dct = dct
         self.locmut_hash = newhash
+
+    def set_server_cfg_data(self, new_cfg: dict) -> None:
+        self.srv_config_data = new_cfg
+
+    def get_server_cfg_data(self) -> typing.Optional[dict]:
+        return self.srv_config_data

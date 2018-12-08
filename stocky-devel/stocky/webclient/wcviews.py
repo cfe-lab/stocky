@@ -860,7 +860,28 @@ class ConfigStatusView(SwitcheeView):
                  attrdct: dict,
                  jsel) -> None:
         title_text = "Config Status Page"
-        htext = """Display some information about the  Stocky server."""
+        htext = """Display some information about the  Stocky server and RFID reader."""
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
-        # self.stat_tab: typing.Optional[simpletable.dict_table] = None
+        self.cfg_tab: typing.Optional[simpletable.dict_table] = None
+
+    def Redraw(self):
+        """This method called whener the view becomes active (because the user
+        has selected the respective view button.
+        Subclasses should set up their pages in here.
+        NOTE: this method could also be called in response to user input.
+        Example: the user has chosen a different location, so we must redraw the page...
+        """
+        # print("CONFIG VIEW REDRAW")
+        srv_dct = self.wcstatus.get_server_cfg_data()
+        print("CFG: {}".format(srv_dct))
+        if srv_dct is not None:
+            lst = list(srv_dct.items())
+            lst.sort(key=lambda a: a[0])
+            if self.cfg_tab is None:
+                tab_attrdct = {'class': 'w3-container'}
+                self.cfg_tab = simpletable.dict_table(self, "cfg_tab",
+                                                      tab_attrdct,
+                                                      lst)
+            else:
+                self.cfg_tab.refill_table(lst)
