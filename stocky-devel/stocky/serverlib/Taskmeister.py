@@ -394,3 +394,31 @@ class WebSocketReader(BaseTaskMeister):
         self._log_debug(mmm)
         print(mmm)
         return retmsg
+
+
+class RandomRFIDScanner(BaseTaskMeister):
+    """Generate spoofed CommonMSG.MSG_RF_CMD_RESP messages at regular intervals
+    just as if the data was coming from a RFID reader scan.
+    The RFID's returned in a scan are randomly chosen from a predefined list.
+    This class is used for testing.
+    """
+    def __init__(self, msgQ: gevent.queue.Queue,
+                 logger,
+                 sec_interval: float) -> None:
+        super().__init__(msgQ, logger, sec_interval, False)
+        self.taglst = ["CHEM{}".format(11000+i) for i in range(20)]
+
+    def generate_msg(self) -> typing.Optional[CommonMSG]:
+        # generate either a barcode or RFID scan ?
+        do_barcode = random.random() < 0.5
+        if do_barcode:
+            nselect = 1
+            prelim = ['CS', '.bc,']
+        else:
+            # RFID scan
+            nselect = random.randrange(len(self.taglst))
+            prelim = ['CS', '.iv,']
+        sel_tags = random.choices(self.taglst, k=nselect)
+        scan_data = [prelim] + [['EP', tag] for tag in sel_tags] + [['OK', '']]
+        print("returning: '{}'".format(scan_data))
+        return CommonMSG(CommonMSG.MSG_RF_CMD_RESP, scan_data)

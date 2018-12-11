@@ -22,6 +22,7 @@ Module qailib.common.base
 
 Module qailib.common.serversocketbase
 -------------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/common/serversocketbase.py
     :gooly:
     :bla:
@@ -35,6 +36,7 @@ Module qailib.transcryptlib
 
 Module qailib.transcryptlib.genutils
 ------------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/genutils.py
     :gooly:
     :bla:
@@ -45,6 +47,7 @@ Module qailib.transcryptlib.genutils
        
 Module qailib.transcryptlib.websocket
 -------------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/websocket.py
     :gooly:
     :bla:
@@ -55,6 +58,7 @@ Module qailib.transcryptlib.websocket
        
 Module qailib.transcryptlib.handlebars
 --------------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/handlebars.py
     :gooly:
     :bla:
@@ -65,6 +69,7 @@ Module qailib.transcryptlib.handlebars
 
 Module qailib.transcryptlib.htmlelements
 ----------------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/htmlelements.py
     :gooly:
     :bla:
@@ -75,6 +80,7 @@ Module qailib.transcryptlib.htmlelements
 
 Module qailib.transcryptlib.widgets
 -----------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/widgets.py
     :gooly:
     :bla:
@@ -85,6 +91,7 @@ Module qailib.transcryptlib.widgets
 
 Module qailib.transcryptlib.simpletable
 ---------------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/simpletable.py
     :gooly:
     :bla:
@@ -95,6 +102,7 @@ Module qailib.transcryptlib.simpletable
 
 Module qailib.transcryptlib.SVGlib
 ----------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/SVGlib.py
     :gooly:
     :bla:
@@ -105,6 +113,7 @@ Module qailib.transcryptlib.SVGlib
 
 Module qailib.transcryptlib.serversocket
 ----------------------------------------
+
 .. scopyreverse:: /stockysrc/qailib/transcryptlib/serversocket.py
     :gooly:
     :bla:
@@ -112,3 +121,6 @@ Module qailib.transcryptlib.serversocket
 .. automodule:: qailib.transcryptlib.serversocket
 	:members:
 	:show-inheritance:
+
+BLA title
+---------

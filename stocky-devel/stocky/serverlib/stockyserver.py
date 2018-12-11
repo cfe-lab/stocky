@@ -19,11 +19,75 @@ from webclient.commonmsg import CommonMSG
 # random number thread -- BUT that was for flask socketIO, NOT flask sockets
 # https://github.com/shanealynn/async_flask/blob/master/application.py
 
+
+class BaseServer:
+    def __init__(self, app: flask.Flask, name: str) -> None:
+        # must set logging  before anything else...
+        self._app = app
+        self.logger = app.logger
+        self.ws: typing.Optional[ServerWebSocket.BaseWebSocket] = None
+        self.websocketTM: typing.Optional[Taskmeister.WebSocketReader] = None
+        self.name = name
+        self.msgQ = Queue()
+
+    def sleep(self, secs: int) -> None:
+        gevent.sleep(secs)
+
+    def send_WS_msg(self, msg: CommonMSG) -> None:
+        """Send a command to the web client over websocket in a standard JSON format.
+
+        Args:
+           msg: the message to send.
+        """
+        if self.ws is not None:
+            self.ws.sendMSG(msg.as_dict())
+
+    def set_websocket(self, newws: ServerWebSocket.BaseWebSocket) -> None:
+        """Set the current web socket of the server.
+
+        Args:
+           newws: the new websocket connection to the webclient.
+        Note:
+        This method must be called before mainloop in order to register the new
+        websocket with the class.
+        """
+        if self.ws is not None:
+            # close the old websocket first.
+            self.ws.close()
+        self.ws = newws
+        # create a websocket reader thread
+        self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, self.ws)
+
+    def mainloop(self):
+        """This routine is entered into when the webclient has established a
+        websocket connection to the server.
+        Flask will call this routine with a newly established web socket when
+        the webclient makes a connection via the websocket protocol.
+
+        .. note::
+           mainloop is reentrant: we enter here with a new websocket every time
+           the webclient is started or restarted...
+
+        The general strategy of the mainloop is to initialise all parties concerned,
+        then enter an infinite loop in which messages are taken from the message queue.
+        Messages are enqueued asynchronously from the various sources
+        (webclient over websocket, RFID scanner over serial link) but the mainloop
+        is the only entity dequeuing messages, and that happens in this loop.
+        Some messages are either simply passed on to interested parties, while
+        others are handled as requests by the server itself in
+        :meth:`server_handle_msg` .
+        """
+        raise NotImplementedError("mainloop not implemented")
+
+
 AVENUM = 5
 
 
-class serverclass:
-    """The class that implements the web server. It is instantiated as a singleton."""
+class StockyServer(BaseServer):
+    """The class that implements the standard stocky web server. It is instantiated as a
+    singleton in the main program, and mainloop is called with a websocket when the
+    web client makes websocket connection.
+    """
 
     # the set of messages we simply pass on to the web client.
     MSG_FOR_WC_SET = frozenset([CommonMSG.MSG_SV_RAND_NUM,
@@ -75,12 +139,7 @@ class serverclass:
            :meth:`mainloop` when the websocket makes a connection to the server.
 
         """
-        # must set logging  before anything else...
-        self._app = app
-        self.logger = app.logger
-        self.ws: typing.Optional[ServerWebSocket.BaseWebSocket] = None
-        self.websocketTM: typing.Optional[Taskmeister.WebSocketReader] = None
-
+        super().__init__(app, "Johnny")
         self.logger.info("serverclass: reading config file '{}'".format(cfgname))
         try:
             self.cfg_dct = serverconfig.read_server_config(cfgname)
@@ -90,8 +149,6 @@ class serverclass:
         self.cfg_dct['logger'] = self.logger
         self.logger.debug("serverclass: config file read...{}".format(self.cfg_dct))
         timelib.set_local_timezone(self.cfg_dct['TZINFO'])
-        self.name = "Johnny"
-        self.msgQ = Queue()
 
         # start the rfcomm daemon...
         # the command to run is something along the lines of:
@@ -140,24 +197,12 @@ class serverclass:
                                                             rfid_act_off)
         self.logger.info("End of serverclass.__init__")
 
-    def send_WS_msg(self, msg: CommonMSG) -> None:
-        """Send a command to the web client over websocket in a standard JSON format.
-
-        Args:
-           msg: the message to send.
-        """
-        if self.ws is not None:
-            self.ws.sendMSG(msg.as_dict())
-
     def activate_RFID_spinner(self):
         """Send messages to the webclient in order to get the 'RFID activity' spinner
         to turn for a while.
         """
         self.send_WS_msg(self._rfid_act_on)
         self.rfid_delay_task.trigger()
-
-    def sleep(self, secs: int) -> None:
-        gevent.sleep(secs)
 
     def send_server_config(self) -> None:
         """Collect information about the server configuration and send this
@@ -321,14 +366,11 @@ class serverclass:
                                         dbreq_ok=dbreq_ok,
                                         dbreq_msg=dbreq_msg)))
 
-    def mainloop(self, newws: ServerWebSocket.BaseWebSocket):
+    def mainloop(self):
         """This routine is entered into when the webclient has established a
         websocket connection to the server.
         Flask will call this routine with a newly established web socket when
         the webclient makes a connection via the websocket protocol.
-
-        Args:
-           newws: the new websocket connection to the webclient.
 
         .. note::
            mainloop is reentrant: we enter here with a new websocket every time
@@ -345,18 +387,10 @@ class serverclass:
         :meth:`server_handle_msg` .
         """
         lverb = True
-        print("mainloop with {}".format(newws))
-        if self.ws is not None:
-            # close the old websocket first.
-            self.ws.close()
-            self.ws = None
-        self.ws = newws
+        print("mainloop begin")
         # start a random generator thread for testing....
         # self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
         # self.randTM.set_active(True)
-
-        # create a websocket reader thread
-        self.websocketTM = Taskmeister.WebSocketReader(self.msgQ, self.logger, self.ws)
 
         # send the RFID status to the webclient
         rfid_stat = self.cl.get_RFID_state()
@@ -387,15 +421,15 @@ class serverclass:
                 self.activate_RFID_spinner()
 
             is_handled = False
-            if self.ws is not None and msg.msg in serverclass.MSG_FOR_WC_SET:
+            if self.ws is not None and msg.msg in StockyServer.MSG_FOR_WC_SET:
                 is_handled = True
                 # print("sending to WS...")
                 self.send_WS_msg(msg)
                 # print("...OK send")
-            if msg.msg in serverclass.MSG_FOR_RFID_SET:
+            if msg.msg in StockyServer.MSG_FOR_RFID_SET:
                 is_handled = True
                 self.tls.send_RFID_msg(msg)
-            if msg.msg in serverclass.MSG_FOR_ME_SET:
+            if msg.msg in StockyServer.MSG_FOR_ME_SET:
                 print("msg for me: {}".format(msg.msg))
                 is_handled = True
                 self.server_handle_msg(msg)
@@ -406,3 +440,33 @@ class serverclass:
                 print(mmm)
             print("end of ML.while")
         print("OUT OF LOOP")
+
+
+class RFID_Ping_Server(BaseServer):
+    """This class simply sends dummy RFID scans to a QAI client at periodic intervals.
+    It is used to test the QAI client side that should respond to RFID scans.
+    """
+    def __init__(self, app: flask.Flask, name: str) -> None:
+        super().__init__(app, name)
+        SEC_INTERVAL_SECS = 2.0
+        self.scan_generator = Taskmeister.RandomRFIDScanner(self.msgQ, self.logger,
+                                                            SEC_INTERVAL_SECS)
+
+    def mainloop(self):
+        lverb = True
+        do_loop = True
+        self.scan_generator.set_active(True)
+        while do_loop:
+            msg: CommonMSG = self.msgQ.get()
+            self.logger.debug("handling msgtype '{}'".format(msg.msg))
+            if lverb:
+                print("YO: handling msgtype '{}'".format(msg.msg))
+            # handle a EOF separately
+            if msg.msg == CommonMSG.MSG_WC_EOF:
+                if lverb:
+                    print("mainloop detected WS_EOF... quitting")
+                self.ws = None
+                do_loop = False
+            print("end of ML.while")
+        print("OUT OF LOOP")
+        self.scan_generator.set_active(False)

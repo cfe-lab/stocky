@@ -107,7 +107,7 @@ class CommonMSG:
 
     # the server is sending some stocky server configuration data to the webclient
     MSG_SV_SRV_CONFIG_DATA = "SV_CONFIG_DATA"
-    
+
     # total number of messages: just for cross checking.
     NUM_MSG = 23
 

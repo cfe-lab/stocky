@@ -58,7 +58,7 @@ class stockyapp(flask.Flask):
 logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
 app: typing.Optional[stockyapp] = stockyapp()
 socky: typing.Optional[Sockets] = Sockets(app)
-the_main: typing.Optional[stockyserver.serverclass] = None
+the_main: typing.Optional[stockyserver.StockyServer] = None
 
 
 def init_app(cfgname: str) -> flask.Flask:
@@ -70,25 +70,42 @@ def init_app(cfgname: str) -> flask.Flask:
     print("hello from init_app")
     global the_main
     # test_logging(app.logger)
-    the_main = stockyserver.serverclass(app, commlink.SerialCommLink, cfgname)
+    the_main = stockyserver.StockyServer(app, commlink.SerialCommLink, cfgname)
     # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
     print("goodbye from init_app")
     return app
 
 
-# this launches the server main program in response to the webclient program starting
-# in the browser
+# this launches the stocky server main program in response to the webclient program running in
+# the browser opening a websocket connection. The server-side websocket connection
+# used for communication with the webclient is passed in from flask_sockets.
 @socky.route('/goo')
 def goo(rawws: websocket):
     # print("bla before '{}'".format(rawws))
     ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
     print("goo: got a websocket")
     if the_main is not None:
+        the_main.set_websocket(ws)
         print("goo: entering mainloop")
-        the_main.mainloop(ws)
+        the_main.mainloop()
         print("goo: exited mainloop")
     else:
         print('the_main is None!')
+
+
+# this launches the RFID_Ping_Server in response to the webclient program running in
+# the browser opening a websocket connection. The server-side websocket connection
+# used for communication with the webclient is passed in from flask_sockets.
+@socky.route('/rfidping')
+def rfid_pinger(rawws: websocket):
+    # print("bla before '{}'".format(rawws))
+    ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
+    my_server = stockyserver.RFID_Ping_Server(app, "RFIDPinger")
+    print("goo: got a websocket")
+    my_server.set_websocket(ws)
+    print("goo: entering mainloop")
+    my_server.mainloop()
+    print("goo: exited mainloop")
 
 
 # this is required to serve the javascript code

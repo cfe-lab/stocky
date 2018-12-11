@@ -60,7 +60,7 @@ extensions = [
     'sphinxcontrib.plantuml',
     'source.scopyreverse',
     'source.snakenibbles',
-    'sphinxcontrib.test_reports'
+    # 'sphinxcontrib.test_reports'
 ]
 
 # see here for configuration info:

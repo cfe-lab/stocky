@@ -145,24 +145,3 @@ class JSONWebsocket(CNVWebsocket):
     def decode(self, data_from_server) -> typing.Any:
         """Decode data from the server"""
         return JSON.parse(data_from_server)
-
-
-class BLAWebsocket(CNVWebsocket):
-    """A websocket that converts all data to MessagePack before sending it to the server.
-    It also expects the data from the server to be in MessagePack format, and converts this
-    data before passing it to the client via the on_message_JSON method.
-    """
-
-    def encode(self, data_to_server) -> typing.Any:
-        """encode the data from transfer..."""
-        # return JSON.stringify(data_to_server)
-        # return msgpack.encode(data_to_server)
-        pass
-
-    def decode(self, data_from_server) -> typing.Any:
-        """Decode data from the server"""
-        # return JSON.parse(data_from_server)
-        # retval = msgpack.decode(data_from_server)
-        # print("MPACK decode says {}  and {}".format(data_from_server, retval))
-        # return retval
-        pass

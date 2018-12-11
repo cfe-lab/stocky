@@ -72,7 +72,7 @@ class Test_DaemonTM:
         """Running an existing command that completes with returncode 0 (succeeds)
         must succeed."""
         cmdstr = "sleep 3"
-        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 1.0)
+        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 1)
         assert dt.get_status() == STATUS_RUNNING, "command not running..."
         ntry, stat = 0, None
         NUM_TRY = 10
@@ -90,7 +90,7 @@ class Test_DaemonTM:
         """Running an existing command that completes with returncode != 0 (fail)
         must succeed."""
         cmdstr = "sleep -1"
-        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 1.0)
+        dt = Taskmeister.DaemonTaskMeister(self.logger, cmdstr, 1)
         ntry, stat = 0, dt.get_status()
         assert stat == STATUS_RUNNING, "command not running..."
         NUM_TRY = 10
@@ -289,4 +289,27 @@ class Test_Taskmeister:
         retmsg = wsr.generate_msg()
         print("after sleep exp: {}, got {}".format(exp_msg_val, retmsg))
         assert exp_msg_val == retmsg.msg, "unexpected retmsg"
+        # assert False, "force fail"
+
+    def test_RandomRFIDScanner01(self):
+        """The RandomRFIDScanner must produce well formed CommonMSG.MSG_RF_CMD_RESP messages.
+        """
+        tt = Taskmeister.RandomRFIDScanner(self.msgq,
+                                           self.logger,
+                                           self.sec_interval)
+        tt.set_active(True)
+        gevent.sleep(self.test_sleep_time)
+        gotlst = self.msgq.msglst
+        # check length...
+        tn = self.msgq.num_messages()
+        print("after sleep {}".format(tn))
+        if tn != self.num_ticks:
+            raise RuntimeError("unexpected tn = {}".format(tn))
+        # check the actual data...
+        for msg in self.msgq.msglst:
+            assert isinstance(msg, CommonMSG), "commonmsg expected"
+            assert msg.msg == CommonMSG.MSG_RF_CMD_RESP, "wrong message type encountered"
+            dat = msg.data
+            assert isinstance(dat, list), "list expected"
+            print("WOWO {}".format(msg))
         # assert False, "force fail"

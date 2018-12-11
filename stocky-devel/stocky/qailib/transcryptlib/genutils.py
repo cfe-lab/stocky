@@ -15,6 +15,7 @@ for_transcrypt = False
 
 
 def log(*msg):
+    """A simple log routine that calls print(). This write to the web console."""
     print(*msg)
 
 # __pragma__('ifdef', 'sco_for_TS')

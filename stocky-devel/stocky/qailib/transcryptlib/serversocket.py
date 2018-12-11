@@ -36,7 +36,6 @@ class clientsocket(base_server_socket):
            Simply send a base_obj message to signal that the websocket has come
            online.
         """
-        # print('BLU-BLU-BLU')
         self.sndMsg(base.MSGD_COMMS_ARE_UP, {})
 
     def on_close_cb(self, event) -> None:
@@ -46,7 +45,6 @@ class clientsocket(base_server_socket):
            Simply send a base_obj message to signal that the websocket has
            gone offline.
         """
-        # print('BLU-BLU-BLU')
         self.sndMsg(base.MSGD_COMMS_ARE_DOWN, {})
 
     def on_message_JSON(self, data_from_server: typing.Any) -> None:
