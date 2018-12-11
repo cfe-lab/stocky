@@ -40,7 +40,7 @@ DOCKER_TESTRUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
 
 # -p=${PORTNUM}:${PORTNUM} 
 DOCKER_RUN_CMD = docker run  --rm --privileged --net=host \
- -v ${STOCKY_STATE_DIR}:/stockystate \
+-v ${STOCKY_STATE_DIR}:/stockystate \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
 -v ${DEV_DIR}:${DEV_DIR} -w /stockysrc ${ENV_OPTS} 
 

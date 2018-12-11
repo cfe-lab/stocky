@@ -68,8 +68,12 @@ __target__/sockwebby.js: Makefile sockwebby.py  ${LIBS} ${COMMON}
 
 typetest:
 	transcrypt ${OPTS} typetest.py
+clean: ## remove all javascript code
+	rm -f __target__/*
+
 mypy: ##  analyse the webclient code using mypy
 	mypy --ignore-missing-imports  webclient.py
 force: ## force the compilation of the web client
-	rm -f __target__/webclient.js
+	rm -f __target__/*.js
 	transcrypt ${OPTS} webclient
+	transcrypt ${OPTS} rfidpingtest

@@ -32,6 +32,11 @@ ENV STOCKY_STATE_DIR=/stockystate
 # The web server listens on this port number
 EXPOSE 5000
 
-RUN (cd webclient; make webclient rfidpingtest)
+WORKDIR webclient
+# RUN make webclient rfidpingtest
+RUN make clean
+RUN make webclient
+RUN make rfidpingtest
 
+WORKDIR /stockysrc
 CMD ./runserver.sh

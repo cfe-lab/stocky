@@ -422,7 +422,8 @@ class ChemStockDB:
             # if exp_dict['status'] != 'EXPIRED':
             #    raise RuntimeError('exp_dict is not expired {}'.format(exp_dict))
         else:
-            odct = dict(MISSING=-1, MADE=0, VALIDATED=1, IN_USE=2, USED_UP=5, EXPIRED=6)
+            odct = dict(MISSING=-1, MADE=0, VALIDATED=1, IN_USE=2,
+                        USED_UP=5, EXPIRED=6, DISPOSED=7)
             try:
                 slst.sort(key=lambda a: odct[a['status']])
             except KeyError:
