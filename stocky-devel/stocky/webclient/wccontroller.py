@@ -63,9 +63,20 @@ menulst = [
     ]
 
 
-class stocky_mainprog(widgets.base_controller):
-
+class WebClientController(widgets.base_controller):
+    """The class that controls the Stocky webclient program.
+    This class is passed a websocket and handles all interactions with the user
+    and the stocky server.
+    After initialisation, events are handled in rcvMsg(), which should be
+    overridden in subclasses.
+    """
     def __init__(self, myname: str, ws: serversocketbase.base_server_socket) -> None:
+        """
+
+        Args:
+           myname: the name of the main program
+           ws: the websocket instance used to communicate to the server.
+        """
         super().__init__(myname)
         self._ws = ws
         ws.addObserver(self, base.MSGD_SERVER_MSG)
@@ -80,6 +91,14 @@ class stocky_mainprog(widgets.base_controller):
             self._ws.send(msg.as_dict())
         else:
             print("SEND IS NOOOT HAPPENING")
+
+    def init_view(self) -> None:
+        """Initialise the servers html elements as required for the application"""
+        pass
+
+
+class stocky_mainprog(WebClientController):
+    """The main program for the stocky webclient"""
 
     def init_view(self):
         topdoc = html.getPyElementById('stockyframe')
@@ -286,3 +305,38 @@ class stocky_mainprog(widgets.base_controller):
             print("OK: sent message")
         else:
             print("unhandled message {}".format(msgdesc))
+
+
+class rfidping_controller(WebClientController):
+    """The main program for the rfid ping test.
+    All we do is print out the events to console...
+    """
+
+    def rcvMsg(self, whofrom: base.base_obj,
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        lverb = True
+        if lverb:
+            # print("{}.rcvMsg: {}: {} from {}".format(self._idstr, msgdesc, msgdat, whofrom._idstr))
+            print("{}.rcvMsg: {} from {}".format(self._idstr, msgdesc, whofrom._idstr))
+        if msgdesc == base.MSGD_SERVER_MSG:
+            # we receive some data from the server...
+            # message from the server.
+            if msgdat is None:
+                print("msgdat is None")
+                return
+            cmd = msgdat.get("msg", None)
+            val = msgdat.get("data", None)
+            print("msg:  '{}'".format(cmd))
+            print("data: '{}'".format(val))
+        elif msgdesc == base.MSGD_COMMS_ARE_UP:
+            # this happens when the websocket first comes online. Use it for
+            # some initial caching.
+            print("COMMS ARE UP")
+            # self.wcstatus.set_WS_state(True)
+            # self.wcstatus.refresh_locmut_dct()
+        elif msgdesc == base.MSGD_COMMS_ARE_DOWN:
+            # this happens when the stocky server crashes, taking
+            # the websocket connection with it
+            print("COMMS ARE DOWN")
+            # self.wcstatus.set_WS_state(False)

@@ -467,6 +467,9 @@ class RFID_Ping_Server(BaseServer):
                     print("mainloop detected WS_EOF... quitting")
                 self.ws = None
                 do_loop = False
+            else:
+                # just send everything to the web client..
+                self.send_WS_msg(msg)                
             print("end of ML.while")
         print("OUT OF LOOP")
         self.scan_generator.set_active(False)

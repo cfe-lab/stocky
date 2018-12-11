@@ -40,6 +40,8 @@ def test_logging(l):
 
 
 class stockyapp(flask.Flask):
+    """A Flask app class that is required for the server to function.
+    """
     def __init__(self):
         super().__init__(__name__.split('.')[0])
 
@@ -62,7 +64,7 @@ the_main: typing.Optional[stockyserver.StockyServer] = None
 
 
 def init_app(cfgname: str) -> flask.Flask:
-    """This routine is used as a helper in order to launch the serverclass with the
+    """This routine is used as a helper in order to launch the StockyServer class with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
     we would write something like:
     gunicorn -k flask_sockets.worker "stocky:init_app('scoconfig.yaml')" --bind 0.0.0.0:5000
@@ -108,13 +110,19 @@ def rfid_pinger(rawws: websocket):
     print("goo: exited mainloop")
 
 
+# serve the rfidping main page
+@app.route('/rfidping')
+def rfid_page():
+    return flask.render_template('rfidpingtest.html')
+
+
 # this is required to serve the javascript code
 @app.route('/webclient/__target__/<path:path>')
 def send_js(path):
     return flask.send_from_directory('webclient/__target__', path)
 
 
-# serve the main page
+# serve the Stocky webclient main page
 @app.route('/')
 def main_page():
     return flask.render_template('mainpage.html')

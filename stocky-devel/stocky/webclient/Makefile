@@ -51,10 +51,15 @@ help: ## Build and test the stocky webclient. Run this from within the running d
 
 # default: webclient
 
-webclient: __target__/webclient.js ## compile the web client (from python to javascript)
+webclient: __target__/webclient.js ## compile the stocky web client (from python to javascript)
 
 __target__/webclient.js: Makefile webclient.py  ${LIBS} ${COMMON}
 	transcrypt ${OPTS} webclient
+
+rfidpingtest: __target__/rfidpingtest.js ## compile the rfidpingtest web client (from python to javascript)
+
+__target__/rfidpingtest.js: Makefile rfidpingtest.py  ${LIBS} ${COMMON}
+	transcrypt ${OPTS} rfidpingtest
 
 sockwebby: __target__/sockwebby.js ## compile the sockwebby task (from python to javascript)
 
