@@ -14,43 +14,9 @@
       <div id="pagecontent">{% block pagecontent %}{% endblock %}
       </div>
       <div id="pagefoot">
-	BC CfE Stocky Program version 0.1.6 (wscott@cfenet.ubc.ca, November 2018)
+	BC CfE Stocky Program version 0.1.7 (wscott@cfenet.ubc.ca, December 2018)
       </div>
     </div>
-{% raw %}
-    <script id="checkstock-template" type="text/x-handlebars-template">
-    <select id="locky-button" name="loc-selector">
-      {{#each loclist}}
-      {{#if_eq this.isselected true}}
-      <option value={{this.key}} selected="selected">{{this.name}}</option>
-      {{else}}
-      <option value={{this.key}}>{{this.name}}</option>
-      {{/if_eq}}
-      {{/each}}
-    </select>
-    <table id="scantable" class="w3-table w3-border w3-bordered w3-hoverable sort-table" >
-      <tr class="w3-blue">
-	<th class="headerSortUpDown" onclick="w3.sortHTML('#scantable','.item', 'td:nth-child(1)')"> Item Name</th>
-	<th class="headerSortUpDown" onclick="w3.sortHTML('#scantable','.item', 'td:nth-child(2)')"> Scan ID</th>
-	<th class="headerSortUpDown" onclick="w3.sortHTML('#scantable','.item', 'td:nth-child(3)')"> Scan Status </th>
-      </tr>
-      {{#each scanlist}}
-      <tr class="item scostockitem-cls" tooltip="{{this.helptext}}">
-	<td> {{this.name}} </td>
-	<td> {{this.id}} </td>
-	<td class="scan{{this.status}}class"> {{this.status}} </td>
-      </tr>
-      {{/each}}
-    </table>
-  </script>
-  <script id="scolist-template" type="text/x-handlebars-template">
-    <ul>
-      {{#each numlist}}
-      <li> {{this}} </li>
-      {{/each}}
-    </ul>
-  </script>
-{% endraw %}  
   </body>
   {% block scriptcontent %}{% endblock %}
 </html>

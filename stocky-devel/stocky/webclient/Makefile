@@ -9,7 +9,6 @@ COMMON = ${LIBDIR}/common/base.py \
          ${LIBDIR}/common/serversocketbase.py \
 
 LIBS =  ${LIBDIR}/transcryptlib/genutils.py \
-  ${LIBDIR}/transcryptlib/handlebars.py\
   ${LIBDIR}/transcryptlib/htmlelements.py \
   ${LIBDIR}/transcryptlib/__init__.py \
   ${LIBDIR}/transcryptlib/serversocket.py \
