@@ -1,0 +1,38 @@
+@startuml
+title classes qai_helper
+class Session {
+    +qai_path
+    +delete_json(self, path:str, params:dict=None, retries=3)
+    +generate_receive_url(self, locid:typing.Optional[int], rfidlst:typing.List[str], newstock:bool)
+    +get_json(self, path:str, params:dict=None, retries=3)
+    +is_logged_in(self)
+    +login(self, qai_user:str, password:str)
+    +login_try(self, qai_user:str, password:str)
+    +logout(self)
+    +patch_json(self, path:str, data:typing.Any, params=None, retries:int=3)
+    +post_json(self, path:str, data:typing.Any, retries:int=3)
+}
+class QAIDataset {
+    +get_data(self)
+    +get_timestamp(self)
+}
+class QAISession {
+    +QAIDCT_LOCATIONS
+    +QAIDCT_REAGENTS
+    +QAIDCT_REAGENT_ITEMS
+    +QAIDCT_REAITEM_COMPOSITION
+    +QAIDCT_REAITEM_STATUS
+    +QAIDCT_USERS
+    +data_url_lst
+    +qai_key_lst
+    +qai_key_set
+    +timestamp_url_lst
+    +clever_update_QAI_dump(self, qaiDS:QAIDataset)
+    +get_QAI_ChangeData(self)
+    +get_QAI_dump(self)
+    +get_empty_QAIdct(cls)
+}
+
+Session <|-- QAISession
+
+@enduml

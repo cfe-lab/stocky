@@ -21,7 +21,23 @@ from webclient.commonmsg import CommonMSG
 
 
 class BaseServer:
+    """
+        Flask will call this routine with a newly established web socket when
+        the webclient makes a connection via the websocket protocol.
+    """
     def __init__(self, app: flask.Flask, name: str) -> None:
+        """
+
+        Args:
+           app: the flask app instance
+           name: the name of server (an arbitrary name)
+
+        Note:
+           A connection to the webclient via websocket is *NOT* established
+           at the init stage; The Flask web framework calls :meth:`set_websocket`
+           when the webclient makes a connection to the server, then calls
+           :meth:`mainloop`  .
+        """
         # must set logging  before anything else...
         self._app = app
         self.logger = app.logger
@@ -47,9 +63,13 @@ class BaseServer:
 
         Args:
            newws: the new websocket connection to the webclient.
+
         Note:
-        This method must be called before mainloop in order to register the new
-        websocket with the class.
+        This method must be called before :meth:`mainloop` in order to register
+        the newly established websocket with the instance.
+
+        See also:
+           :py:meth:`mainloop`
         """
         if self.ws is not None:
             # close the old websocket first.
@@ -61,21 +81,18 @@ class BaseServer:
     def mainloop(self):
         """This routine is entered into when the webclient has established a
         websocket connection to the server.
-        Flask will call this routine with a newly established web socket when
-        the webclient makes a connection via the websocket protocol.
-
-        .. note::
-           mainloop is reentrant: we enter here with a new websocket every time
-           the webclient is started or restarted...
-
         The general strategy of the mainloop is to initialise all parties concerned,
         then enter an infinite loop in which messages are taken from the message queue.
+        The mainloop blocks until a message is available.
         Messages are enqueued asynchronously from the various sources
         (webclient over websocket, RFID scanner over serial link) but the mainloop
         is the only entity dequeuing messages, and that happens in this loop.
-        Some messages are either simply passed on to interested parties, while
-        others are handled as requests by the server itself in
-        :meth:`server_handle_msg` .
+
+        Raises:
+           NotImplementedError: this method should be overridden in subclasses.
+
+        See also:
+           :py:meth:`set_websocket`
         """
         raise NotImplementedError("mainloop not implemented")
 
@@ -132,11 +149,6 @@ class StockyServer(BaseServer):
             (via a commlink instance passed to a TLSReader) is established.
           - a way of calling to the QAI API is established.
           - a local database of chemical stocks is opened.
-
-        ..note::
-           A connection to the webclient via websocket is *NOT* established
-           at this stage; The Flask web framework passes a websocket instance to
-           :meth:`mainloop` when the websocket makes a connection to the server.
 
         """
         super().__init__(app, "Johnny")
@@ -378,10 +390,6 @@ class StockyServer(BaseServer):
 
         The general strategy of the mainloop is to initialise all parties concerned,
         then enter an infinite loop in which messages are taken from the message queue.
-
-        Messages are enqueued asynchronously from the various sources
-        (webclient over websocket, RFID scanner over serial link) but the mainloop
-        is the only entity dequeuing messages, and that happens in this loop.
         Some messages are either simply passed on to interested parties, while
         others are handled as requests by the server itself in
         :meth:`server_handle_msg` .

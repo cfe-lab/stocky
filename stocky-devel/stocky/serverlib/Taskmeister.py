@@ -1,6 +1,6 @@
 """A collection of classes that define an interface to :py:mod:`gevent` job tasks.
-   A Taskmeister has a gevent loop which, when active, puts CommonMSG instances onto
-   a message queue.
+   A Taskmeister has a gevent loop which, when active, puts :py:class:`CommonMSG`
+   instances onto a message queue.
 """
 
 import typing
@@ -399,8 +399,13 @@ class WebSocketReader(BaseTaskMeister):
 class RandomRFIDScanner(BaseTaskMeister):
     """Generate spoofed CommonMSG.MSG_RF_CMD_RESP messages at regular intervals
     just as if the data was coming from a RFID reader scan.
-    The RFID's returned in a scan are randomly chosen from a predefined list.
-    This class is used for testing.
+    Barcode scans a RFID scans are produced with equal probability.
+    This class holds a list of predefined RFID labels.
+    In the case of a barcode scan, a single RFID label is chosen randomly
+    from this list to be returned.
+    In the case of an RFID scan, a random number of random RFID labels
+    are returned.
+    This class is used for mocking a server for the QAI client to directly query.
     """
     def __init__(self, msgQ: gevent.queue.Queue,
                  logger,

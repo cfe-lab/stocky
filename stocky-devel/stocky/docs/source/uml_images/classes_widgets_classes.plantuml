@@ -1,0 +1,52 @@
+@startuml
+title classes widgets
+class base_controller {
+    +button_press(self, whofrom:base.base_obj, data_in:T.Optional[base.MSGdata_Type])
+    +data_cache_ready(self, whofrom:base.base_obj, data_in:T.Optional[base.MSGdata_Type])
+    +form_submit(self, whofrom:base.base_obj, data_in:T.Optional[base.MSGdata_Type])
+    +log_event(self, whofrom:base.base_obj, data_in:T.Optional[base.MSGdata_Type])
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:T.Optional[base.MSGdata_Type])
+}
+class base_widget 
+class ColourLed {
+    +BLUE
+    +GREEN
+    +RED
+    +YELLOW
+    +cnum
+    +cols
+    +stepcolour(self)
+}
+class ImageWidget 
+class base_button {
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:T.Optional[base.MSGdata_Type])
+}
+class text_button 
+class sorty_button 
+class sort_table {
+    +doclick(self)
+}
+class MenuList {
+    +lst_el
+    +addItem(self, menu_itm:html.element)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:T.Optional[base.MSGdata_Type])
+}
+class BasicView 
+class SwitchView {
+    +view_dct
+    +view_lst
+    +addView(self, child_el:BasicView, viewname:str)
+    +getView(self, numorname)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:T.Optional[base.MSGdata_Type])
+    +switchTo(self, numorname)
+}
+
+base_widget <|-- ColourLed
+base_widget <|-- ImageWidget
+base_widget <|-- base_button
+base_button <|-- text_button
+base_widget <|-- MenuList
+base_widget <|-- BasicView
+base_widget <|-- SwitchView
+
+@enduml

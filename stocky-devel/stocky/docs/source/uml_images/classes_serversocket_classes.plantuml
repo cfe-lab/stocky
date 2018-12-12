@@ -1,0 +1,15 @@
+@startuml
+title classes serversocket
+class clientsocket {
+    +on_close_cb(self, event)
+    +on_message_JSON(self, data_from_server:typing.Any)
+    +on_open_cb(self, event)
+    +pythonify_dct(self, in_js)
+}
+class JSONserver_socket {
+    +send(self, data_to_server)
+}
+
+clientsocket <|-- JSONserver_socket
+
+@enduml

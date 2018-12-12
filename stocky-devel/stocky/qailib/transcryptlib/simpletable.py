@@ -12,9 +12,7 @@ END_OF_TABLE = -1
 
 
 class datacell(html.td):
-    """Every element in a simpletable is a datacell.
-    This is a subclass of htmlelements.td
-    """
+    """Every element in a simpletable is a datacell."""
     def __init__(self,
                  parent: html.base_element,
                  idstr: str,
@@ -166,7 +164,6 @@ class simpletable(html.element):
                  numrows: int,
                  numcols: int) -> None:
         """
-
         Args:
            parent: the HTML parent of this table
            idstr: the table's id string.
@@ -193,6 +190,7 @@ class simpletable(html.element):
 
     def getrow(self, rownum: int) -> typing.Optional[datarow]:
         """Return the data row instance by its number.
+
         Args:
            rownum: the row number to return [0.. self.numrows()-1]
 
@@ -256,6 +254,7 @@ class simpletable(html.element):
 
     def getheader(self, colnum: int) -> typing.Optional[html.th]:
         """Get a cell from the header row,
+
         Args:
            colnum: the column number to retrieve.
         Returns:

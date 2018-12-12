@@ -56,16 +56,6 @@ Module qailib.transcryptlib.websocket
 	:members:
 	:show-inheritance:
        
-Module qailib.transcryptlib.handlebars
---------------------------------------
-
-.. scopyreverse:: /stockysrc/qailib/transcryptlib/handlebars.py
-    :gooly:
-    :bla:
-       
-.. automodule:: qailib.transcryptlib.handlebars
-	:members:
-	:show-inheritance:
 
 Module qailib.transcryptlib.htmlelements
 ----------------------------------------
@@ -122,5 +112,6 @@ Module qailib.transcryptlib.serversocket
 	:members:
 	:show-inheritance:
 
-BLA title
----------
+End of WEBCLIENT DOCS
+---------------------
+

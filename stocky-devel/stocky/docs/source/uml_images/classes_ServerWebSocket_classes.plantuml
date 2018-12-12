@@ -1,0 +1,19 @@
+@startuml
+title classes ServerWebSocket
+class BaseWebSocket {
+    +logger
+    +ws
+    +close(self)
+    +decodeMSG(self, rawmsg:typing.Any)
+    +encodeMSG(self, msg:WebsocketMSG)
+    +receiveMSG(self)
+    +sendMSG(self, msg:WebsocketMSG)
+}
+class JSONWebSocket {
+    +decodeMSG(self, rawmsg:typing.Any)
+    +encodeMSG(self, msg:WebsocketMSG)
+}
+
+BaseWebSocket <|-- JSONWebSocket
+
+@enduml

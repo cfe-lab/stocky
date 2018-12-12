@@ -1,0 +1,69 @@
+@startuml
+title classes Taskmeister
+class LoggingMixin {
+    +is_verbose(self)
+}
+class DelayTaskMeister {
+    +msgQ
+    +msg_tosend
+    +trigger(self)
+}
+class DaemonTaskMeister {
+    +STATUS_COMMAND_FAILED
+    +STATUS_COMPLETED
+    +STATUS_CONFIG_ERROR
+    +STATUS_RUNNING
+    +STATUS_STOPPED
+    +STATUS_UNDEF
+    +cmdlst
+    +cmdstr
+    +curstat
+    +do_run
+    +greenlet
+    +numchecks
+    +p
+    +get_status(self)
+    +stop_and_restart_cmd(self)
+    +stop_cmd(self, do_wait:bool=False)
+}
+class BaseTaskMeister {
+    +msgQ
+    +generate_msg(self)
+    +set_active(self, is_active:bool)
+}
+class FileChecker {
+    +file_exists(self)
+    +generate_msg(self)
+}
+class RandomGenerator {
+    +generate_msg(self)
+}
+class TickGenerator {
+    +msgid
+    +generate_msg(self)
+}
+class CommandListGenerator {
+    +cmdlst
+    +nmsg
+    +generate_msg(self)
+}
+class WebSocketReader {
+    +ws
+    +generate_msg(self)
+}
+class RandomRFIDScanner {
+    +taglst
+    +generate_msg(self)
+}
+
+LoggingMixin <|-- DelayTaskMeister
+LoggingMixin <|-- DaemonTaskMeister
+LoggingMixin <|-- BaseTaskMeister
+BaseTaskMeister <|-- FileChecker
+BaseTaskMeister <|-- RandomGenerator
+BaseTaskMeister <|-- TickGenerator
+TickGenerator <|-- CommandListGenerator
+BaseTaskMeister <|-- WebSocketReader
+BaseTaskMeister <|-- RandomRFIDScanner
+
+@enduml

@@ -6,7 +6,9 @@
 """
 
 import typing
-from org.transcrypt.stubs.browser import WebSocket,\
+from qailib.transcryptlib.genutils import for_transcrypt
+if for_transcrypt:
+    from org.transcrypt.stubs.browser import WebSocket,\
         __new__, __pragma__, JSON
 
 

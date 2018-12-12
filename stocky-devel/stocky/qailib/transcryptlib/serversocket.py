@@ -1,7 +1,10 @@
 """ A client-side websocket library
 """
 import typing
-from org.transcrypt.stubs.browser import Array, typeof
+from qailib.transcryptlib.genutils import for_transcrypt
+
+if for_transcrypt:
+    from org.transcrypt.stubs.browser import Array, typeof
 
 from qailib.transcryptlib.websocket import BaseRawWebSocket, JSONWebsocket
 from qailib.common.serversocketbase import base_server_socket

@@ -1,0 +1,42 @@
+@startuml
+title classes simpletable
+class datacell {
+    +get_content(self)
+    +set_content(self, newcont:typing.Optional[html.base_element])
+}
+class baserow {
+    +isnew
+}
+class datarow {
+    +getcell(self, colnum:int)
+    +getcellcontent(self, colnum:int)
+    +setcellcontent(self, colnum:int, newcont:typing.Optional[html.base_element])
+}
+class headerrow {
+    +getcell(self, colnum:int)
+}
+class simpletable {
+    +numcols
+    +add_header_row(self)
+    +adjust_row_number(self, newn:int)
+    +append_row(self)
+    +getcell(self, rownum:int, colnum:int)
+    +getcellcontent(self, rownum:int, colnum:int)
+    +getheader(self, colnum:int)
+    +getrow(self, rownum:int)
+    +has_header_row(self)
+    +numrows(self)
+    +set_alignment(self, rownum:int, colnum:int, alignstr:str)
+    +setcellcontent(self, rownum:int, colnum:int, newcont:typing.Optional[html.base_element])
+}
+class dict_table {
+    +refill_table(self, tup_lst)
+    +update_table(self, new_dct:dict)
+}
+
+baserow <|-- datarow
+baserow <|-- headerrow
+simpletable <|-- dict_table
+simpletable o-- headerrow
+
+@enduml

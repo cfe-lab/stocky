@@ -17,8 +17,8 @@ Module serverlib.stockyserver
 ================================
 
 .. scopyreverse:: /stockysrc/serverlib/stockyserver
-    :gooly: hello
-    :bla: bli
+    :gooly:
+    :bla:
 
 .. automodule:: serverlib.stockyserver
 	:members:

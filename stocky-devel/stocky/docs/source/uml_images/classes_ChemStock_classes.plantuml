@@ -1,0 +1,94 @@
+@startuml
+title classes ChemStock
+class Reagent {
+    +basetype
+    +catalog_number
+    +category
+    +date_msds_expires
+    +disposed
+    +expiry_time
+    +hazards
+    +id
+    +msds_filename
+    +name
+    +needs_validation
+    +notes
+    +qcs_document_id
+    +storage
+    +supplier_company_id
+}
+class Location {
+    +id
+    +name
+}
+class Reagent_Item {
+    +id
+    +last_seen
+    +lot_num
+    +notes
+    +qcs_location_id
+    +qcs_reag_id
+    +rfid
+}
+class Reagent_Item_Composition {
+    +id
+    +src_item_id
+    +sub_item_id
+}
+class Reagent_Item_Status {
+    +id
+    +occurred
+    +qcs_reag_item_id
+    +qcs_user_id
+    +qcs_validation_id
+    +status
+}
+class User {
+    +email
+    +id
+    +initials
+    +login
+}
+class TimeUpdate {
+    +dt
+    +id
+}
+class TableChange {
+    +stamp
+    +table_name
+}
+class Locmutation {
+    +created_at
+    +ignore
+    +locid
+    +op
+    +reag_item_id
+}
+class node {
+    +child_dct
+    +name
+    +val
+    +addtree(self, dct)
+    +dfslst(self, topname, lst)
+    +getval(self)
+    +setval(self, newval)
+}
+class ChemStockDB {
+    +qaisession
+    +DOgenerate_webclient_stocklist(self)
+    +add_loc_changes(self, locid:int, locdat:LocChangeList)
+    +calc_final_state(self, slst:typing.List[dict])
+    +generate_webclient_stocklist(self)
+    +get_db_stats(self)
+    +get_loc_changes(self, oldhash:typing.Optional[str]=None)
+    +get_update_time(self)
+    +loadQAI_data(self, qaiDS:qai_helper.QAIDataset, update_dct:typing.Optional[qai_helper.QAIUpdatedct]=None)
+    +load_TS_data(self)
+    +number_of_loc_changes(self)
+    +reset_loc_changes(self)
+    +set_ignore_flag(self, reag_item_id:int, do_ignore:bool)
+    +update_from_QAI(self)
+}
+
+
+@enduml

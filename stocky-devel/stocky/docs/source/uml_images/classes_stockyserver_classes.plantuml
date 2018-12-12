@@ -1,0 +1,47 @@
+@startuml
+title classes stockyserver
+class BaseServer {
+    +logger
+    +msgQ
+    +name
+    +websocketTM
+    +ws
+    +mainloop(self)
+    +send_WS_msg(self, msg:CommonMSG)
+    +set_websocket(self, newws:ServerWebSocket.BaseWebSocket)
+    +sleep(self, secs:int)
+}
+class StockyServer {
+    +MSG_FOR_ME_SET
+    +MSG_FOR_RFID_SET
+    +MSG_FOR_WC_SET
+    +cfg_dct
+    +cl
+    +filewatcher
+    +qai_file
+    +qaisession
+    +rfcommtask
+    +rfid_delay_task
+    +stockdb
+    +timerTM
+    +tls
+    +ws
+    +BT_init_reader(self)
+    +activate_RFID_spinner(self)
+    +handleRFID_CLstatechange(self, new_state:int)
+    +handleRFID_filestatechange(self, file_is_made:bool)
+    +mainloop(self)
+    +send_QAI_status(self, upd_dct:typing.Optional[dict])
+    +send_server_config(self)
+    +server_handle_msg(self, msg:CommonMSG)
+}
+class RFID_Ping_Server {
+    +scan_generator
+    +ws
+    +mainloop(self)
+}
+
+BaseServer <|-- StockyServer
+BaseServer <|-- RFID_Ping_Server
+
+@enduml

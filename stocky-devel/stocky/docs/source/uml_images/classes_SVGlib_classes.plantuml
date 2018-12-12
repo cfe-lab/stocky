@@ -1,0 +1,12 @@
+@startuml
+title classes SVGlib
+class svg {
+    +curels
+    +drawing
+    +clear(self)
+    +rect(self, x:int, y:int, w:int, h:int, colorstr:str)
+    +text(self, x:int, y:int, colorstr:str, text_str:str)
+}
+
+
+@enduml

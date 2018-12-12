@@ -1,0 +1,35 @@
+@startuml
+title classes websocket
+class BaseRawWebSocket {
+    +close(self)
+    +is_open(self)
+    +on_close_cb(self, event)
+    +on_error_cb(self, event)
+    +on_message_cb(self, event)
+    +on_open_cb(self, event)
+    +send(self, data_to_server:typing.Any)
+    +send_raw(self, data_to_server:typing.Any)
+    +set_CB_handler(self, cb_handler)
+}
+class RawWebsocket {
+    +close(self)
+    +send_raw(self, data_to_server)
+}
+class CNVWebsocket {
+    +decode(self, data_from_server)
+    +encode(self, data_to_server)
+    +is_open(self)
+    +on_close_cb(self, event)
+    +on_message_JSON(self, data)
+    +on_message_cb(self, event)
+    +send(self, data_to_server)
+}
+class JSONWebsocket {
+    +decode(self, data_from_server)
+    +encode(self, data_to_server)
+}
+
+BaseRawWebSocket <|-- RawWebsocket
+CNVWebsocket <|-- JSONWebsocket
+
+@enduml
