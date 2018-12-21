@@ -1,0 +1,40 @@
+@startuml
+title classes commonmsg
+class CommonMSG {
+    +MSG_RF_CMD_RESP
+    +MSG_RF_RADAR_DATA
+    +MSG_SV_ADD_STOCK_RESP
+    +MSG_SV_FILE_STATE_CHANGE
+    +MSG_SV_GENERIC_COMMAND
+    +MSG_SV_LOCMUT_RESP
+    +MSG_SV_LOGIN_RES
+    +MSG_SV_LOGOUT_RES
+    +MSG_SV_RAND_NUM
+    +MSG_SV_RFID_ACTIVITY
+    +MSG_SV_RFID_STATREP
+    +MSG_SV_SRV_CONFIG_DATA
+    +MSG_SV_STOCK_INFO_RESP
+    +MSG_SV_TIMER_TICK
+    +MSG_WC_ADD_STOCK_REQ
+    +MSG_WC_EOF
+    +MSG_WC_LOCATION_INFO
+    +MSG_WC_LOCMUT_REQ
+    +MSG_WC_LOGIN_TRY
+    +MSG_WC_LOGOUT_TRY
+    +MSG_WC_RADAR_MODE
+    +MSG_WC_SET_STOCK_LOCATION
+    +MSG_WC_STOCK_INFO_REQ
+    +NUM_MSG
+    +RFID_OFF
+    +RFID_ON
+    +RFID_TIMEOUT
+    +data
+    +msg
+    +as_dict(self)
+    +is_from_rfid_reader(self)
+    +is_from_server(self)
+    +is_from_webclient(self)
+}
+
+
+@enduml

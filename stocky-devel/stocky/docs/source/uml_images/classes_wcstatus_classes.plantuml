@@ -1,0 +1,47 @@
+@startuml
+title classes wcstatus
+class WCstatus {
+    +INFO_COL
+    +LED_COL
+    +LOC_NOSEL_ID
+    +LOC_NOSEL_NAME
+    +NUM_COL
+    +NUM_ROW
+    +QAI_ROW
+    +QAI_UPD_COL
+    +RFID_ROW
+    +SPIN_SZ_PIXELS
+    +SRV_ROW
+    +actspinner
+    +ledlst
+    +locmut_dct
+    +locmut_hash
+    +login_popup
+    +mainprog
+    +mytab
+    +qai_upd_text
+    +spinner
+    +srv_config_data
+    +statediv
+    +uname_text
+    +get_location_items(self, locid:str)
+    +get_location_selector(self, parent:html.base_element, idstr:str, helptext:str, add_nosel:bool)
+    +get_reagent_info(self, rid:str)
+    +get_server_cfg_data(self)
+    +is_QAI_logged_in(self)
+    +is_WS_up(self)
+    +refresh_locmut_dct(self)
+    +set_QAIupdate_state(self, d:dict)
+    +set_RFID_state(self, newstate:int)
+    +set_WS_state(self, is_up:bool)
+    +set_busy(self, isbusy:bool)
+    +set_locmut_dct(self, dct:dict, newhash:str)
+    +set_login_response(self, resdct:dict)
+    +set_logout_status(self)
+    +set_rfid_activity(self, on:bool)
+    +set_server_cfg_data(self, new_cfg:dict)
+    +update_location_selector(self, sel:html.select, add_nosel:bool)
+}
+
+
+@enduml

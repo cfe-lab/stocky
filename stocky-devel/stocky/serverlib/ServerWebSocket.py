@@ -3,7 +3,7 @@ encoding and/or compression approaches."""
 
 
 import typing
-# import gevent
+import logging
 from geventwebsocket import websocket
 import geventwebsocket.exceptions
 
@@ -18,7 +18,7 @@ EOF_dct = {"msg": CommonMSG.MSG_WC_EOF, "data": None}
 class BaseWebSocket:
     """Encapsulate a raw websocket instance and provide methods for
     encoding/decoding of python objects into/from websocket data streams."""
-    def __init__(self, rawws: websocket, logger) -> None:
+    def __init__(self, rawws: websocket, logger: logging.Logger) -> None:
         """
 
         Args:

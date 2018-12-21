@@ -1,0 +1,35 @@
+@startuml
+title classes cleverlabels
+class ToggleLabel {
+    +attdct
+    +is_astate
+    +txtdct
+    +is_A_state(self)
+    +set_state(self, toAstate:bool)
+    +toggle_state(self)
+}
+class DropToggleLabel {
+    +attdct
+    +is_astate
+    +is_A_state(self)
+    +set_state(self, toAstate:bool)
+    +toggle_state(self)
+}
+class SimpleFSM {
+    +event_dct
+    +numstates
+    +get_init_state(self)
+    +get_new_state(self, curstate:int, event:str)
+}
+class FSMLabel {
+    +FSM_CLICK_EVENT
+    +curstate
+    +fsm
+    +state_attrdct
+    +enter_event(self, newevent:str)
+    +get_current_state(self)
+    +reset_state(self)
+}
+
+
+@enduml

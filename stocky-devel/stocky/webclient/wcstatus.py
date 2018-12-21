@@ -1,3 +1,9 @@
+"""
+Store and visualise the webclient status in the browser.
+This modules keeps track of whether user is logged in, displays the
+LED status buttons for server, RFID reader status etc.
+"""
+
 
 import typing
 import qailib.common.base as base
@@ -9,7 +15,7 @@ import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.widgets as widgets
 import qailib.transcryptlib.simpletable as simpletable
 
-from commonmsg import CommonMSG
+from webclient.commonmsg import CommonMSG
 
 RFID_ON = CommonMSG.RFID_ON
 RFID_OFF = CommonMSG.RFID_OFF
@@ -27,9 +33,9 @@ STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 
 class WCstatus(base.base_obj):
     """Visualise and store
-    a) the webclient's bluetooth status
-    b) logged-in status to QAIChangedct
-    c) the stocky webserver status over websocket.
+       * the webclient's bluetooth status
+       * logged-in status to QAIChangedct
+       * the stocky webserver status over websocket.
     Also store the stock information on the webclient that was sent
     from the stocky server.
     """
@@ -58,10 +64,20 @@ class WCstatus(base.base_obj):
     def __init__(self, idstr: str,
                  mainprog: widgets.base_controller,
                  login_popup: forms.modaldiv) -> None:
-        """Initialise the status bar (bluetooth and logged-in status)
-        NOTE: mainprog is actually a "wccontroller.stocky_mainprog" instance, but
+        """Initialise the webclient status bar.
+
+        Args:
+           idstr: the instance's name
+           mainprog: the webclient main program controller instance
+           login_popup: the popup to be used to log a user in.
+
+        Note:
+        mainprog is actually a "wccontroller.stocky_mainprog" instance, but
         because of javascript restrictions, cannot import that module here.
-        We build everything into a predefined div called state-div.
+
+        Note:
+           All visual HTML elements of this class are built into a
+           predefined div in the DOM called state-div.
         """
         super().__init__(idstr)
         self._stat_is_loggedin = False
@@ -161,7 +177,7 @@ class WCstatus(base.base_obj):
             return
 
     def set_login_response(self, resdct: dict) -> None:
-        """Set the QAI logged in status according to resdct."""
+        """Set the visual QAI logged in status according to resdct."""
         statusled = self.ledlst[WCstatus.QAI_ROW]
         self._stat_is_loggedin = is_logged_in = resdct['ok']
         in_col = "w3-green"
@@ -202,10 +218,21 @@ class WCstatus(base.base_obj):
         self.set_login_response(dict(ok=False))
 
     def is_QAI_logged_in(self) -> bool:
+        """Query the logged in status.
+
+        Returns:
+           True iff the user is logged in to QAI.
+        """
         return self._stat_is_loggedin
 
     def set_RFID_state(self, newstate: int) -> None:
-        """Set the RFID LED state to on (green), off (red) or timeout (ORANGE)"""
+        """Set the visual RFID LED state.
+        The LED colour is set to on (green), off (red) or timeout (ORANGE).
+
+        Args:
+           newstate: this should be one of the predefined constants
+              defined in CommonMSG (RFID_ON, RFID_OFF, RFID_TIMEOUT)
+        """
         statusled = self.ledlst[WCstatus.RFID_ROW]
         if newstate == RFID_ON:
             # set to green
@@ -219,15 +246,27 @@ class WCstatus(base.base_obj):
             print("INVALID RFID LED STATE!")
 
     def set_busy(self, isbusy: bool) -> None:
-        """Set the state of the 'internet is busy' spinner"""
+        """Set the state of the 'internet is busy' spinner.
+
+        Args:
+           isbusy: True makes the spinner spin. False makes it stop.
+        """
         self.spinner.set_spin(isbusy)
 
     def set_rfid_activity(self, on: bool) -> None:
-        """Set the RFID spinner on/off """
+        """Set the RFID spinner on/off
+
+        Args:
+           on: True makes the spinner spin. False makes it stop.
+        """
         self.actspinner.set_spin(on)
 
     def set_WS_state(self, is_up: bool) -> None:
-        "Set the websocket communication to stocky server status to up or down"""
+        """Set the colour of the LED indicating websocket communication to the stocky server.
+
+        Args:
+           is_up: True if the server is up (green light displayed). False to down (red light displayed).
+        """
         print("WC status : {}".format(is_up))
         statusled = self.ledlst[WCstatus.SRV_ROW]
         self._stat_WS_isup = is_up
@@ -240,8 +279,14 @@ class WCstatus(base.base_obj):
         self._enable_login_popup(is_up)
 
     def _enable_login_popup(self, do_enable: bool) -> None:
-        """Enable. disable the login popup. The popup should be disabled
-        if the websocket comms are down...
+        """Enable or disable the login popup.
+
+        Args:
+           do_enable: True will enable the QAI login popup.
+
+        Note:
+           The popup should be disabled if the websocket comms are down, as its
+        the stocky server that will ultimately communicate with the QAI server.
         """
         login_popup = self.login_popup
         txt = self.uname_text
@@ -260,7 +305,11 @@ class WCstatus(base.base_obj):
             login_popup.remove_opener(txt)
 
     def is_WS_up(self) -> bool:
-        """Return the status of the websocket communication to the stocky server."""
+        """Return the status of the websocket communication to the stocky server.
+
+        Returns:
+           True iff communication to the stocky server is up.
+        """
         return self._stat_WS_isup
 
     def set_QAIupdate_state(self, d: dict) -> None:

@@ -1,7 +1,9 @@
-"""Implement a pytest plugin for writing test results into sphinx documentation
+"""Implement a pytest plugin for writing test results into a specified YAML file.
+This can be read by a Sphinx plugin for documentation of test results.
 """
 
 import pytest
+import yaml
 
 
 def pytest_addoption(parser):
@@ -15,15 +17,10 @@ def pytest_addoption(parser):
 dump of the QAI system. This can be used in tests marked --with_chemstock.""")
     parser.addoption('--with_cs_qai', action='store_true', dest="with_cs_qai",
                      default=False, help="enable tests that update chemstock from QAI")
-    # add the option for this plugin
+    # add the option for the scospec plugin
     parser.addoption(
-        '--scospec', action='store_true', dest='scospec', default=False,
-        help='Report test progress in SCOspec format'
-    )
-    parser.addini(
-        'scopec_format',
-        help='scopec report format (plaintext|utf8)',
-        default='utf8'
+        '--scospec', action='store', dest='scospecfile', type=str,
+        help='Report test results to a YAML file in Scospec format.'
     )
 
 
@@ -50,11 +47,15 @@ def pytest_runtest_makereport(item, call):
     # print("MAKEREP {}".format(item_str))
 
 
+tst_lst = []
+
+
 def pytest_runtest_logreport(report):
     """In this routine, we are passed a test report which include the result
     of the test ('outcome').
     We retrieve the extra info we had previously attached to the report, combine it
-    with the outcome and store the information for importing into Sphinx
+    with the outcome and append the information to tst_lst.
+    This list can be written to file at session finish.
     """
     # ignore setup and teardown reporting of tests that are run.
     # keep skipped items...
@@ -62,7 +63,12 @@ def pytest_runtest_logreport(report):
     if outcome != 'skipped' and report.when != "call":
         return
     # print("LOGREPORT {} --> {}".format(report.sco_bla, outcome))
+    tst_lst.append(report.sco_bla + (outcome, ))
 
 
 def pytest_sessionfinish(session):
-    print("SESSION FINISH!")
+    fname = pytest.config.option.scospecfile
+    if fname is not None:
+        print("\n**writing scospec test results to '{}'".format(fname))
+        with open(fname, "w") as fo:
+            fo.write(yaml.dump(tst_lst, Dumper=yaml.CDumper))

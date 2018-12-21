@@ -1,0 +1,56 @@
+@startuml
+title classes forms
+class modaldiv {
+    +cont
+    +errspan
+    +foot
+    +h2
+    +head
+    +spinner
+    +tcont
+    +attach_opener(self, opener:htmlelements.generic_element)
+    +get_content_element(self)
+    +get_show_button(self, buttonparent:htmlelements.base_element, buttontext:str)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +remove_opener(self, opener:htmlelements.generic_element)
+    +set_busy(self, isbusy:bool)
+    +set_error_text(self, errtext:str)
+    +show(self, on:bool)
+}
+class BaseField {
+    +label
+    +val
+    +geninputfield(self)
+    +genlabelfield(self)
+    +getIDvaltuple(self)
+    +id(self)
+    +set_stringval(self, newtxt:str)
+}
+class spinner {
+    +SPN_COG
+    +SPN_O_NOTCH
+    +SPN_REFRESH
+    +SPN_SPINNER
+    +set_spin(self, on:bool)
+    +set_visible(self, on:bool)
+}
+class form {
+    +add_submit_button(self, button_txt:str, attrdct:typing.Optional[dict])
+    +on_submit(self)
+    +submit(self)
+}
+class loginform {
+    +password
+    +username
+    +on_submit(self)
+    +pre_open_init(self)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +set_login_response(self, resdct:dict)
+}
+
+modaldiv o-- spinner
+loginform o-- BaseField
+loginform o-- BaseField
+form <|-- loginform
+
+@enduml

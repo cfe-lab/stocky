@@ -10,22 +10,30 @@ class Test_timelib:
         self.utctime = timelib.utc_nowtime()
 
     def test_utc(self):
+        """timelib.utc_nowtime() must return a timelib.DateTimeType instance."""
         assert isinstance(self.utctime, timelib.DateTimeType), "wrong type returned"
 
     def test_loc01(self):
+        """timelib.loc_nowtime() must raise a RuntimeError if the timezone is undefined."""
         timelib._tzinfo = None
         with pytest.raises(RuntimeError):
             timelib.loc_nowtime()
 
     def test_loc02(self):
+        """timelib.set_local_timezone must raise a RuntimeError if passed an
+        illegal string."""
         with pytest.raises(RuntimeError):
             timelib.set_local_timezone("now")
 
     def test_loc02a(self):
+        """timelib.set_local_timezone must raise a RuntimeError if passed an integer"""
         with pytest.raises(TypeError):
             timelib.set_local_timezone(10)
 
     def test_loc03(self):
+        """timelib.loc_nowtime() must return a timelib.DateTimeType instance
+        if a valid timezone was previously set by timelib.set_local_timezone
+        """
         tzinfo = pytz.timezone('Europe/Amsterdam')
         timelib.set_local_timezone(tzinfo)
         nn = timelib.loc_nowtime()
@@ -35,8 +43,6 @@ class Test_timelib:
     def convert_test(self, dtin: timelib.DateTimeType) -> None:
         """Convert a datetime to string then back to datetime.
         The datetime records must be the same.
-        Update: actually, as we round the time to seconds on conversion,
-        they will not be the same.
         """
         assert isinstance(dtin, timelib.DateTimeType), "wrong type entered"
         nnstr = timelib.datetime_to_str(dtin)
@@ -48,6 +54,11 @@ class Test_timelib:
 
     @pytest.mark.skip(reason="disabled for now")
     def test_time_str01(self):
+        """Converting a DateTimeType to string and back again should
+           result in the same time.
+           Update: actually, as we round the time to seconds on conversion,
+           they will *NOT* be the same.
+        """
         nn1 = timelib.utc_nowtime()
         #
         tzinfo = pytz.timezone('Europe/Amsterdam')

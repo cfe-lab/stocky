@@ -1,5 +1,4 @@
-"""define specific views for the webclient here
-"""
+"""This module defines specific views for the webclient """
 
 import typing
 from org.transcrypt.stubs.browser import window
@@ -15,8 +14,8 @@ import qailib.transcryptlib.SVGlib as SVGlib
 # run time errors because the modules import each other)
 # import wccontroller
 
-from commonmsg import CommonMSG
-import wcstatus
+from webclient.commonmsg import CommonMSG
+import webclient.wcstatus as wcstatus
 
 BIG_DISTANCE = 99.0
 
@@ -30,7 +29,21 @@ class SwitcheeView(widgets.BasicView):
                  parent: widgets.base_widget,
                  idstr: str,
                  attrdct: dict,
-                 jsel, titletext: str, helptext: str) -> None:
+                 jsel,
+                 titletext: str,
+                 helptext: str) -> None:
+        """A base class for all other views in this module.
+
+        Args:
+           contr: the webclient controller
+           parent: the parent in the visible HTML DOM hierarchy
+           idstr: the instance's id string
+           attrdct: the HTML attribute dict
+           jsel: the optional javascript element
+           titletext: text to be used as a title of the view. It will be displayed as\
+              a H1 html element.
+           helptext: further explanation of the view's purpose.
+        """
         super().__init__(contr, parent, idstr, attrdct, jsel)
         self.wcstatus: wcstatus.WCstatus = contr.wcstatus
         self.addClass("w3-container")
@@ -56,16 +69,20 @@ class SwitcheeView(widgets.BasicView):
                 self.Redraw()
 
     def Redraw(self):
-        """This method called whener the view becomes active (because the user
+        """This method is called whenever the view becomes active (because the user
         has selected the respective view button.
         Subclasses should set up their pages in here.
-        NOTE: this method could also be called in response to user input.
+
+        Note:
+        This method could also be called in response to user input.
         Example: the user has chosen a different location, so we must redraw the page...
         """
         print("EMPTY VIEW REDRAW")
 
 
 class RadarView(SwitcheeView):
+    """The view to display when in Radar Mode. This will allow the user to search
+       for a specific item"""
     def __init__(self, contr: widgets.base_controller,
                  parent: widgets.base_widget,
                  idstr: str,
@@ -256,8 +273,8 @@ class AddScanList(simpletable.simpletable, BaseScanList):
 class AddNewStockView(SwitcheeView):
     """This is the view that the user will use to add new stock to the QAI system
     or attach RFID labels to existing stock.
-    a) We allow the user to scan RFID tags and display them.
-    b) Once happy, the user hits one of two buttons and is redirected to a QAI window.
+      * We allow the user to scan RFID tags and display them.
+      * Once happy, the user hits one of two buttons and is redirected to a QAI window.
     """
 
     GO_RESET_TABLE = 'go_reste_table'
@@ -373,14 +390,13 @@ items to be added to QAI for the first time."""
 # contr: wccontroller.stocky_mainprog,
 
 class DownloadQAIView(SwitcheeView):
-    """This is the view that the user will use to sync with the QAI system.
-    a) check login status.
-    if logged in:
-       issue download order.
-    else:
-       tell user to log in.
+    """This is the view that the user will use to sync the stocky db with the QAI system.
+      * check login status.
+      *  if logged in:
+            issue download order.
+         else:
+           tell user to log in.
     """
-
     def __init__(self,
                  contr: widgets.base_controller,
                  parent: widgets.base_widget,
@@ -732,10 +748,10 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
 class CheckStockView(SwitcheeView):
     """This is the view that the user will use to check the stock at a particular
     location.
-    a) The user selects a location
-    b) The user scans
-    c) The scanned items are display (expected, unexpected, missing)
-    d) Once, happy, the user confirms the stock state.
+      * The user selects a location
+      * The user scans
+      * The scanned items are display (expected, unexpected, missing)
+      * Once, happy, the user confirms the stock state.
     """
 
     GO_CHECK_STOCK = 'go_check_stock'
@@ -828,9 +844,9 @@ class CheckStockView(SwitcheeView):
 class UploadLocMutView(SwitcheeView):
     """This is the view that the user will use to review the location changes and upload
     them to QAI.
-    a) retrieve all location mutations from the stocky server.
-    b) allow user to ignore certain mutations in the table.
-    c) Instruct the server to upload the changes to QAI.
+      * retrieve all location mutations from the stocky server.
+      * allow user to ignore certain mutations in the table.
+      * Instruct the server to upload the changes to QAI.
     """
     def __init__(self,
                  contr: widgets.base_controller,
@@ -849,9 +865,9 @@ during Stock Check. For this to work, the stocky computer must be plugged in to 
 class ConfigStatusView(SwitcheeView):
     """This is the view that the user will use to review the location changes and upload
     them to QAI.
-    a) retrieve all location mutations from the stocky server.
-    b) allow user to ignore certain mutations in the table.
-    c) Instruct the server to upload the changes to QAI.
+      * retrieve all location mutations from the stocky server.
+      * allow user to ignore certain mutations in the table.
+      * instruct the server to upload the changes to QAI.
     """
     def __init__(self,
                  contr: widgets.base_controller,
@@ -866,12 +882,6 @@ class ConfigStatusView(SwitcheeView):
         self.cfg_tab: typing.Optional[simpletable.dict_table] = None
 
     def Redraw(self):
-        """This method called whener the view becomes active (because the user
-        has selected the respective view button.
-        Subclasses should set up their pages in here.
-        NOTE: this method could also be called in response to user input.
-        Example: the user has chosen a different location, so we must redraw the page...
-        """
         # print("CONFIG VIEW REDRAW")
         srv_dct = self.wcstatus.get_server_cfg_data()
         print("CFG: {}".format(srv_dct))

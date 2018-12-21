@@ -1,5 +1,5 @@
 import typing
-import flask
+import logging
 
 import gevent
 from gevent.queue import Queue
@@ -21,15 +21,18 @@ from webclient.commonmsg import CommonMSG
 
 
 class BaseServer:
+    """A base class for running a stocky server application.
+    Essentially, this class encapsulates a Flask app instance, and
+    then, in response to a websocket connection from the webclient,
+    :py:meth:`set_websocket` should be called, after which
+    :py:meth:`mainloop` should be called to handle events that are placed
+    on the internal message queue by other actors.
     """
-        Flask will call this routine with a newly established web socket when
-        the webclient makes a connection via the websocket protocol.
-    """
-    def __init__(self, app: flask.Flask, name: str) -> None:
+    def __init__(self, logger: logging.Logger, name: str) -> None:
         """
 
         Args:
-           app: the flask app instance
+           logger: use this for logging
            name: the name of server (an arbitrary name)
 
         Note:
@@ -39,8 +42,7 @@ class BaseServer:
            :meth:`mainloop`  .
         """
         # must set logging  before anything else...
-        self._app = app
-        self.logger = app.logger
+        self.logger = logger
         self.ws: typing.Optional[ServerWebSocket.BaseWebSocket] = None
         self.websocketTM: typing.Optional[Taskmeister.WebSocketReader] = None
         self.name = name
@@ -131,11 +133,11 @@ class StockyServer(BaseServer):
                                 CommonMSG.MSG_SV_TIMER_TICK,
                                 CommonMSG.MSG_WC_LOCATION_INFO])
 
-    def __init__(self, app: flask.Flask, CommLinkClass, cfgname: str) -> None:
+    def __init__(self, logger: logging.Logger, CommLinkClass, cfgname: str) -> None:
         """
 
         Args:
-           app: The flask app instance
+           logger: a logging instance
            CommLinkClass: the name of the class to use for communicating\
               with the RFID reader (Commlink = serial communication link)
            cfgname: the name of the server configuration file (a YAML file)
@@ -151,7 +153,7 @@ class StockyServer(BaseServer):
           - a local database of chemical stocks is opened.
 
         """
-        super().__init__(app, "Johnny")
+        super().__init__(logger, "Johnny")
         self.logger.info("serverclass: reading config file '{}'".format(cfgname))
         try:
             self.cfg_dct = serverconfig.read_server_config(cfgname)
@@ -454,8 +456,8 @@ class RFID_Ping_Server(BaseServer):
     """This class simply sends dummy RFID scans to a QAI client at periodic intervals.
     It is used to test the QAI client side that should respond to RFID scans.
     """
-    def __init__(self, app: flask.Flask, name: str) -> None:
-        super().__init__(app, name)
+    def __init__(self, logger: logging.Logger, name: str) -> None:
+        super().__init__(logger, name)
         SEC_INTERVAL_SECS = 2.0
         self.scan_generator = Taskmeister.RandomRFIDScanner(self.msgQ, self.logger,
                                                             SEC_INTERVAL_SECS)

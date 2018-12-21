@@ -1,0 +1,29 @@
+@startuml
+title classes wccontroller
+class WebClientController {
+    +numlst
+    +init_view(self)
+    +send_WS_msg(self, msg:CommonMSG)
+}
+class stocky_mainprog {
+    +loginform
+    +menudiv
+    +switch
+    +topdoc
+    +wcstatus
+    +addnewstock(self, url:str)
+    +init_view(self)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +set_login_status(self, resdct:dict)
+    +set_qai_update(self, resdct:dict)
+    +setradardata(self, radarinfo:typing.List[typing.Tuple[(str, int, float)]])
+    +start_QAI_download(self)
+}
+class rfidping_controller {
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+}
+
+WebClientController <|-- stocky_mainprog
+WebClientController <|-- rfidping_controller
+
+@enduml

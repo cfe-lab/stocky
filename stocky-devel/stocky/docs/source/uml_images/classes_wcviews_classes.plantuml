@@ -1,0 +1,102 @@
+@startuml
+title classes wcviews
+class SwitcheeView {
+    +h1
+    +helptext
+    +wcstatus
+    +Redraw(self)
+    +rcvMsg(self, whofrom:'base.base_obj', msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+}
+class RadarView {
+    +coldct
+    +dist_lst
+    +svg
+    +display_distances(self)
+    +drawcolumn(self, colnum:int, epc:str, dst:float)
+    +reset_radar(self)
+    +set_radardata(self, radarinfo:typing.List[typing.Tuple[(str, int, float)]])
+}
+class BaseScanList {
+    +add_scan(self, newdat:base.MSGdata_Type)
+    +post_add_scan_CB(self)
+}
+class AddScanList {
+    +get_active_tags(self)
+    +post_add_scan_CB(self)
+    +reset(self)
+}
+class AddNewStockView {
+    +GO_ADD_NEW_RFIDTAG
+    +GO_ADD_NEW_STOCK
+    +GO_RESET_TABLE
+    +gobutton
+    +resetbutton
+    +scanlist
+    +tgbutton
+    +Redraw(self)
+    +get_selection_dct(self)
+    +rcvMsg(self, whofrom:'base.base_obj', msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +redirect(self, url:str)
+}
+class DownloadQAIView {
+    +message_bar
+    +stat_tab
+    +Redraw(self)
+    +stop_download(self, resdct:dict)
+}
+class rowtracker {
+    +action_tog
+    +detected
+    +expected
+    +id
+    +rownum
+    +scanstat_tog
+}
+class CheckFSM {
+    +ST_ERROR_STATE
+    +ST_IGNORE
+    +ST_REPORT_FOUND
+    +ST_REPORT_MISSING
+    +ST_REPORT_MOVED
+    +dd
+    +isdetected_lab
+    +isexpected
+    +get_init_state(self)
+    +get_new_state(self, curstate:int, event:str)
+}
+class CheckLabel {
+    +detected_lab
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+}
+class CheckScanList {
+    +wcstatus
+    +get_move_list(self)
+    +reset(self, ll:typing.Optional[list])
+}
+class CheckStockView {
+    +GO_CHECK_STOCK
+    +gobutton
+    +location_sel
+    +scanlist
+    +Redraw(self)
+    +rcvMsg(self, whofrom:'base.base_obj', msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+}
+class UploadLocMutView 
+class ConfigStatusView {
+    +cfg_tab
+    +Redraw(self)
+}
+
+SwitcheeView <|-- RadarView
+BaseScanList <|-- AddScanList
+SwitcheeView <|-- AddNewStockView
+SwitcheeView <|-- DownloadQAIView
+BaseScanList <|-- CheckScanList
+SwitcheeView <|-- CheckStockView
+SwitcheeView <|-- UploadLocMutView
+SwitcheeView <|-- ConfigStatusView
+AddNewStockView o-- AddScanList
+rowtracker o-- CheckLabel
+CheckStockView o-- CheckScanList
+
+@enduml

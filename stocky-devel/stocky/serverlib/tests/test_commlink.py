@@ -172,21 +172,27 @@ class Test_timeout_commlink:
         self.dscl = TimeoutDummySerialCommLink(cfgdct)
 
     def test_read_TO_01(self) -> None:
+        """_str_readline() should return None if the device is offline."""
         retval = self.dscl._str_readline()
         assert retval is None, "None expected"
 
     def test_rawread01(self) -> None:
+        """raw_read_response() should return the expected class and return code."""
         clresp = self.dscl.raw_read_response()
         assert isinstance(clresp, commlink.CLResponse), "clresponse expected"
         retcode = clresp.return_code()
         assert retcode == commlink.BaseCommLink.RC_TIMEOUT, "time out expected"
 
     def test_clresp01(self) -> None:
+        """A return code of an CLResponse instance with an empty response list
+           returns RC_FAULTY."""
         clresp = commlink.CLResponse([])
         retcode = clresp.return_code()
         assert retcode == commlink.BaseCommLink.RC_FAULTY, "RC faulty expected"
 
     def test_handlestatechange01(self) -> None:
+        """dscl._is_alive() and id_string() should return expected values
+        after HandleStateChange(True)"""
         self.dscl.HandleStateChange(True)
         is_alive = self.dscl._is_alive()
         assert isinstance(is_alive, bool), "bool expected"
@@ -197,6 +203,8 @@ class Test_timeout_commlink:
         assert idstr == id_expected, "unexpected id string"
 
     def test_handlestatechange02(self) -> None:
+        """dscl._is_alive() and id_string() should return expected values
+        after HandleStateChange(False)"""
         self.dscl.HandleStateChange(False)
         is_alive = self.dscl._is_alive()
         assert isinstance(is_alive, bool), "bool expected"
@@ -220,12 +228,16 @@ class Test_commlink:
         self.dscl = DummySerialCommLink(cfgdct)
 
     def test_idstr01(self) -> None:
+        """commlink.id_string() should return an expected error string
+        when the id string cannot be determined."""
         exp_id = "ID string cannot be determined: response is faulty"
         idstr = self.dscl.id_string()
         print("idstr: {}".format(idstr))
         assert idstr == exp_id, "unexpected idstring"
 
     def test_Hextostr(self):
+        """commlink.HexStrtoStr must return the expected string on various input.
+        """
         lverb = False
         for instr, exp_outstr in [('4348454D3130303030000000', "CHEM10000", ),
                                   ('BLA', 'BLA'),
@@ -267,6 +279,9 @@ class Test_commlink:
             dscl._str_readline()
 
     def test_raw_send_cmd01(self):
+        """
+        raw_send_cmd() should raise a RuntimeError if the serial device (mydev) is None
+        """
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
         with pytest.raises(RuntimeError):
@@ -288,6 +303,8 @@ class Test_commlink:
             dscl.raw_send_cmd(teststr)
 
     def test_raw_read_response01(self):
+        """raw_read_response() should return a commlink.CLResponse instance.
+        """
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
         testbytes = b"""CS: .iv'
@@ -300,6 +317,7 @@ class Test_commlink:
         # assert False, "force fail"
 
     def test_is_alive01(self):
+        """_is_alive() should return expected values."""
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
         assert dscl._is_alive(), "expected true"
@@ -307,25 +325,32 @@ class Test_commlink:
         assert not dscl._is_alive(), "expected false"
 
     def test_baseCL_notimp(self):
-        """The base should raise NotImplemented errors."""
+        """BaseCommLinkClass should raise NotImplemented errors on certain
+        methods."""
         b = BaseCommLinkClass({'logger': self.logger})
         for func in [lambda b: b.id_string()]:
             with pytest.raises(NotImplementedError):
                 func(b)
 
-    def test_baseCL_RC_string01(self):
-        """Convert legal retcodes"""
+    def test_baseCL_RC_string_legal(self):
+        """Converting legal retcodes to a descriptive string using
+        RC_string should succeed."""
         for retcode in commlink._tlsretcode_dct.keys():
             retstr = BaseCommLinkClass.RC_string(retcode)
             assert isinstance(retstr, str), "expected a string"
 
-    def test_baseCL_RC_string02(self):
+    def test_baseCL_RC_string_illegal(self):
+        """Converting illegal retcodes to a descriptive string using
+        RC_string should raise a RuntimeError."""
         """Convert illlegal retcodes"""
         for retcode in [-100, 50]:
             with pytest.raises(RuntimeError):
                 BaseCommLinkClass.RC_string(retcode)
 
     def test_baseCL_comment_dct01(self):
+        """BaseCommLinkClass.encode_comment_dict and
+        BaseCommLinkClass.extract_comment_dict must operate as expected.
+        """
         din = dict(a=1, b=5, c='99')
         code = BaseCommLinkClass.encode_comment_dict(din)
         assert isinstance(code, str), "string expected"
@@ -377,7 +402,8 @@ class Test_commlink:
             assert resp_got == resp_exp, "unexpected RespTuple"
 
     def test_clresponse01(self):
-        """Test CLResponse class"""
+        """Test the CLResponse class on a number of legit/ non legit
+        RFID reader response strings."""
         csval = "iv. "
         test_lst = [("CS", csval),
                     ("ME", "hello")]
@@ -391,7 +417,8 @@ class Test_commlink:
         assert csgot == csval, "CS mismatch"
 
     def test_clresponse02(self) -> None:
-        """Test CLResponse when the serial connection has timed out (return list is None)"""
+        """Test CLResponse when the serial connection has timed
+        out (return list is None)"""
         clresp = commlink.CLResponse(None)
         assert clresp is not None, "Failed to instantiate CLResponse"
         cslst = clresp["CS"]
@@ -402,6 +429,8 @@ class Test_commlink:
         assert cmt_dct is None, "expected None"
 
     def test_cl_return_message01(self) -> None:
+        """Test behaviour of _return_message() on good and bad messages.
+        """
         testy_lst = [([("ME", "hello")], "hello"),
                      ([("AA", "funny")], None)]
         for test_lst, resp_exp in testy_lst:
@@ -410,24 +439,13 @@ class Test_commlink:
             assert resp_got == resp_exp, "unexpected RespTuple"
 
     def test_cl_return_code01(self):
+        """Test return_code() on a number of valid/ invalid response messages."""
         testy_lst = [([("ME", "hello"), ('OK', "")], commlink.BaseCommLink.RC_OK),
                      ([("ME", "hello"), ('ER', "099")], 99)]
         for test_lst, resp_exp in testy_lst:
             clresp = commlink.CLResponse(test_lst)
             resp_got = clresp.return_code()
             assert resp_got == resp_exp, "unexpected respcode"
-
-    @pytest.mark.skip(reason="We no longer require an exception: crashes the server..")
-    def test_cl_return_code02(self):
-        """A malformed error message should raise an exception."""
-        testy_lst = [[("ME", "hello"), ('ER', "bla")],
-                     [("ME", "hello"), ('ER', "")],
-                     [("ME", "hello"), ('IV', "")],
-                     ]
-        for test_lst in testy_lst:
-            clresp = commlink.CLResponse(test_lst)
-            with pytest.raises(RuntimeError):
-                clresp.return_code()
 
     def test_dummyCL_valid01(self):
         """Issue a valid command and check its result."""
@@ -454,7 +472,7 @@ class Test_commlink:
             raise RuntimeError("unexpected comment")
 
     def test_dummyCL_invalid01(self):
-        """Issuing an invalid command should raise a RuntimeError"""
+        """Issuing an invalid command should result in a time out condition."""
         # with pytest.raises(RuntimeError):
         ret = self.cl._blocking_cmd(".bla -p")
         assert isinstance(ret, commlink.CLResponse), "CLResponse expected"

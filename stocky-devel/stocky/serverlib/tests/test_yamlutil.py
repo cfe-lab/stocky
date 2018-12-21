@@ -26,9 +26,13 @@ class Test_yamlutil:
             yamlutil.readyamlfile('bla.goo')
 
     def test_get_filename01(self) -> None:
+        """
+        Test yamlutil.get_filename: a nonexistent environment variable should raise an exception;
+        an existing environment variable should work as expected.
+        """
         fname = 'hello.dolly'
         envname = 'SCOENV'
-        # a: nonexistent env var should rais an exception
+        # a: nonexistent env var should raise an exception
         with pytest.raises(RuntimeError):
             yamlutil.get_filename(fname, envname)
         # b: existing env var should work

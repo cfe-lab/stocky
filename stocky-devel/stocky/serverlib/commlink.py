@@ -1,4 +1,9 @@
-"""Define a bluetooth communication link class for the TLS ASCII protocol.
+"""Define a serial communication link class for the Technology Solutions
+   (https://www.tsl.com/) TSL ASCII protocol for communication with RFID/ barcode
+   readers such as the TSL 1128 Bluetooth UHF RFID reader.
+
+   All communication with the RFID reader is via serial device which
+   typically runs over a Bluetooth connection.
 """
 
 import typing
@@ -242,12 +247,12 @@ class BaseCommLink:
     def HandleStateChange(self, is_online: bool) -> None:
         """This routine is called when the serial device connecting to
         BT (typically /dev/rfcomm0)should be opened or closed.
-        if is_online == True:
-           the device has just been created and now needs to be opened for communication.
-        if is_online == False:
-           the open device has timed out and needs to be closed so that the filename
-           disappears from the file system. Only when this happens can a new connection
-           be made later.
+          * If is_online == True:
+            the device has just been created and now needs to be opened for communication.
+          * if is_online == False:
+            the open device has timed out and needs to be closed so that the filename
+            disappears from the file system. Only when this happens can a new connection
+            be made later.
         """
         if is_online:
             self.mydev = self.open_device()
@@ -280,7 +285,10 @@ class BaseCommLink:
     @staticmethod
     def extract_comment_dict(s: str) -> typing.Optional[dict]:
         """Extract a previously encoded comment dict from a string.
-        Return None if the string does not have the required delimiters '#' and '@'
+
+        Returns:
+           the dict encoded in the comment string.
+           Return None if the string does not have the required delimiters '#' and '@'.
         """
         hash_ndx = s.find(BaseCommLink.DCT_START_CHAR)
         ampers_ndx = s.find(BaseCommLink.DCT_STOP_CHAR)
@@ -294,6 +302,12 @@ class BaseCommLink:
         """Convert the TLS reader return code into a descriptive string.
         For the error codes, see the document 'TLS ASCII protocol 2.5 rev B', page 14.
         We include an error code zero here to indicate a success.
+
+        Args:
+           ret_code: the return code to convert to string
+        Returns:
+           The descriptive string describing the ret_code.
+        Raises: RuntimeError iff the ret_code is an unknown error code,
         """
         ret_str = _tlsretcode_dct.get(ret_code, None)
         if ret_str is None:
@@ -303,6 +317,12 @@ class BaseCommLink:
     def send_cmd(self, cmdstr: str, comment: str = None) -> None:
         """Send a string to the device as a command.
         The call returns as soon as the cmdstr data has been written.
+
+        Args:
+           cmdstr: the command string to write
+           comment: an optional comment string that will be sent with command.
+        See also:
+           :py:meth:`raw_send_cmd`
         """
         commdct = {BaseCommLink.MSGNUM_ID: str(self._cmdnum), BaseCommLink.COMMENT_ID: comment}
         cmdstr += BaseCommLink.encode_comment_dict(commdct)
@@ -352,6 +372,8 @@ class BaseCommLink:
         Raises:
             RuntimeError: if a CR character is read without a following LF character, or
                 if conversion into a utf-8 string fails.
+        See also:
+           :py:meth:`_filterbyte`
         """
         retbytes, doread = b'', True
         while doread:
@@ -403,13 +425,16 @@ class BaseCommLink:
         an error occurs.
 
         Errors can be of two main types:
-        a) no response is received from the reader, in which case the
-           connection will time out.
-        b) a response that cannot be deciphered (unknown characters) is returned.
+          * no response is received from the reader, in which case the
+            connection will time out.
+          * a response that cannot be deciphered (unknown characters) is returned.
         In either case, the generated CLResponse will reflect these errors.
 
         Returns:
            The response is packed up into a CLResponse instance and returned.
+
+        See also:
+           :py:meth:`_str_readline()`
         """
         rlst: typing.Optional[typing.List[ResponseTuple]] = []
         done = False
@@ -440,6 +465,13 @@ class BaseCommLink:
         return self.mydev is not None
 
     def id_string(self) -> str:
+        """return a descriptive string about this commlink device.
+
+        Returns:
+           a descriptive string.
+        Raises:
+           NotImplementedError: this method must be implemented in subclasses.
+        """
         raise NotImplementedError("id_string not defined")
 
     def _blocking_cmd(self, cmdstr: str,
@@ -569,9 +601,11 @@ class SerialCommLink(BaseCommLink):
         to the RFID reader.
 
         Returns:
-        One of RFID_ON (communication is alive), RFID_OFF (communication device is closed),
-        or RFID_TIMEOUT (communication device is open, but the RFID reader is not responding,
-        probably because it is out of range).
+           One of
+             * RFID_ON (communication is alive)
+             * RFID_OFF (communication device is closed)
+             * RFID_TIMEOUT (communication device is open, but the RFID reader
+               is not responding, probably because it is out of range)
         """
         if self._is_alive():
             if self._is_responsive():
@@ -581,7 +615,12 @@ class SerialCommLink(BaseCommLink):
         return CommonMSG.RFID_OFF
 
     def get_info_dct(self) -> typing.Optional[dict]:
-        """Return a dictionary with information about the RFID reader."""
+        """Return a dictionary with information about the RFID reader.
+
+        Returns:
+           a dict containing strings returned by the RFID reader such as
+           serial number, firmware version etc.
+        """
         return self.rfid_info_dct
 
     def id_string(self) -> str:

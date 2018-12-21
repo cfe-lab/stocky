@@ -1,12 +1,11 @@
 """
-An Sphinx extension that calles snakenibbles
+An Sphinx extension that calles snakenibbles (show import dependency graph of python modules
+using plantuml and Graphviz)
 """
 import os
 
 from docutils import nodes
-from docutils.parsers.rst import directives
-# SCO from sphinx.util.compat import Directive
-from docutils.parsers.rst import Directive
+import docutils.parsers.rst as rst
 from subprocess import call
 
 try:
@@ -14,9 +13,14 @@ try:
 except ImportError:
     IMAGE = None
 
+SOURCE_DIR = ":source_directory:"
+EXCLUDE_STR = ":exclude:"
+IN_FILES = ":infiles:"
+OUT_STUB = ":outstub:"
 
-KW_LST = [":source_directory:", ":infiles:", ":outfile:", ":exclude:"]
+KW_LST = [SOURCE_DIR, IN_FILES, OUT_STUB, EXCLUDE_STR]
 KW_SET = frozenset(KW_LST)
+
 
 def getargs(slst):
     """ We get a list fo the form
@@ -48,10 +52,14 @@ def getargs(slst):
     if missing_set or unknown_set:
         print("argument string '{}'".format(slst))
         raise RuntimeError("Invalid arguments to the snakenibbles extension")
+    # each value has a list of items. change this into a single string
+    for k in rdct.keys():
+        inlst = rdct[k]
+        rdct[k] = " ".join(inlst)
     return rdct
 
 
-class SnakeNibblesDirective(Directive):
+class SnakeNibblesDirective(rst.Directive):
     """A Snakenibbles directive that will draw a module import hierarchy using snakenibbles
     to produce an plantuml file. Plantuml is then envoked with this input file to produce
     a PNG file. This file, finally, will be resized using the PIL module if it is present.
@@ -65,26 +73,43 @@ class SnakeNibblesDirective(Directive):
     DIR_NAME = "uml_images"
 
     def run(self):
+        lverb = False
         # print("SNAKENIBBLES {}".format(self.arguments))
+        # NOTE: There are two 'source dirs' to consider here:
+        # a) the dir of the documentation source
+        # b) the source dir of the code being documented
         env = self.state.document.settings.env
         src_dir = env.srcdir
-        print("SNAKENIBBLES SRC_DIR {}".format(src_dir))
+        if lverb:
+            print("SNAKENIBBLES SRC_DIR {}".format(src_dir))
         argdct = getargs(self.arguments)
-        print("SNAKEY {}".format(argdct))
-
+        if lverb:
+            print("SNAKEY ARGDCT {}".format(argdct))
         uml_dir = os.path.join(src_dir, self.DIR_NAME)
         if os.path.basename(uml_dir) not in os.listdir(src_dir):
             os.mkdir(uml_dir)
         env.uml_dir = uml_dir
-        module_path = self.arguments[0]
-        os.chdir(uml_dir)
-        basename = os.path.basename(module_path).split(".")[0]
-        # print(call(['pyreverse', '-o', 'png', '-p', basename,
-        #            os.path.abspath(os.path.join(src_dir, module_path))]))
-        # print(call(['pyplantuml', '-o', 'png', '-p', basename,
-        #            os.path.abspath(os.path.join(src_dir, module_path))]))
-        uri = directives.uri(os.path.join(self.DIR_NAME,
-                                          "classes_{0}_classes.png".format(basename)))
+        # module_path = self.arguments[0]
+        # os.chdir(uml_dir)
+        # basename = os.path.basename(module_path).split(".")[0]
+        outputstub = os.path.join(uml_dir, argdct[OUT_STUB])
+        exc_dir = argdct[EXCLUDE_STR]
+        infiles = argdct[IN_FILES]
+        cmdlst = ['/stockysrc/scocustom/snakenibbles/snibbles.py', '-o', outputstub, '-e', exc_dir,
+                  '-p', '/plantuml/plantuml.jar', '-j', '/usr/bin/java', infiles]
+        if lverb:
+            print("CMDLST: {}".format(cmdlst))
+        code_src_dir = argdct[SOURCE_DIR]
+        res = call(cmdlst, cwd=code_src_dir)
+        if lverb:
+            print("call res: {}".format(res))
+        if res != 0:
+            raise RuntimeError("return code {} for '{}'".format(" ".join(cmdlst)))
+        ofilename = os.path.join(self.DIR_NAME,
+                                 "{}.png".format(argdct[OUT_STUB]))
+        if lverb:
+            print("OFILE: {}".format(ofilename))
+        uri = rst.directives.uri(ofilename)
         scale = 100
         max_width = 1000
         if IMAGE:
@@ -93,7 +118,7 @@ class SnakeNibblesDirective(Directive):
             if image_width > max_width:
                 scale = max_width * scale / image_width
         img = nodes.image(uri=uri, scale=scale)
-        os.chdir(src_dir)
+        # os.chdir(src_dir)
         return [img]
 
 

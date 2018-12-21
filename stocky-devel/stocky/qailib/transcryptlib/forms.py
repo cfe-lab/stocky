@@ -1,4 +1,6 @@
-# implement client-side forms. I.e. all handling of the forms are in javascript in the browser.
+"""Implement client-side forms. I.e. all handling of the forms are in javascript
+in the browser.
+"""
 
 import typing
 import qailib.common.base as base
@@ -19,7 +21,8 @@ INPUT_SUBMIT = "submit"
 
 
 class modaldiv(htmlelements.div):
-    """ See here for how to set this up:
+    """Create a modal div element that can be used as a popup.
+    This link describes how to set modal dialogues up:
     https://www.w3schools.com/w3css/w3css_modal.asp
     """
     _OPN_MSG = 'modalopen'
@@ -28,14 +31,19 @@ class modaldiv(htmlelements.div):
     def __init__(self, parent: htmlelements.base_element,
                  idstr: str, headertitle: str,
                  attrdct: dict, headerfooterclass: str) -> None:
-        """ Create a modal div element that can be used as a popup.
-        The modal popup contains a
-        a) header containing text (headertitle) and a cancel button,
-        b) div that the user can access with get_content_element() and fill with content
-        c) a footer into which error strings can be but.
+        """
+        The modal popup contains:
+         * a header containing text (headertitle), a cancel button and a busy spinner.
+         * a div that the user can access with get_content_element() and fill with content
+         * a footer into which error strings can be put with :py:meth:`set_error_text`
 
-        headerfooterclass: a class attribute that is used to style the header and footers
-        of the modal dialog. A typical value of this would be "w3-teal"
+        Args:
+           parent: the prent object
+           idstr: the id string of this object
+           headertitle: text to put into the header of the popup
+           attrdct: attributes to use in the popup
+           headerfooterclass: a class attribute that is used to style the header\
+              and footers of the modal dialog. A typical value of this would be "w3-teal".
         """
         # print("MODALDIV INIT")
         super().__init__(parent, idstr, attrdct, None)
@@ -78,14 +86,32 @@ class modaldiv(htmlelements.div):
         # print("END MODALDIV INIT")
 
     def set_error_text(self, errtext: str) -> None:
+        """When something goes wrong, this method can be used to display
+        text in the error field of the popup.
+
+        Args:
+           errtext: the error text
+        """
         self.errspan.set_text(errtext)
 
     def set_busy(self, isbusy: bool) -> None:
+        """Set the busy spinner to on or off
+
+        Args:
+           isbusy: switch the spinner on (spinning) /off (not spinning)
+        """
         self.spinner.set_spin(isbusy)
 
     def show(self, on: bool) -> None:
-        """Show the modal on == False: switch it off.
-        NOTE: also clear any error text on opening.
+        """Show the modal dialogue on or off (i.e. make it visible on the screen,\
+           or make it disappear.
+
+        Args:
+           on: present the modal to the user.
+
+        Note:
+           If on == True, we also emit a base.MSGD_POPUP_OPENING message to any listeners\
+           and clear any error text on opening.
         """
         if on:
             self.sndMsg(base.MSGD_POPUP_OPENING, {})
@@ -102,6 +128,10 @@ class modaldiv(htmlelements.div):
                         buttontext: str) -> htmlelements.button:
         """Generate a button that can be used to open this modal dialog
         The textbutton will appear in the buttonparent, and show the buttontext.
+
+        Args:
+           buttonparent: the parent into which the created button should be made
+           buttontext: the text that should be put into the button
         """
         idstr = "{}but".format(self._idstr)
         attrdct = {'class': 'w3-button'}
@@ -111,7 +141,14 @@ class modaldiv(htmlelements.div):
 
     def attach_opener(self, opener: htmlelements.generic_element) -> None:
         """Modify the opener element such that, when it is clicked,
-        this modal dialog opens."""
+        this modal dialog opens.
+
+        Args:
+           opener: the object that will, when it is clicked on (i.e. receives a\
+           base.MSGD_BUTTON_CLICK event) will send this instance a modaldiv._OPN_MSG\
+           message. This will cause :py:meth:`self.rcvMsg` to be called, which will\
+           open the popup by calling :py:meth:`show(True)`.
+        """
         # the opener object will produce an buttonclick event with msgdat=OPN_MSG when
         # it is clicked.
         opener.setAttribute(STARATTR_ONCLICK, dict(msg=modaldiv._OPN_MSG))
@@ -125,6 +162,7 @@ class modaldiv(htmlelements.div):
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        """This method calls :py:meth:`show` in response to messages received."""
         if msgdesc == base.MSGD_BUTTON_CLICK:
             print("form GOT BUTTON CLICK {}".format(msgdat))
             msg = msgdat.get('msg', None) if msgdat else None
@@ -141,6 +179,17 @@ class BaseField(htmlelements.div):
     def __init__(self, parent: htmlelements.base_element,
                  fieldid: str, label: str,
                  input_field_type: str) -> None:
+        """
+        A basic Form field. Such a field will have a label describing the field
+        name to the user, and a HTML input field into which  data may be entered.
+
+        Args:
+           parent: the parent of the element.
+           fieldid: the id of the field
+           label: text to be used as a field label
+           input_field_type: the kind of input field to create. See :py:meth:`geninputfield`\
+              for a list of input field types.
+        """
         jsel = None
         attrdct = {'class': 'scoformdiv'}
         super().__init__(parent, fieldid, attrdct, jsel)
@@ -178,22 +227,24 @@ class BaseField(htmlelements.div):
 
 class spinner(htmlelements.div):
     """Display a spinner which can rotate in order to display a 'busy' state.
-    This code adapted from https://www.w3schools.com/w3css/w3css_animate.asp
+    This code is adapted from https://www.w3schools.com/w3css/w3css_animate.asp
     This class depends on font-awesome 4.7.0 for the image, and on w3 css for the
-    spinning.
-    In order to:
-    a) make the spinner disappear, remove the 'fa-spinner' class attribute.
-    b) remain visible, but not spin, remove the 'w3-spin' attribute.
+    spinning functionality.
 
-    NOTE image-name should refer to a font-awesome spinner name on:
-    https://fontawesome.com/icons?d=gallery&c=spinners&m=free
-    Useful examples are
-    (https://www.w3schools.com/icons/fontawesome_icons_spinner.asp )
-    fa-spinner
-    fa-circle-o-notch
-    fa-cog
-    fa-refresh
-    which are defined below.
+    In order to:
+      #. make the spinner disappear, remove the 'fa-spinner' class attribute.
+      #. remain visible, but not spin, remove the 'w3-spin' attribute.
+
+    Note:
+       image-name should refer to a font-awesome spinner name on:
+       https://fontawesome.com/icons?d=gallery&c=spinners&m=free
+       Useful examples are
+       (https://www.w3schools.com/icons/fontawesome_icons_spinner.asp )
+         * fa-spinner
+         * fa-circle-o-notch
+         * fa-cog
+         * fa-refresh
+       which are predefined in class variables.
     """
     SPN_SPINNER = 'fa-spinner'
     SPN_O_NOTCH = "fa-circle-o-notch"
@@ -244,7 +295,11 @@ class form(htmlelements.element):
 
     def add_submit_button(self, button_txt: str, attrdct: typing.Optional[dict]):
         """Add a submit button to the form. The button will display the
-        provided text. and use any other provided attributes.
+        provided text and use any other provided attributes.
+
+        Args:
+           button_txt: the text in the button, e.g. 'press me!'
+           attrdct: a dict of html class attributes for the button.
         """
         self._addEventListener('submit', self._internal_submithandler)
         att_dct = attrdct or {}
@@ -273,10 +328,20 @@ class form(htmlelements.element):
 
 
 class loginform(form):
+    """A modal dialog that handles use authentication.
+    Username and password fields are presented to the user for user authentication.
+    """
     def __init__(self, parent: htmlelements.base_element,
                  idstr: str,
                  my_popup: modaldiv,
                  attrdct: typing.Optional[dict]) -> None:
+        """
+        Args:
+           parent: the parent object
+           idstr: the unique id string
+           my_popup:
+           attrdct: the attribute dict
+        """
         # print("LOGINFORM")
         super().__init__(parent, idstr, my_popup, attrdct, None)
         self.username = BaseField(self, 'username', 'User Name', INPUT_TEXT)
@@ -320,7 +385,16 @@ class loginform(form):
             self.sndMsg(base.MSGD_FORM_SUBMIT, dct)
 
     def set_login_response(self, resdct: dict):
-        """Respond visually to a login attempt """
+        """Respond visually to a login attempt.
+
+        If the 'ok' field in the provided dict is True, the popup is removed by calling
+        :py:meth:`show(False)`. If 'ok is False, an error message is displayed in the popup.
+
+        Args:
+           resdct: a dict containing an 'ok' field (login was successful or not) and\
+           a 'msg' field which will be displayed in the popup error text field \
+           iff ok is False.
+        """
         popup = self._mypopup
         popup.set_busy(False)
         is_logged_in = resdct['ok']

@@ -5,7 +5,7 @@ from org.transcrypt.stubs.browser import location
 import qailib.transcryptlib.genutils as genutils
 import qailib.transcryptlib.websocket as websocket
 import qailib.transcryptlib.serversocket as serversock
-import wccontroller
+import webclient.wccontroller as wccontroller
 
 log = genutils.log
 

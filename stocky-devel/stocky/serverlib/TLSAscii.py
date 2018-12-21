@@ -1,13 +1,13 @@
 """Implement some of the Technology Solutions (UK) TSL ASCII Protocoll 2.4
 to control a RFID/bar code scanner over a serial device.
 
-This module is based on the Technology Solutions document available from www.tsl.com.
+This module is based on the Technology Solutions documents available from
+https://www.tsl.com/ .
 
 All commands are of the form
 '.'XY {'-'params}  <LF>
-
 i.e. a period followed by a two letter command, then
-a number of paramaters beginning with '-', and
+a number of parameters beginning with '-', and
 a linefeed.
 
 Some parameters need to be enclosed in double quotes.
@@ -33,13 +33,14 @@ EPCstring = str
 
 
 class BuzzViblen(Enum):
-    """length of buzzer or vibrator"""
+    """Length of duration of buzzer sound or vibrator"""
     short = 'sho'
     medium = 'med'
     _long = 'lon'
 
 
 class Buzzertone(Enum):
+    """Pitch of buzzer tone"""
     low = 'low'
     med = 'med'
     high = 'hig'
@@ -53,6 +54,14 @@ class AlertParams:
     def __init__(self,
                  buzzeron: bool, vibrateon: bool,
                  vblen: BuzzViblen, pitch: Buzzertone) -> None:
+        """
+
+        Args:
+           buzzeron: switch the buzzer on/offs
+           vibrateon: switch the RFID vibrator on/offs
+           vblen: length of buzzer and vibrator if on respectively
+           pitch: pitch of buzzer if on.
+        """
         self.buzzeron = buzzeron
         self.vibrateon = vibrateon
         self.vblen = vblen
@@ -65,9 +74,22 @@ class BarcodeParams:
                  doalert: bool,
                  with_date_time: bool,
                  read_time_secs: int) -> None:
+        """
+
+        Args:
+           doalert: perform a predefined alert sequence upon reading?
+           with_date_time: produce barcode data with timestamps of time read?
+           read_time_secs: barcode read time out in seconds. This must be 1 <= X <= 9 .
+
+        Raises:
+           TypeError: if read_time_secs is not an int.
+           ValueError: if read_time_secs is out of range.
+        """
         self.doalert = doalert
         self.with_date_time = with_date_time
         self.read_time_secs = read_time_secs
+        if not isinstance(read_time_secs, int):
+            raise TypeError("integer expected")
         if read_time_secs < 1 or read_time_secs > 9:
             raise ValueError("BarcodeParams: read_time is out of range!")
 
@@ -161,30 +183,29 @@ class RFIDParams:
     RSSI: received signal strength indicator
     TID: transponder identifier
 
-    do_alert            -al  perform an alert after the inventory operation
-    with_epc_cs         -c   include the EPC checksum in the response
-    with_epc_pc         -e   include the EPC PC  (protocol control) in the response
-    with_fast_id        -fi  with Impinj fast ID (include TID in response)
-    strongest_RSSI_only -fs  only return the tag with the strongest return signal (RSSI)
-    with EPC            -ie  include the EPC in the response
-    with_RSSI           -r   include RSSI in the response
-    inventory_only      -io  inventory only (no select phase)
-    output_power        -o   output power in dBm  [10 .. 29]
-    use_fixed_Q         -qa  Use a dynamic or a fixed query window
-    qvalue              -qv  In the case of a fixed query window, the length of this
+      * do_alert            -al  perform an alert after the inventory operation
+      * with_epc_cs         -c   include the EPC checksum in the response
+      * with_epc_pc         -e   include the EPC PC  (protocol control) in the response
+      * with_fast_id        -fi  with Impinj fast ID (include TID in response)
+      * strongest_RSSI_only -fs  only return the tag with the strongest return signal (RSSI)
+      * with EPC            -ie  include the EPC in the response
+      * with_RSSI           -r   include RSSI in the response
+      * inventory_only      -io  inventory only (no select phase)
+      * output_power        -o   output power in dBm  [10 .. 29]
+      * use_fixed_Q         -qa  Use a dynamic or a fixed query window
+      * qvalue              -qv  In the case of a fixed query window, the length of this
                              window [0..15]
-    query_select        -ql  query select type (SL, not SL, all)
-    query_session       -qs  [0..3]
-    query_target_a      -qt  query target A  (or B)
-
-    select_action       -sa  select action [0..7]
-    select_bank         -sb  bank to use for select mask
-    select_mask_data    -sd  select mask data
-    select_mask_len     -sl  length in bits of select mask
-    select_mask_shift   -so
-    select_target       -st
-    tag_focus_on        -tf  tag focus on
-    reset_to_default    -x   reset the parameters to defaults
+      * query_select        -ql  query select type (SL, not SL, all)
+      * query_session       -qs  [0..3]
+      * query_target_a      -qt  query target A  (or B)
+      * select_action       -sa  select action [0..7]
+      * select_bank         -sb  bank to use for select mask
+      * select_mask_data    -sd  select mask data
+      * select_mask_len     -sl  length in bits of select mask
+      * select_mask_shift   -so
+      * select_target       -st
+      * tag_focus_on        -tf  tag focus on
+      * reset_to_default    -x   reset the parameters to defaults
     """
     def __init__(self, **kw) -> None:
         # self.doalert = doalert
@@ -414,7 +435,9 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
         Typically, when the user presses the trigger of the RFID reader,
         we will send a message with the scanned data back.
-        NOTE: this method overrules the method defined in BaseTaskMeister.
+
+        Note:
+           This method overrules the method defined in BaseTaskMeister.
         """
         self._log_debug("TLS GM enter")
         # check for a change of the state of the commlink first.
@@ -439,9 +462,16 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.
-        Examples of this are 'us', 'eu', 'tw', etc.
-        NOTE: not all 1128 readers support this command and will return and error message
-        instead.
+
+        Args:
+           region_code: The region code to set. Examples of this are 'us', 'eu', 'tw', etc.
+
+        Raises:
+           TypeError: if region_code is not a string.
+           ValueError: if the length of region_code is not 2.
+        Note:
+           Not all 1128 readers support this command and will return an error message
+           instead.
         """
         if not isinstance(region_code, str):
             raise TypeError('string expected for region code')
@@ -452,7 +482,11 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     def doalert(self, p: AlertParams) -> None:
         """Perform the alert command: play a tone and/or buzz the vibrator
-        in the reader."""
+        in the reader.
+
+        Args:
+           p: defines the actions for the reader to perform.
+        """
 
         cmdstr = ".al -b{} -v{} -d{} -t{}\n".format(onoffdct[p.buzzeron],
                                                     onoffdct[p.vibrateon],
@@ -494,8 +528,23 @@ class TLSReader(Taskmeister.BaseTaskMeister):
                       bt_name: str,
                       bt_spp: bool,
                       bt_pairing_code: str) -> None:
-        """Set the bluetooth parameters. This command is only available over
-        a USB connection and always performs a reset of the reader.
+        """Set the bluetooth parameters.
+
+        Args:
+           bt_on: switch the bluetooth transmitter on/official
+           bundle_id: a string
+           bundle_seed_id: a string
+           bt_name: the name the RFID read will identify as in Bluetooth mode.
+           bt_spp: use bluetooth SPP mode
+           bt_pairing_code: the code which will be required for a device to
+           pair with the RFID reader over bluetooth.
+        Note:
+           This command is only available over a USB connection and always
+           performs a reset of the reader.
+
+        Raises:
+           TypeError: if any argument has an unexpected type.
+           ValueError: if len(bt_pairing_code) != 4.
         """
         if sum([isinstance(var, tt) for var, tt in [(bt_on, bool), (bundle_id, str),
                                                     (bundle_seed_id, str),
@@ -515,9 +564,24 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     def set_date_time(self, yy: int, mm: int, dd: int,
                       hrs: int, mins: int, secs: int) -> None:
-        """Set the date and time of reader.
+        """Set the date and time of the RFID reader.
 
-        The hour (hh parameter) is in  24 hour format.
+        Args:
+           yy: the year >= 2000.
+           mm: the month 1 <= x <= 12
+           dd: the day of the month
+           hrs: the hour of the day in  24 hour format.
+           mins: the minutes of the hour
+           secs: the second of the minute.
+
+        Raises:
+           TypeError: if any argument is not an integer
+           ValueError: if any argument is out of range.
+
+        Note:
+          This routine does *NOT* check whether, collectively,
+          the arguments constitute a valid calendar date. E.g. setting
+          a date of 30th February will be silently allowed.
         """
         if isinstance(hrs, int):
             if not (0 <= hrs <= 24):
@@ -560,11 +624,16 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         self._sendcmd(".iv -x", "IVreset")
 
     def BT_set_radar_mode(self, epc: typing.Optional[EPCstring]) -> None:
-        """Set up the reader to search for a tag with a specific Electronic Product Code (EPC).
-        by later on issuing RadarGet() commands.
-        The 'Radar' functionality allows the user to search for a specific tag, and to determine
-        its distance from the reader using the RSS (return signal strength) field.
-        See the TLS document: 'Application Note - Advice for Implementing a Tag Finder Feature V1.0.pdf'
+        """Set up the reader to search for a tag with a
+           specific Electronic Product Code (EPC) by later on issuing RadarGet() commands.
+
+        Args:
+           epc: the EPC of the RFID tag to track. None means all tags will be tracked.
+
+        The 'Radar' functionality allows the user to search for a specific tag, and
+        to determine its distance from the reader using the RSS (return signal strength) field.
+        Note:
+           See the TLS document: 'Application Note - Advice for Implementing a Tag Finder Feature V1.0.pdf'
         """
         if epc is not None:
             if not is_valid_EPC(epc):
@@ -592,7 +661,15 @@ class TLSReader(Taskmeister.BaseTaskMeister):
 
     def send_RFID_msg(self, msg: CommonMSG) -> None:
         """The stocky server uses this routine to send messages (commands) to the
-        RFID reader device."""
+        RFID reader device.
+
+        Args:
+           msg: the message to translate into commands to the RFID reader.
+
+        Raises:
+           TypeError: if msg is not a CommonMSG instance.
+           RuntimeError: if the command is of a type not implemented.
+        """
         if not isinstance(msg, CommonMSG):
             raise TypeError('CommonMSG instance expected')
         if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
@@ -617,13 +694,22 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         """Select a tag with the provided EPC code and write
         the data string to the user bank.
 
-        The data string is a string containing ASCII-hex characters
-        which must be a multiple of four (only words are written).
+        Args:
+           epc: the EPC of the RFID tag to write to.
+           data: the data string to write to the RFID tag's user bank.
+                 This is a string containing ASCII-hex characters
+                 which must be a multiple of four (only words can be written).
 
-        NOTE: this command string was adapted from the document provided
-        by TSL to their customers:
-        Application Note - Selecting Reading and Writing Transponders
-        with the TSL ASCII 2 Protocol V1.33.pdf
+        Note:
+           This command string was adapted from the document provided
+           by TSL to their customers:
+           Application Note - Selecting Reading and Writing Transponders
+           with the TSL ASCII 2 Protocol V1.33.pdf
+
+        Raises:
+           ValueError: if is_valid_EPC(epc) returns False or len(data) is not
+              a multiple of 4.
+           TypeError: if data is not an instance of string.
         """
         if not is_valid_EPC(epc):
             raise ValueError("illegal EPC = '{}'".format(epc))
@@ -642,6 +728,15 @@ class TLSReader(Taskmeister.BaseTaskMeister):
     def read_user_bank(self, epc: EPCstring, num_chars: int) -> None:
         """Select a tag with the provided EPC code and read out the
         data string from the tag's user bank.
+
+        Args:
+           epc: the EPC of the RFID tag to read from
+           num_chars: the number of bytes (chars) to read from the user bank.
+
+        Raises:
+           ValueError: if is_valid_EPC(epc) returns False or num_chars is not a multiple
+           of four.
+           TypeError: if num_chars is not an integer.
         """
         if not is_valid_EPC(epc):
             raise ValueError("illegal EPC = '{}'".format(epc))

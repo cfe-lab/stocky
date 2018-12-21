@@ -48,6 +48,8 @@ class Test_TLSAscii:
         self.bad_epc = "123456"
 
     def test_radar01(self):
+        """BT_set_radar_mode() with valid/invalid arguments should behave
+        appropriately."""
         with pytest.raises(ValueError):
             self.tls.BT_set_radar_mode(self.bad_epc)
         # --
@@ -58,11 +60,17 @@ class Test_TLSAscii:
         # assert False, "force fail"
 
     def test_is_radarmode01(self):
-        assert not self.tls.is_in_radarmode(), 'not radarmode expected!'
+        """is_in_radarmode() should return the expected value depending on actual mode."""
+        res = self.tls.is_in_radarmode()
+        assert isinstance(res, bool), "expected bool"
+        assert not res, 'not radarmode expected!'
         self.tls.mode = TLSAscii.tls_mode.radar
-        assert self.tls.is_in_radarmode(), 'radarmode expected!'
+        res = self.tls.is_in_radarmode()
+        assert isinstance(res, bool), "expected bool"
+        assert res, 'radarmode expected!'
 
-    def test_barcodeparams01(self):
+    def test_barcodeparams_valid(self):
+        """Creating and setting valid BarcodeParams should work."""
         bb = TLSAscii.BarcodeParams(True, True, 1)
         assert bb is not None, "alert failed"
         bcstr = bb.tostr()
@@ -70,11 +78,13 @@ class Test_TLSAscii:
         self.tls.set_readbarcode_params(bb)
         self.tls.readbarcode(bb)
 
-    def test_barcodeparams02(self):
+    def test_barcodeparams_invalid(self):
+        """Creating a BarcodeParams instance with invalid data should raise a ValueError."""
         with pytest.raises(ValueError):
             TLSAscii.BarcodeParams(True, True, 22)
 
     def test_alertparams01(self):
+        """Creating a TLSAscii.AlertParams instance with valid arguments does work."""
         aa = TLSAscii.AlertParams(buzzeron=False, vibrateon=True,
                                   vblen=TLSAscii.BuzzViblen('med'),
                                   pitch=TLSAscii.Buzzertone('med'))
@@ -83,12 +93,15 @@ class Test_TLSAscii:
         self.tls.set_alert_default(aa)
 
     def test_abort_cmd(self):
+        """Calling send_abort() to interrupt a command does work."""
         self.tls.send_abort()
 
-    def test_RFIDparams01(self):
+    def test_RFIDparams_configOK(self):
+        """The TLSAscii.rfid_lst and TLSAscii.rfid_order_lst lists have the same length"""
         assert len(TLSAscii.rfid_lst) == len(TLSAscii.rfid_order_lst)
 
-    def test_RFIDparams02(self):
+    def test_RFIDparams_alert(self):
+        """TLSAscii.RFIDParams(do_alert='on').tostr() returns the expected string"""
         exp_str = '-al on'
         rr = TLSAscii.RFIDParams(do_alert='on')
         retstr = rr.tostr()
@@ -97,7 +110,8 @@ class Test_TLSAscii:
             raise RuntimeError("RFIDParams fail")
         # assert False, "force fail"
 
-    def test_RFIDparams03(self):
+    def test_RFIDparams_reset_to_defaults(self):
+        """TLSAscii.RFIDParams(reset_to_default=None).tostr() returns the expected string"""
         exp_str = '-x '
         rr = TLSAscii.RFIDParams(reset_to_default=None)
         retstr = rr.tostr()
@@ -106,7 +120,9 @@ class Test_TLSAscii:
             raise RuntimeError("RFIDParams fail")
 
     def test_set_date_time(self):
-        """Test legal and illegal datetimes..."""
+        """Test legal and illegal arguments to set_date_time(), which should raise
+        exceptions when appropriate.
+        """
         # try with wrong values
         for dt in [(2009, 10, 20, 25, 60, 60),
                    (2009, 10, 20, 23, 60, 59),
@@ -133,27 +149,33 @@ class Test_TLSAscii:
         self.tls.set_date_time(*dt)
 
     def test_RFIDparams04(self):
+        """TLSAscii.RFIDParams(wonky_arg=99) should raise a RuntimeError."""
         with pytest.raises(RuntimeError):
             TLSAscii.RFIDParams(wonky_arg=99)
 
     def test_runningave01(self):
+        """A RunningAve instance with zero window averaging should raise a RuntimeError."""
         with pytest.raises(RuntimeError):
             TLSAscii.RunningAve(self.logger, 0)
 
     def test_stock_check_mode(self):
+        """BT_set_stock_check_mode() should not crash"""
         self.tls.BT_set_stock_check_mode()
 
     def test_set_region(self):
-        """Test setting the region code string"""
+        """Setting an invalid region code string should raise an exception.
+           Setting a valid region code should not.
+        """
         for reg, exc in [('BLA', ValueError),
                          (100, TypeError)]:
             with pytest.raises(exc):
                 self.tls.set_region(reg)
-
         # NOTE: this should work, but we don't yet test for the generated output..
         self.tls.set_region('us')
 
     def test_runningave02(self):
+        """Feeding RFID scan data into a TLSAscii.RunningAve instance should
+        produce the expected average value."""
         ave_len = 2
         rone = [('CS', '.iv'),
                 ('EP', '000000000000000000001242'), ('RI', '-65'), ('OK', '')]
@@ -168,16 +190,9 @@ class Test_TLSAscii:
             else:
                 assert run_ave is not None, "running ave is None for i> ave_len"
 
-    def test_deadcl(self):
-        """this no longer should raise an exception -- we allow for the commlink
-        coming online afterwards..."""
-        # with pytest.raises(RuntimeError):
-        TLSAscii.TLSReader(self.msgQ,
-                           self.logger,
-                           self.deadcl,
-                           self.radar_ave_num)
-
     def test_RI2dist01(self):
+        """ TLSAscii.RunningAve.RI2dist should convert RI values into expected distance
+          values."""
         rivals = [(-65, 1.0),
                   (-70, 1.53),
                   (-62, 0.77)]
@@ -189,9 +204,10 @@ class Test_TLSAscii:
                 raise RuntimeError("unexpected distance RI: {}, exp: {}, got:  {}".format(ri,
                                                                                           exp_val,
                                                                                           got_val))
-        # assert False, "force fail"
 
     def test_radardata01(self):
+        """Invalid radar data (RI field) should result in RunningAve._radar_data()
+           returning None."""
         rone = [('CS', '.iv'),
                 ('EP', '000000000000000000001242'), ('RI', 'BLA'), ('OK', '')]
         for testlst in [rone]:
@@ -200,7 +216,7 @@ class Test_TLSAscii:
             assert gotval is None, "expected None"
 
     def test_convert_msg(self):
-        "Test the _convert_message with a number of legal and illegal RFID messages"
+        "Test  _convert_message() with a number of legal and illegal RFID messages"
         rone = [('CS', '.iv'),
                 ('EP', '000000000000000000001242'), ('RI', '-64'),
                 ('EP', '000000000000000000001243'), ('RI', '-55'),
@@ -338,7 +354,10 @@ class Test_TLSAscii:
             raise RuntimeError("expected None")
 
     def test_sendRFIDmsg(self):
-        # sending an instance other than a CommonMSG should raise an exception
+        """Test behaviour of send_RFID_msg() with a number of valid/ invalid
+        arguments. E.g. sending an instance other than a CommonMSG should
+        raise an exception.
+        """
         with pytest.raises(TypeError):
             self.tls.send_RFID_msg('bla')
 
@@ -361,6 +380,8 @@ class Test_TLSAscii:
         # assert self.tls.mode == TLSAscii.tls_mode.stock
 
     def test_is_valid_EPC(self):
+        """TLSAscii.is_valid_EPC(epc) should return the expected value
+        on valid/invalid input"""
         for epc, exp_val in [('bla', False),
                              ('000000000000000000001237', True),
                              ('0000000AB000000000001237', True),
@@ -372,6 +393,8 @@ class Test_TLSAscii:
                 raise RuntimeError("unexpected res={} for '{}'".format(res, epc))
 
     def test_set_bluetooth01(self):
+        """set_bluetooth() should raise a TypeError on bad input, and
+        not do so on good input."""
         for bad_dat in [(1, 'bla', 'blu', 'bt_name', True, 'pcod'),
                         (True, 100, 'blu', 'bt_name', True, 'pcod'),
                         (True, 'bla', 'blu', 'bt_name', 1, 'pcod')]:
@@ -386,6 +409,8 @@ class Test_TLSAscii:
         self.tls.set_bluetooth(*good_dat)
 
     def test_write_userbank01(self):
+        """write_user_bank() should raise an appropriate exception
+        on bad input and not do so on good input."""
         valid_data = '0123ABCDEF89'
         with pytest.raises(ValueError):
             self.tls.write_user_bank(self.bad_epc, valid_data)
@@ -398,6 +423,9 @@ class Test_TLSAscii:
         self.tls.write_user_bank(self.good_epc, valid_data)
 
     def test_read_userbank01(self):
+        """read_user_bank() should raise ValueError on bad input and
+        not do so on good input.
+        """
         with pytest.raises(ValueError):
             self.tls.read_user_bank(self.bad_epc, 4)
         # --

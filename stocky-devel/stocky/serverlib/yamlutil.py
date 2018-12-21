@@ -36,7 +36,7 @@ def get_filename(yamlfilename: str, ENV_NAME: str = None) -> str:
        A possibly modified file name.
 
     Raises:
-       RuntimeError: if the ENV_NAME is accessed and not defined
+       RuntimeError: if the ENV_NAME argument is not None and not defined in the environment.
     """
     if yamlfilename.startswith('/') or yamlfilename.startswith('.') or ENV_NAME is None:
         return yamlfilename

@@ -1,6 +1,6 @@
 """ A utility module for creating simple HTML tables.
-All of these classes are based on classes from htmlelements
-for tables, but add some methods for ease of use.
+All of these classes are based on classes from :py:mod:`htmlelements`
+for tables, but add some methods for ease of use and added functionality such as sorting.
 """
 
 

@@ -60,6 +60,7 @@ extensions = [
     'sphinxcontrib.plantuml',
     'source.scopyreverse',
     'source.snakenibbles',
+    'source.sphinx-pytest-tables'
     # 'sphinxcontrib.test_reports'
 ]
 

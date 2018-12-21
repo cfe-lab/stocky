@@ -158,6 +158,7 @@ class Test_Taskmeister:
             raise RuntimeError("unexpected tn = {}".format(tn))
 
     def test_filechecker01(self) -> None:
+        """The FileChecker must register when a watched filed is created and deleted."""
         checkfile = tempfile.NamedTemporaryFile()
         checkfilename = checkfile.name
         ft = Taskmeister.FileChecker(self.msgq, self.logger,
@@ -205,6 +206,8 @@ class Test_Taskmeister:
         self.perform_timetest(rand)
 
     def test_base01(self) -> None:
+        """A BaseTaskNeister must raise NotImplementedError exceptions on
+        methods to be overridden in subclasses."""
         tt1 = Taskmeister.BaseTaskMeister(self.msgq, self.logger, 1, False)
         # tt2 = Taskmeister.BaseReader(self.msgq, self.logger, 1, False)
         # for tt in [tt1, tt2]:
@@ -213,6 +216,7 @@ class Test_Taskmeister:
                 tt.generate_msg()
 
     def test_listgen01(self) -> None:
+        """A CommandListGenerator should produce the expected commands"""
         testlist = ['one', 'two', '', 'three']
         tt = Taskmeister.CommandListGenerator(self.msgq,
                                               self.logger,
@@ -231,6 +235,8 @@ class Test_Taskmeister:
         assert gotmsglst == expected_lst, "lists are not the same!"
 
     def test_listgen02(self) -> None:
+        """A CommandListGenerator should raise a ValueError exception when given
+        an empty list of commands"""
         testlist: typing.List[str] = []
         with pytest.raises(ValueError):
             Taskmeister.CommandListGenerator(self.msgq,

@@ -40,8 +40,8 @@ def do_hash(dat: typing.Any) -> str:
        Because conversion to json is involved, only serialisable data structures
        can be input.
     Note:
-       In this routine, it is crucial that keys are sorted in dicts when converting
-       to json in order to ensure that identical dicts created
+       In this routine, crucially,  keys are sorted in dicts when converting
+       to json.  This ensures that identical dicts created
        differently (adding elements in a different order)
        produce the same hash.
 
@@ -54,6 +54,7 @@ def do_hash(dat: typing.Any) -> str:
 
 
 class Reagent(Base):
+    """A class describing a reagent."""
     __tablename__ = 'reagents'
 
     id = sql.Column(sql.Integer, primary_key=True)
@@ -82,6 +83,7 @@ class Reagent(Base):
 
 
 class Location(Base):
+    """A class describing a physical location at which reagent items are stored."""
     __tablename__ = 'locations'
 
     id = sql.Column(sql.Integer, primary_key=True)
@@ -104,6 +106,7 @@ class Reagent_Item(Base):
 
 
 class Reagent_Item_Composition(Base):
+    """A class describing the composition of a reagent item."""
     __tablename__ = 'reag_item_comp'
 
     id = sql.Column(sql.Integer, primary_key=True)
@@ -112,6 +115,7 @@ class Reagent_Item_Composition(Base):
 
 
 class Reagent_Item_Status(Base):
+    """A class describing the status of a reagent item."""
     __tablename__ = 'reag_item_status'
 
     id = sql.Column(sql.Integer, primary_key=True)
@@ -126,6 +130,7 @@ class Reagent_Item_Status(Base):
 
 
 class User(Base):
+    """A class describing a QAI user."""
     __tablename__ = 'users'
 
     id = sql.Column(sql.Integer, primary_key=True)
@@ -137,21 +142,27 @@ class User(Base):
 
 
 class TimeUpdate(Base):
+    """A class describing a time a database table was updated"""
     __tablename__ = "lastupdate"
     id = sql.Column(sql.Integer, primary_key=True)
     # dt = sql.Column(sql.TIMESTAMP(timezone=True), default=datetime.datetime.utcnow)
     dt = sql.Column(sql.TIMESTAMP(timezone=True), default=timelib.utc_nowtime)
 
 
-# for each table above, keep a time-stamp of when it was last updated on the QAI server.
 class TableChange(Base):
+    """For each table define in this module, keep a time-stamp of when it was
+    last updated on the QAI server.
+    This information is used to efficiently update only those tables that need updating.
+    """
     __tablename__ = 'tabchange'
     table_name = sql.Column(sql.String, primary_key=True)
     stamp = sql.Column(sql.String)
 
 
-# when stock taking, keep track of RFID's that have changed position.
 class Locmutation(Base):
+    """A class to keep track of a change in location of a reagent item:
+    When stock taking, keep track of RFID's that have changed position.
+    """
     __tablename__ = 'locmutation'
     reag_item_id = sql.Column(sql.Integer, primary_key=True)
     locid = sql.Column(sql.Integer)

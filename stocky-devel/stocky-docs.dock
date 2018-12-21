@@ -5,7 +5,9 @@ FROM stocky-base:latest
 
 MAINTAINER wscott@cfenet.ubc.ca
 
-RUN apt-get install -y graphviz default-jre vim unzip
+# Note: due a quirk in debian stretch, must make the man directory before installing java stuff
+RUN mkdir -p /usr/share/man/man1 && \
+    apt-get install -y graphviz default-jre unzip
 
 COPY stocky/requirements-docs.txt /stockysrc/requirements-docs.txt
 
@@ -13,9 +15,11 @@ WORKDIR /stockysrc
 
 RUN  pip install --no-cache-dir -r requirements-docs.txt
 
-# install plantuml
+# install plantuml -- we need wget for this
 WORKDIR /plantuml
-RUN /stockysrc/plantuml/download_jar.sh
+RUN apt-get install -y wget && \
+    /stockysrc/plantuml/download_jar.sh \
+    apt-get remove -y wget
 
 # also install the locally modified pyplantuml module
 # this generates class diagrams using pyreverse and plantuml
@@ -27,8 +31,6 @@ RUN python3 setup.py develop
 # WORKDIR /snakefood
 # RUN wget https://bitbucket.org/hajek/snakefood/get/abc8b1652d44.zip
 # RUN unzip abc8b1652d44.zip && cd hajek-snakefood-abc8b1652d44  && python3 setup.py install
-
-
 
 
 

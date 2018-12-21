@@ -1,3 +1,7 @@
+"""The main program of any stocky webclient consists of a controller class
+"""
+
+
 import typing
 import qailib.common.base as base
 
@@ -7,9 +11,9 @@ import qailib.transcryptlib.htmlelements as html
 import qailib.transcryptlib.forms as forms
 import qailib.transcryptlib.widgets as widgets
 
-from commonmsg import CommonMSG
-import wcviews
-import wcstatus
+from webclient.commonmsg import CommonMSG
+import webclient.wcviews as wcviews
+import webclient.wcstatus as wcstatus
 
 log = genutils.log
 

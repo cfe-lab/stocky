@@ -1,16 +1,14 @@
 Stocky Server Documentation
 ***************************
-#.. image:: bla.svg
-#   :width: 100%
 
 Module Overview
 ===============
 
-# .. snakenibbles::
-#    :source_directory: /stockysrc 
-#    :infiles: './*.py serverlib'
-#    :outfile: overview.plantuml
-#    :exclude: test
+ .. snakenibbles::
+    :source_directory: /stockysrc 
+    :infiles: ./*.py serverlib
+    :outstub: overview
+    :exclude: test
 
 
 Module serverlib.stockyserver
@@ -37,6 +35,7 @@ Module serverlib.ServerWebSocket
 
 Module serverlib.Taskmeister
 ============================
+
 .. scopyreverse:: /stockysrc/serverlib/Taskmeister
     :gooly:
     :bla:
@@ -44,6 +43,12 @@ Module serverlib.Taskmeister
 	:members:
 	:show-inheritance:
 
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_taskmeister.py
+   :tabletitle: The Taskmeister unit test results
+
+	   
 Module serverlib.yamlutil
 =========================
 .. scopyreverse:: /stockysrc/serverlib/yamlutil
@@ -52,6 +57,12 @@ Module serverlib.yamlutil
 .. automodule:: serverlib.yamlutil
 	:members:
 	:show-inheritance:
+	   
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_yamlutil.py
+	      
+
 
 Module serverlib.serverconfig
 =============================
@@ -62,7 +73,12 @@ Module serverlib.serverconfig
 	:members:
 	:show-inheritance:
 
-Module ChemStock.ChemStock
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_serverconfig.py
+	      
+	   
+Module ChemStok.ChemStock
 ===========================
 .. scopyreverse:: /stockysrc/serverlib/ChemStock
     :gooly:
@@ -76,6 +92,33 @@ Module ChemStock.ChemStock
 	:members:
 	:show-inheritance:
 
+.. pytesttable::
+   :testresultfile: /stockysrc/chemstocktest.yaml
+   :testfile: test_ChemStock.py
+   :testclass: Test_Chemstock_NOQAI
+   :tabletitle: ChemStock tests that do not access QAI
+
+		
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_ChemStock.py
+   :testclass: Test_Chemstock_EMPTYDB
+   :tabletitle: ChemStock tests that are performed on an empty database
+
+		
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_ChemStock.py
+   :testclass: Test_funcs
+   :tabletitle: Tests of helper functions in ChemStock
+		
+.. pytesttable::
+   :testresultfile: /stockysrc/chemstockqaitest.yaml
+   :testfile: test_ChemStock.py
+   :testclass: Test_Chemstock_WITHQAI
+   :tabletitle: ChemStock tests that access a QAI server
+
+		
 Module serverlib.commlink
 =========================
 .. scopyreverse:: /stockysrc/serverlib/commlink
@@ -84,7 +127,12 @@ Module serverlib.commlink
 .. automodule:: serverlib.commlink
 	:members:
 	:show-inheritance:
+	   
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_commlink.py
 
+	      
 Module serverlib.timelib
 =========================
 .. scopyreverse:: /stockysrc/serverlib/timelib
@@ -93,6 +141,23 @@ Module serverlib.timelib
 .. automodule:: serverlib.timelib
 	:members:
 	:show-inheritance:
+
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_timelib.py
+
+Module serverlib.TLSAscii
+=========================
+.. scopyreverse:: /stockysrc/serverlib/TLSAscii
+    :gooly:
+    :bla:
+.. automodule:: serverlib.TLSAscii
+	:members:
+	:show-inheritance:
+
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_TLSAscii.py
 
 
 Module serverlib.qai_helper
@@ -103,3 +168,13 @@ Module serverlib.qai_helper
 .. automodule:: serverlib.qai_helper
 	:members:
 	:show-inheritance:
+
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_qai_helper.py
+   :tabletitle: qai_helper tests without server access
+
+.. pytesttable::
+   :testresultfile: /stockysrc/qaitest.yaml
+   :testfile: test_qai_helper.py
+   :tabletitle: qai_helper tests with server access		

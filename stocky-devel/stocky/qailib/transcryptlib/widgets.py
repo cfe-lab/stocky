@@ -1,3 +1,10 @@
+"""Define controllers and widgets.
+   A controller is simply and base_ob with some predefined methods that is used as
+   a main program. The controller has predefined ways of reacting to events such as
+   button clocks etc.
+   A widget is an html element associated with a controller. It sends its events to
+   the controllerfor handling.
+"""
 
 import typing as T
 # 2018-09-07: importing typing in the following way leads to javascript run-time
@@ -53,19 +60,29 @@ class base_controller(base.base_obj):
     def form_submit(self, whofrom: base.base_obj, data_in: T.Optional[base.MSGdata_Type]) -> None:
         """This function is called when a form has verified its input fields
         and has data to provide. This is sent in the data_in argument.
+
+        Args:
+           whofrom: who the message is from
+           data_in: the data in the message
         """
         pass
 
     def data_cache_ready(self, whofrom: base.base_obj, data_in: T.Optional[base.MSGdata_Type]) -> None:
         """ This method is called whenever a MSGD_DATA_CACHE_READY message is sent
         to this controller.
-        NOTE: the data is provided as a python dictionary.
+
+        Args:
+           whofrom: who the message is from
+           data_in: the data in the message
+
+        Note: the data is provided as a python dictionary.
         """
         pass
 
     def log_event(self, whofrom: base.base_obj, data_in: T.Optional[base.MSGdata_Type]) -> None:
         """ This method is called whenever the datacache issues a logging event.
-        NOTE: the data is provided as a python dictionary with
+
+        Note: the data is provided as a python dictionary with
         'exitcode' and 'errmsg' keys.
         """
         pass
@@ -77,6 +94,14 @@ class base_widget(html.div):
     """
     def __init__(self, contr: base_controller, parent: 'base_widget',
                  idstr: str, attrdct: dict, jsel) -> None:
+        """
+        Args:
+           contr: the controller with which this widget is associated.
+           parent: the visual parent in the DOM hiearchy.
+           idstr: the HTML id string of the object
+           attrdct: a dictionary of HTML attributes.
+           jsel: an optional existing javascript instance
+        """
         super().__init__(parent, idstr, attrdct, jsel)
         self._contr = contr
         if contr is not None:
@@ -86,7 +111,9 @@ class base_widget(html.div):
 class ColourLed(base_widget):
     """A coloured round LED indicator button.
     When clicked, this element will send a message with its idstr to the controller.
-    NOTE: the colours of this element are created by CSS style sheets (assets/css/leds.css).
+
+    Note:
+       The colours of this element are created by CSS style sheets (assets/css/leds.css).
     """
     RED = 0
     YELLOW = 1
@@ -95,6 +122,14 @@ class ColourLed(base_widget):
 
     def __init__(self, contr: base_controller,
                  parent: base_widget, idstr: str, initial_colour=0) -> None:
+        """
+
+        Args:
+           contr: the controller of the widget
+           parent: the DOM parent
+           idstr: the id string
+           initial_colour: the initial colour of the LED
+        """
         # these reflect the names in the css file. The order must reflect the indices
         # define above.
         self.cols = ['led-red', 'led-yellow', 'led-green', 'led-blue']
@@ -146,31 +181,6 @@ class text_button(base_button):
                  idstr: str, attrdct: dict, jsel, button_text: str) -> None:
         super().__init__(contr, parent, idstr, attrdct, jsel)
         html.textnode(self._butel, button_text)
-
-
-#                 idstr: str, attrdct: dict, data_element) -> None:
-# class text_display(base_widget):
-#    def __init__(self, contr: base_controller, parent: base_button,
-#                 idstr: str, attrdct: dict, jsel, data_element: dataelements.record) -> None:
-#        super().__init__(contr, parent, idstr, attrdct, jsel)
-#        self._data_el = data_element
-#        self._txt = html.textnode(self, 'GOO1')
-#        self.rcvMsg(self, base.MSGD_VALUE_CHANGE, None)
-#        data_element.addObserver(self, base.MSGD_VALUE_CHANGE)
-#
-#    def rcvMsg(self, whofrom: base.base_obj,
-#               msgdesc: base.MSGdesc_Type,
-#               msgdat: T.Optional[base.MSGdata_Type]) -> None:
-#        if msgdesc == base.MSGD_VALUE_CHANGE:
-#            log('text_disp: value change!')
-#            if msgdat is not None:
-#                newdat = msgdat.get('data', None)
-#                if newdat is not None:
-#                    # self._txt.set_text(self._data_el.get_as_string('data'))
-#                    self._txt.set_text(newdat.get_as_string('data'))
-#        else:
-#            log('text_disp: received {}, calling superclass'.format(msgdesc))
-#            super().rcvMsg(whofrom, msgdesc, msgdat)
 
 
 def scodict_table(parent, idstr, attrdct, coltuple, dct_lst, colattr=None) -> html.table:
@@ -304,7 +314,8 @@ class SwitchView(base_widget):
     Only one of these is visible at any one time, one is able to switch
     between them.
 
-    NOTE: this works by setting and removing the hidden HTML5 attribute
+    Note:
+    this works by setting and removing the hidden HTML5 attribute
     of the elements.
     This will only work with list elements that support this attribute, such
     as div elements.
@@ -320,13 +331,27 @@ class SwitchView(base_widget):
         self.view_dct: T.Dict[str, BasicView] = {}
 
     def addView(self, child_el: BasicView, viewname: str):
-        """Add a view into the switchview under a given viewname"""
+        """Add a view into the switchview under a given viewname.
+        Args:
+           child_el: the view to add to this SwitchView
+           viewname: the name of the view to add. This should be unique in the
+           switchview, but this is not checked.
+        """
         self.view_lst.append(child_el)
         self.view_dct[viewname] = child_el
         child_el.addObserver(self, base.MSGD_BUTTON_CLICK)
 
     def getView(self, numorname) -> T.Optional[BasicView]:
-        # find the view which should be 'on'
+        """find the view which should be 'on', i.e. visible.
+
+        Args:
+           numorname: this can be an int or a string.
+              if an int, then the n'th view added to the switch view is returned.
+              if a string, a dict lookup is performed.
+
+        Returns:
+           The view determined, otherwise None
+        """
         on_view = None
         if isinstance(numorname, int):
             if 0 <= numorname < len(self.view_lst):
@@ -341,8 +366,13 @@ class SwitchView(base_widget):
 
     def switchTo(self, numorname) -> None:
         """Make element number n (0 is the first) visible and turn all others off.
-        NOTE: if n is an invalid value, then we log a complaint, but otherwise
-        do nothing. This will result in all elements being hidden.
+
+        Args:
+           numorname: an int or string identifying the view,
+
+        Note:
+           if n is an invalid value, then we log a complaint, but otherwise
+           do nothing. This will result in all elements being hidden.
         """
         on_view = self.getView(numorname)
         if on_view is None:
@@ -354,6 +384,11 @@ class SwitchView(base_widget):
                whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
                msgdat: T.Optional[base.MSGdata_Type]) -> None:
+        """This method calls :py:meth:`switchTo` in response to messages
+           received.
+        In this way, e.g. a button element can send a message to the SwitchView to
+        switch between views in response to user input.
+        """
         print("switchview: got message {}, {}".format(msgdesc, msgdat))
         if msgdat is not None:
             cmd = msgdat.get('cmd', None)

@@ -1,0 +1,142 @@
+@startuml
+title classes TLSAscii
+class BuzzViblen 
+class short {
+    +name
+    +value
+}
+class medium {
+    +name
+    +value
+}
+class _long {
+    +name
+    +value
+}
+class Buzzertone 
+class low {
+    +name
+    +value
+}
+class med {
+    +name
+    +value
+}
+class high {
+    +name
+    +value
+}
+class AlertParams {
+    +buzzeron
+    +pitch
+    +vblen
+    +vibrateon
+}
+class BarcodeParams {
+    +doalert
+    +read_time_secs
+    +with_date_time
+    +tostr(self)
+}
+class QStype 
+class _all {
+    +name
+    +value
+}
+class nsl {
+    +name
+    +value
+}
+class sl {
+    +name
+    +value
+}
+class BankSelectType 
+class epc {
+    +name
+    +value
+}
+class tid {
+    +name
+    +value
+}
+class usr {
+    +name
+    +value
+}
+class SelectTargetType 
+class s0 {
+    +name
+    +value
+}
+class s1 {
+    +name
+    +value
+}
+class s2 {
+    +name
+    +value
+}
+class s3 {
+    +name
+    +value
+}
+class sl {
+    +name
+    +value
+}
+class RFIDParams {
+    +pdct
+    +tostr(self)
+}
+class tls_mode 
+class stock {
+    +name
+    +value
+}
+class radar {
+    +name
+    +value
+}
+class undef {
+    +name
+    +value
+}
+class RunningAve {
+    +Nave
+    +logger
+    +RI2dist(ri:int)
+    +add_clresp(self, clresp:commlink.CLResponse)
+    +do_ave(numexp:int, tlst:typing.List[int])
+    +get_runningave(self)
+    +reset_average(self)
+}
+class TLSReader {
+    +cur_state
+    +mode
+    +runningave
+    +BT_set_radar_mode(self, epc:typing.Optional[EPCstring])
+    +BT_set_stock_check_mode(self)
+    +RadarGet(self)
+    +doalert(self, p:AlertParams)
+    +generate_msg(self)
+    +is_in_radarmode(self)
+    +read_user_bank(self, epc:EPCstring, num_chars:int)
+    +readbarcode(self, p:BarcodeParams)
+    +reset_inventory_options(self)
+    +send_RFID_msg(self, msg:CommonMSG)
+    +send_abort(self)
+    +set_alert_default(self, p:AlertParams)
+    +set_bluetooth(self, bt_on:bool, bundle_id:str, bundle_seed_id:str, bt_name:str, bt_spp:bool, bt_pairing_code:str)
+    +set_date_time(self, yy:int, mm:int, dd:int, hrs:int, mins:int, secs:int)
+    +set_readbarcode_params(self, p:BarcodeParams)
+    +set_region(self, region_code:str)
+    +write_user_bank(self, epc:EPCstring, data:str)
+}
+
+TLSReader o-- stock
+TLSReader o-- undef
+TLSReader o-- radar
+TLSReader o-- RunningAve
+
+@enduml

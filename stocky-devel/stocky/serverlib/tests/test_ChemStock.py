@@ -1,6 +1,7 @@
+""" Test the ChemStock module
+"""
 
 import pytest
-
 import time
 
 import serverlib.yamlutil as yamlutil
@@ -23,7 +24,8 @@ class Test_funcs:
     These functions do not depend on ChemStockDB
     """
     def test_sortloclist01(self) -> None:
-        """ """
+        """ChemStock.sortloclist should preserve list length
+        """
         olst = [{'name': r'SPH\West wing'},
                 {'name': r'SPH\West wing\dog house'},
                 {'name': r'SPH\East Wing'},
@@ -38,6 +40,9 @@ class Test_funcs:
         assert len(olst) == len(sortlst), "wrong list length"
 
     def test_hash01(self) -> None:
+        """ChemStock.do_hash must produce the same hash irrespective of the order
+        in which dict elements were added to a dict.
+        """
         dohash = ChemStock.do_hash
         # create two identical dicts in different ways. The hash should be the same.
         adct = dict(a=3, b=2, c=1)
@@ -60,14 +65,17 @@ class Test_funcs:
 class commontests:
 
     def test_loadTS01(self):
+        """Loading database timestamp data must succeed and contain data
+        for all tables defined."""
         tsdct = self.csdb.load_TS_data()
         print("BLA {}".format(tsdct))
         assert isinstance(tsdct, dict), "dict expected"
         assert set(tsdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpted dict keys"
         # assert False, " force fail"
 
-    @pytest.mark.skip(reason="method is in flux")
     def test_generate_webclient_stocklist01(self):
+        """ generate_webclient_stocklist must return a dict with
+        the required entries."""
         lverb = False
         rdct = self.csdb.generate_webclient_stocklist()
         assert isinstance(rdct, dict), "dict expected"
@@ -83,7 +91,7 @@ class commontests:
         # assert False, " force fail"
 
     def test_get_stats(self):
-        """get DB stats"""
+        """get_db_stats() must succeed and return a dict with required keys."""
         lverb = True
         rdct = self.csdb.get_db_stats()
         assert isinstance(rdct, dict), "dict expected"
@@ -101,6 +109,8 @@ class Test_Chemstock_EMPTYDB(commontests):
         cls.csdb = ChemStock.ChemStockDB(locdbname, None, 'America/Vancouver')
 
     def test_time_update01(self):
+        """get_update_time and set_update_time must work as expected
+        """
         lverb = True
         upd_str = self.csdb.get_update_time()
         assert isinstance(upd_str, str), "string expected"
@@ -124,9 +134,9 @@ class Test_Chemstock_EMPTYDB(commontests):
         # assert False, " force fail"
 
     def test_addlocchanges01(self) -> None:
-        """Calling add_loc_changes() with invalid location change data must raise
-        a ValueError exception. The database must not be modified if a ValueError
-        exception is raised.
+        """Calling add_loc_changes with invalid location change data
+        must raise a ValueError exception. The database must not be modified
+        if a ValueError exception is raised.
         """
         csdb = self.csdb
         # reset should remove all records
@@ -161,7 +171,7 @@ class Test_Chemstock_EMPTYDB(commontests):
         assert ngot == 0, "n should be zero!"
 
     def test_set_ignore_flag01(self) -> None:
-        """Calling set_ignore_flag with wrong parameter types must raise ValueError"""
+        """Calling set_ignore_flag with wrong parameter types must raise a ValueError"""
         csdb = self.csdb
         with pytest.raises(ValueError):
             csdb.set_ignore_flag('100', True)
@@ -169,6 +179,7 @@ class Test_Chemstock_EMPTYDB(commontests):
             csdb.set_ignore_flag(100, 'False')
 
     def test_addlocchanges02(self) -> None:
+        """Adding a reagent item location change must work as expected."""
         csdb = self.csdb
         locid = 99
         # reset should remove all records
@@ -273,7 +284,8 @@ class Test_Chemstock_NOQAI(commontests):
         # assert False, "force fail"
 
     def test_update_from_qai01(self):
-        """As we don't have access to QAI, haschanged should be False."""
+        """ haschanged should be False after calling update_from_QAI
+        without access to QAI"""
         self.csdb.update_from_QAI()
         haschanged = self.csdb._haschanged
         assert isinstance(haschanged, bool), "bool expected"
@@ -288,9 +300,11 @@ class Test_Chemstock_WITHQAI(commontests):
     def setup_class(cls) -> None:
         # first, set up a QAIsession and log in
         cls.qaisession = sess = qai_helper.QAISession(test_qai_helper.TESTqai_url)
-        sess.login(test_qai_helper.TESTauth_uname,
-                   test_qai_helper.TESTauth_password)
-
+        resdct = sess.login_try(test_qai_helper.TESTauth_uname,
+                                test_qai_helper.TESTauth_password)
+        login_ok = resdct.get('ok', False)
+        if not login_ok:
+            print("**** QAI login failed ****")
         # cls.locdbname = "bli.sqlite"
         cls.locdbname = None
         cls.csdb = ChemStock.ChemStockDB(cls.locdbname, sess, 'America/Vancouver')
@@ -298,7 +312,7 @@ class Test_Chemstock_WITHQAI(commontests):
         # assert False, "force fail"
 
     def test_update_from_qai02(self):
-        """Actually update our local DB from QAI over the network.."""
+        """Update our local DB from QAI over the network with net access."""
         lverb = True
         csdb = self.csdb
         old_upd = csdb.get_update_time()

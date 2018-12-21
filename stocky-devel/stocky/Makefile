@@ -25,7 +25,7 @@ web: ## compile the webclient using transcrypt
 	$(MAKE) -C webclient webclient
 #--
 all-test: ## run the unit tests of the server code using pytest
-	pytest -v serverlib
+	pytest -v serverlib --scospec alltest.yaml
 single-test:
 	pytest -v serverlib -k test_ChemStock
 all-coverage: ## run the unit tests of the server code, then show the test coverage 
@@ -34,7 +34,7 @@ all-coverage: ## run the unit tests of the server code, then show the test cover
 #--
 qai-test: ## run the unit tests that access the test QAI webserver
 	# pytest -v serverlib --with_qai --ff --maxfail=1 -k test_qai_helper
-	pytest -vvv serverlib --with_qai --ff  -k test_qai_helper
+	pytest -vvv serverlib --with_qai --ff  -k test_qai_helper --scospec qaitest.yaml
 	# pytest -vvv serverlib --with_qai -k test_qai_helper
 	#pytest -vvv serverlib --with_qai -k test_reagent_receive
 qai-coverage: ## show test coverage of code accessing the test QAI server
@@ -42,15 +42,22 @@ qai-coverage: ## show test coverage of code accessing the test QAI server
 	coverage report  -m --include="serverlib/qai_helper.py"
 #--
 dump_chemstock: ## reload the chemstock YAML file used for testing
-	pytest -v serverlib --dump_chemstock -k test_qai_dump
+	pytest -v serverlib --dump_chemstock -k test_qai_dump --scospec dumpchemstocktest.yaml
 
 chemstock-test: ## run the unit tests that access a local chemstocks YAML file
-	pytest -v serverlib --with_chemstock --ff -k test_ChemStock
+	pytest -v serverlib --with_chemstock --ff -k test_ChemStock --scospec chemstocktest.yaml
 func-test: ## run the unit tests 
 	pytest -v serverlib -k Test_funcs
 chemstock-qai-test: ## run the unit tests (chemstock with access to qai)
-	pytest -v serverlib --with_cs_qai --ff --maxfail=1 -k test_ChemStock
+	pytest -v serverlib --with_cs_qai --ff --maxfail=1 -k Test_Chemstock_WITHQAI --scospec chemstockqaitest.yaml
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py serverlib
 pep8: ## analyse the server code for compliance with pep8 using codestyle
-	pytest --cache-clear --codestyle serverlib
+	pytest --cache-clear --codestyle serverlib --scospec pep8test.yaml
+clean-test: ## clean up all test-related output files
+	rm -f *test.yaml
+doc-test: ## run all test suites needed for the stockyserver sphinx documentation
+	make all-test
+	make qai-test
+	make chemstock-test
+	make chemstock-qai-test

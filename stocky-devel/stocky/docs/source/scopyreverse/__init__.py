@@ -38,7 +38,7 @@ class UMLGenerateDirective(Directive):
     DIR_NAME = "uml_images"
 
     def run(self):
-        lverb = True
+        lverb = False
         if lverb:
             print("scopyreverse.run {}".format(self.arguments))
         env = self.state.document.settings.env

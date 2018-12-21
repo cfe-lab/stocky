@@ -72,7 +72,7 @@ def init_app(cfgname: str) -> flask.Flask:
     print("hello from init_app")
     global the_main
     # test_logging(app.logger)
-    the_main = stockyserver.StockyServer(app, commlink.SerialCommLink, cfgname)
+    the_main = stockyserver.StockyServer(app.logger, commlink.SerialCommLink, cfgname)
     # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
     print("goodbye from init_app")
     return app
@@ -102,7 +102,7 @@ def goo(rawws: websocket):
 def rfid_pinger(rawws: websocket):
     # print("bla before '{}'".format(rawws))
     ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
-    my_server = stockyserver.RFID_Ping_Server(app, "RFIDPinger")
+    my_server = stockyserver.RFID_Ping_Server(app.logger, "RFIDPinger")
     print("goo: got a websocket")
     my_server.set_websocket(ws)
     print("goo: entering mainloop")

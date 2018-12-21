@@ -1,28 +1,30 @@
-
-FROM python:3.7.1-stretch
+# docker file for the stocky server
+# FROM python:3.7.1-stretch
+FROM python:3.7.1-slim-stretch
 
 MAINTAINER wscott@cfenet.ubc.ca
 
 # less tcsh and minicom are usefull, but not required
 RUN apt-get update ;\
     apt-get -y upgrade ;\
-    apt-get install -y less tcsh minicom host sqlite3 bluez;\
+    apt-get install -y less make tcsh minicom host sqlite3 bluez;\
     apt-get clean
-
-# usbutils currently not needed
 
 # Copy the source code into the image
 COPY stocky /stockysrc
 WORKDIR /stockysrc
 
-RUN pip install --upgrade pip;\
-    pip install --no-cache-dir -r requirements.txt
+RUN apt-get install -y gcc libyaml-dev && \
+   pip install --upgrade pip &&\
+   pip install --no-cache-dir -r requirements.txt && \
+   apt-get remove -y gcc libyaml-dev
+   
+
 
 ENV PYTHONPATH "${PYTHONPATH}:/stockysrc:/stockysrc/stocky:/stockysrc/stocky/serverlib"
 
 # mypy (including transcrypt) needs this in order to find all modules
 ENV MYPYPATH="/stockysrc/webqai:/stockysrc:/stockysrc/stocky/serverlib:/stockysrc/stocky"
-
 
 ENV FLASK_APP=/stockysrc/stocky.py
 

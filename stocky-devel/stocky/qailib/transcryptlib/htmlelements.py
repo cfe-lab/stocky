@@ -53,6 +53,7 @@ def getPyElementByJsEl(idstr: str,
        jsel: the javascript object that this object mirrors.
        classname: the classname of the python instance that should be returned.
        attrdct: the HTML attribute dict to use for the HTML object.
+
     Returns:
        The created python object.
     """
@@ -80,6 +81,7 @@ def getPyElementByIdClass(idstr: str, classname, attrdct: dict) -> typing.Option
        idstr: the idstr of the HTML element existing in the DOM.
        classname: the class of the instance to create
        attrdct: the attribute dict of the newly created instance.
+
     Returns:
        A new python class of class classname that wraps the HTML element.
        None if no existing js element with the idstr is found.
@@ -132,7 +134,8 @@ class base_element(base.base_obj):
         Args:
            k: the name of the attribute, the value of which is retrieved.
 
-        Returns: the value of the attribute or None if no attribute of the name k exists.
+        Returns:
+           the value of the attribute or None if no attribute of the name k exists.
         """
         return self._el.getAttribute(k)
 
@@ -148,6 +151,7 @@ class base_element(base.base_obj):
         """
         Args:
            k: the name of the attribute
+
         Returns:
            the element has attribute called k
         """
@@ -250,7 +254,8 @@ class base_element(base.base_obj):
     def get_WH(self) -> typing.Tuple[int, int]:
         """Return the width and height of the element in pixels.
 
-        Returns: the (width, height) of this element in pixels.
+        Returns:
+           the (width, height) of this element in pixels.
         """
         rc = self._el.getBoundingClientRect()
         return (rc.width, rc.height)
@@ -381,6 +386,7 @@ def create_elementstring(parent: base_element, idstr: str, attrdct: dict,
        attrdct: the attribute dict of the newly created object
        elementclass: the class of the newly created instance
        text: the text of the textnode to be added as a child to the newly created object.
+
     Returns:
        The element created is returned.
 
@@ -488,6 +494,7 @@ class generic_element(base_element):
 
         Args:
            k: the name of the attribute
+
         Returns:
            None if the attribute does not exist.\
            A string in the case of an HTML attribute.\
@@ -1013,8 +1020,10 @@ class select(element, OnChangeMixin):
         self._optdct: typing.Dict[str, option] = {}
 
     def get_selected(self) -> typing.Tuple[typing.Optional[int], typing.Optional[str]]:
-        """Return the currently selected index and value string.
-        NOTE: it may be that no element is selected. In this case, selectedIndex will
+        """
+        Returns:
+           the currently selected index and value string.\
+           It may be that no element is selected. In this case, selectedIndex will
         return a value of -1. Return None, None in this case.
         """
         sel_ndx = self._el.selectedIndex
