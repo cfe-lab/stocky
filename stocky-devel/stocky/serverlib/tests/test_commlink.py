@@ -1,13 +1,15 @@
 import typing
 import pytest
 import logging
+import serial
 
+import webclient.commonmsg as commonmsg
 import serverlib.commlink as commlink
 
 
 class dummyserialdevice:
-    """A dummy serial device that is loaded with content, which can
-    be accessed by issuing reads"""
+    """A dummy serial device that is loaded with content which can then
+    be accessed in tests by issuing reads"""
 
     def __init__(self, cont: bytes = b'') -> None:
         assert isinstance(cont, bytes), "expected bytes"
@@ -55,6 +57,22 @@ class timeout_dummyserialdevice(dummyserialdevice):
         return b''
 
 
+class exception_dummyserialdevice(dummyserialdevice):
+    """A dummy serial device that raises an exception on reads"""
+
+    def __init__(self, cont: bytes = b'') -> None:
+        super().__init__(cont)
+        self.num_exceptions = 0
+
+    def read(self, size: int = 1) -> bytes:
+        print("RAISING SerialException")
+        self.num_exceptions += 1
+        raise serial.serialutil.SerialException('test dummy exception')
+
+    def num_exception_calls(self) -> int:
+        return self.num_exceptions
+
+
 class DummySerialCommLink(commlink.SerialCommLink):
 
     def open_device(self) -> typing.Any:
@@ -65,6 +83,12 @@ class TimeoutDummySerialCommLink(commlink.SerialCommLink):
 
     def open_device(self) -> typing.Any:
         return timeout_dummyserialdevice(b'bla')
+
+
+class ExceptionDummySerialCommLink(commlink.SerialCommLink):
+
+    def open_device(self) -> typing.Any:
+        return exception_dummyserialdevice(b'bla')
 
 
 class DummyCommLink(commlink.BaseCommLink):
@@ -158,6 +182,43 @@ DummyCommLinkClass = DummyCommLink
 CommLinkClass = DummyCommLink
 
 
+class Test_exception_commlink:
+    """Test the proper handling of serial device raises a SerialException."""
+
+    def setup_method(self) -> None:
+        self.logger = logging.Logger("testing")
+        cfgdct = {'logger': self.logger}
+        self.dscl = ExceptionDummySerialCommLink(cfgdct)
+
+    def test_readexception01(self) -> None:
+        """raw_read_response() should return a time out code
+        when a serial device raises a serial.serialutil.SerialException on read."""
+        assert self.dscl.mydev.num_exception_calls() == 0, "zero exception expected"
+        resp = self.dscl.raw_read_response()
+        assert self.dscl.mydev.num_exception_calls() == 1, "one exception expected"
+        print("resp is '{}'".format(resp))
+        assert resp is not None, "CLResp expected"
+        retcode = resp.return_code()
+        assert retcode == commlink.BaseCommLink.RC_TIMEOUT, "timeout expected"
+
+    def test_is_responsive01(self) -> None:
+        """_is_responsive() should return False for a dummy device."""
+        res = self.dscl._is_responsive()
+        assert isinstance(res, bool), "bool expected"
+        assert not res, "expected False"
+
+    def test_get_RFID_state(self) -> None:
+        """get_RFID_state() should return RFID_TIMEOUT and get_info_dct() should return None
+        when using a dummy serial device."""
+        res = self.dscl.get_RFID_state()
+        assert isinstance(res, int), "int expected"
+        print("RES {}".format(res))
+        assert res == commonmsg.CommonMSG.RFID_TIMEOUT, "expected False"
+        idct = self.dscl.get_info_dct()
+        print("RES {}".format(idct))
+        assert idct is None, "None expected"
+
+
 class Test_timeout_commlink:
     """Test the proper handling of serial device time outs."""
 
@@ -172,7 +233,7 @@ class Test_timeout_commlink:
         self.dscl = TimeoutDummySerialCommLink(cfgdct)
 
     def test_read_TO_01(self) -> None:
-        """_str_readline() should return None if the device is offline."""
+        """_str_readline() should return None if the serial device is offline."""
         retval = self.dscl._str_readline()
         assert retval is None, "None expected"
 
@@ -185,10 +246,12 @@ class Test_timeout_commlink:
 
     def test_clresp01(self) -> None:
         """A return code of an CLResponse instance with an empty response list
-           returns RC_FAULTY."""
-        clresp = commlink.CLResponse([])
-        retcode = clresp.return_code()
-        assert retcode == commlink.BaseCommLink.RC_FAULTY, "RC faulty expected"
+        or faulty message returns RC_FAULTY."""
+        for bad_lst in [[], ['bl'], [('UB', '1')]]:
+            print("BADLST: '{}'".format(bad_lst))
+            clresp = commlink.CLResponse(bad_lst)
+            retcode = clresp.return_code()
+            assert retcode == commlink.BaseCommLink.RC_FAULTY, "RC faulty expected"
 
     def test_handlestatechange01(self) -> None:
         """dscl._is_alive() and id_string() should return expected values
@@ -473,9 +536,24 @@ class Test_commlink:
 
     def test_dummyCL_invalid01(self):
         """Issuing an invalid command should result in a time out condition."""
-        # with pytest.raises(RuntimeError):
         ret = self.cl._blocking_cmd(".bla -p")
         assert isinstance(ret, commlink.CLResponse), "CLResponse expected"
         ret_code = ret.return_code()
         assert ret_code == commlink.BaseCommLink.RC_TIMEOUT
         # assert False, "force fail"
+
+    def test_check_int_val01(self) -> None:
+        """Calling CLResponse._check_get_int_val() with bad data should
+        raise an exception."""
+        # a) not an integer argument...
+        cmd = commlink.ER_RESP
+        arg = 'not an int'
+        my_tup = (cmd, arg)
+        with pytest.raises(RuntimeError):
+            commlink.CLResponse._check_get_int_val(my_tup, commlink.ER_RESP)
+        # b) not the expected command
+        cmd = 'bla'
+        arg = '100'
+        my_tup = (cmd, arg)
+        with pytest.raises(RuntimeError):
+            commlink.CLResponse._check_get_int_val(my_tup, commlink.ER_RESP)

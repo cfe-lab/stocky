@@ -179,6 +179,8 @@ class CLResponse:
         if len(self.rl) == 0:
             return BaseCommLink.RC_FAULTY
         last_tup = self.rl[-1]
+        if not isinstance(last_tup, tuple):
+            return BaseCommLink.RC_FAULTY
         if last_tup == OK_RESP_TUPLE:
             return BaseCommLink.RC_OK
         elif last_tup[0] == ER_RESP:

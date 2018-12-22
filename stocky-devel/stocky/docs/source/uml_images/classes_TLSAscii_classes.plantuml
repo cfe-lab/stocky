@@ -134,8 +134,8 @@ class TLSReader {
     +write_user_bank(self, epc:EPCstring, data:str)
 }
 
-TLSReader o-- stock
 TLSReader o-- undef
+TLSReader o-- stock
 TLSReader o-- radar
 TLSReader o-- RunningAve
 

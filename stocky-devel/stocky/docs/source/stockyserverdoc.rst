@@ -33,6 +33,12 @@ Module serverlib.ServerWebSocket
 	:members:
 	:show-inheritance:
 
+.. pytesttable::
+   :testresultfile: /stockysrc/alltest.yaml
+   :testfile: test_taskmeister.py
+   :testclass: Test_ServerWebSocket
+   :tabletitle: The ServerWebSocket unit test results
+
 Module serverlib.Taskmeister
 ============================
 

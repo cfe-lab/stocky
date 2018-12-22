@@ -1,7 +1,0 @@
-digraph "classes" {
-charset="utf-8"
-rankdir=BT
-"0" [label="{BaseWebSocket|logger\lws\l|close()\lreceiveMSG()\lsendMSG()\l}", shape="record"];
-"1" [label="{JSONWebSocket|\l|}", shape="record"];
-"1" -> "0" [arrowhead="empty", arrowtail="none"];
-}

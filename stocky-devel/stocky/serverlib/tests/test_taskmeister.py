@@ -1,3 +1,5 @@
+"""Test Taskmeister and also ServerWebsocket code"""
+
 import typing
 import pytest
 import gevent
@@ -32,6 +34,8 @@ class DummyWebsocket:
     def __init__(self, sec_interval: float, data: typing.Any) -> None:
         self.sec_interval = sec_interval
         self._set_data(data)
+        self._isopen = True
+        self._sendlst = []
 
     def _set_data(self, data: typing.Any = None) -> None:
         self.retdat: typing.Optional[bytes] = None if data is None else bytes(qai_helper.tojson(data), 'utf-8')
@@ -42,14 +46,64 @@ class DummyWebsocket:
 
     def receive(self) -> bytes:
         assert isinstance(self.retdat, bytes), 'receive: must be bytes'
+        if not self._isopen:
+            raise RuntimeError("socket is closed!")
         gevent.sleep(self.sec_interval)
         return self.retdat
+
+    def close(self) -> None:
+        self._isopen = False
+
+    def send(self, msg: typing.Any) -> None:
+        self._sendlst.append(msg)
 
 
 class ExceptionDummyWebsocket(DummyWebsocket):
 
     def receive(self) -> bytes:
         raise geventwebsocket.exceptions.WebSocketError('hello from the dummy!')
+
+
+class Test_ServerWebSocket:
+    """Test behaviour of WebSockets"""
+
+    def test_close01(self) -> None:
+        """A ServerWebSocket.BaseWebSocket.close() must close its raw websocket."""
+        sec_interval = 0.1
+        logger = logging.Logger("testing")
+        rawws = DummyWebsocket(sec_interval, None)
+        bs = ServerWebSocket.BaseWebSocket(rawws, logger)
+        bs.close()
+        assert not rawws._isopen, "raw websocket is not closed!"
+
+    def test_notimplemented01(self) -> None:
+        """Not implemented methods in ServerWebSocket.BaseWebSocket must
+        raise NotImplementedError."""
+        sec_interval = 0.1
+        logger = logging.Logger("testing")
+        rawws = DummyWebsocket(sec_interval, None)
+        bs = ServerWebSocket.BaseWebSocket(rawws, logger)
+        dummy_msg = "hello"
+        with pytest.raises(NotImplementedError):
+            bs.decodeMSG(dummy_msg)
+        with pytest.raises(NotImplementedError):
+            bs.encodeMSG(dummy_msg)
+
+    def test_sendmsg01(self) -> None:
+        """ServerWebSocket.JSONWebSocket.sendMSG() must call the underlying
+        rawsocket send method.
+        """
+        sec_interval = 0.1
+        logger = logging.Logger("testing")
+        rawws = DummyWebsocket(sec_interval, None)
+        bs = ServerWebSocket.JSONWebSocket(rawws, logger)
+        orgmsg = dict(hello='funny', world='strawberry')
+        bs.sendMSG(orgmsg)
+        msglst = rawws._sendlst
+        assert len(msglst) == 1, "message no sent"
+        encoded_msg = msglst[0]
+        gotmsg = bs.decodeMSG(encoded_msg)
+        assert gotmsg == orgmsg, "unexpected message received!"
 
 
 STATUS_RUNNING = Taskmeister.DaemonTaskMeister.STATUS_RUNNING
@@ -305,7 +359,7 @@ class Test_Taskmeister:
                                            self.sec_interval)
         tt.set_active(True)
         gevent.sleep(self.test_sleep_time)
-        gotlst = self.msgq.msglst
+        # gotlst = self.msgq.msglst
         # check length...
         tn = self.msgq.num_messages()
         print("after sleep {}".format(tn))
