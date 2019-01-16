@@ -87,7 +87,10 @@ def str_to_datetime(s: str) -> DateTimeType:
     Raises:
        RuntimeError: if the conversion fails.
     """
-    retval = dateutil.parser.parse(s)
+    try:
+        retval = dateutil.parser.parse(s)
+    except (ValueError, TypeError, OverflowError):
+        retval = None
     if retval is None:
         raise RuntimeError("conversion from string to tz failed!")
     return retval

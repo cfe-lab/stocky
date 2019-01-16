@@ -4,6 +4,7 @@
 import pytest
 import time
 
+import serverlib.timelib as timelib
 import serverlib.yamlutil as yamlutil
 import serverlib.qai_helper as qai_helper
 
@@ -61,6 +62,14 @@ class Test_funcs:
         print("keylst {}".format(klst))
         assert isinstance(klst, list), "list expected"
 
+    def test_setnode01(self) -> None:
+        """Calling node.setval() twice should raise an exception."""
+        n = ChemStock.node("blaname")
+        assert n.getval() is None, "None expected"
+        n.setval('newval99')
+        with pytest.raises(RuntimeError):
+            n.setval('newval100')
+
 
 class commontests:
 
@@ -70,7 +79,7 @@ class commontests:
         tsdct = self.csdb.load_TS_data()
         print("BLA {}".format(tsdct))
         assert isinstance(tsdct, dict), "dict expected"
-        assert set(tsdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpted dict keys"
+        assert set(tsdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpected dict keys"
         # assert False, " force fail"
 
     def test_generate_webclient_stocklist01(self):
@@ -100,6 +109,40 @@ class commontests:
         assert set(rdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpted dict keys"
         # assert False, " force fail"
 
+    def test_calc_final_state01(self) -> None:
+        """Test calc_final_state with various inputs."""
+        calcfinalstate = self.csdb.calc_final_state
+        current_date = timelib.loc_nowtime().date()
+        cur_date_str = current_date.isoformat()
+        exp_dct = {'status': 'EXPIRED', 'occurred': cur_date_str}
+        inuse_dct = {'status': 'IN_USE', 'occurred': cur_date_str}
+        val_dct = {'status': 'VALIDATED', 'occurred': cur_date_str}
+        for in_lst, exp_res in [([exp_dct], (exp_dct, False, False)),
+                                ([inuse_dct], (inuse_dct, False, False)),
+                                ([inuse_dct, val_dct], (val_dct, False, False)),
+                                ([exp_dct, inuse_dct, val_dct], (inuse_dct, False, False))]:
+            got_res = calcfinalstate(in_lst)
+            print("GOT rt: '{}'".format(got_res))
+            assert isinstance(got_res, tuple), "tuple expected"
+            assert exp_res == got_res, "unexpected result"
+        # assert False, "force fail"
+
+    def test_calc_final_state02(self) -> None:
+        """calc_final_state should raise a RuntimeError when a dict has a missing status field
+        """
+        calcfinalstate = self.csdb.calc_final_state
+        current_date = timelib.loc_nowtime().date()
+        cur_date_str = current_date.isoformat()
+        exp_dct = {'statusBLA': 'EXPIRED', 'occurred': cur_date_str}
+        inuse_dct = {'statusBLA': 'IN_USE', 'occurred': cur_date_str}
+        val_dct = {'statusBLA': 'VALIDATED', 'occurred': cur_date_str}
+        for in_lst in [[exp_dct],
+                       [inuse_dct, val_dct],
+                       [exp_dct, inuse_dct, val_dct]]:
+            with pytest.raises(RuntimeError):
+                calcfinalstate(in_lst)
+        # assert False, "force fail"
+
 
 class Test_Chemstock_EMPTYDB(commontests):
     """Tests that require an empty DB AND no qai ACCESS"""
@@ -107,6 +150,15 @@ class Test_Chemstock_EMPTYDB(commontests):
     def setup_class(cls) -> None:
         locdbname = None
         cls.csdb = ChemStock.ChemStockDB(locdbname, None, 'America/Vancouver')
+
+    def test_update_nologin(self) -> None:
+        """Calling update_from_QAI() without a qaisession should return
+        a dict indicating failure."""
+        retdct = self.csdb.update_from_QAI()
+        assert isinstance(retdct, dict), "dict expected!"
+        assert not retdct['ok'], "expected ok == False"
+        msg = retdct["msg"]
+        assert isinstance(msg, str), "string expected"
 
     def test_time_update01(self):
         """get_update_time and set_update_time must work as expected

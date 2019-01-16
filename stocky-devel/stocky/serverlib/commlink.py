@@ -453,7 +453,7 @@ class BaseCommLink:
             elif len(cur_line) > 0:
                 print("rr '{}' ({})".format(cur_line, len(cur_line)))
                 resp_tup = BaseCommLink._line_2_resptup(cur_line)
-                if resp_tup is not None:
+                if resp_tup is not None and rlst is not None:
                     rlst.append(resp_tup)
                 else:
                     self.logger.error("line_2_resptup failed '{}'".format(cur_line))

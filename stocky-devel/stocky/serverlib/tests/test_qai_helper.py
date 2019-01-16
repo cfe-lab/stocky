@@ -22,11 +22,15 @@ HTTP_INTERNAL_SERVER_ERROR = requests.codes.internal_server_error
 # this is 422
 HTTP_UNPROCESSABLE = requests.codes.unprocessable
 
-withqai = pytest.mark.skipif(not pytest.config.option.with_qai,
+
+# withqai = pytest.mark.skipif(not pytest.config.option.with_qai,
+#                             reason="needs --with_qai option in order to run")
+withqai = pytest.mark.skipif(not pytest.config.getoption("with_qai"),
                              reason="needs --with_qai option in order to run")
 
 dumpchemstock = pytest.mark.skipif(not pytest.config.option.dump_chemstock,
                                    reason="needs --dump_chemstock and --with_qai option in order to run")
+
 
 # this is James Nakagawa's test server
 # TESTqai_url = "http://192.168.69.170:4567"

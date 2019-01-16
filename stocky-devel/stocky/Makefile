@@ -28,7 +28,7 @@ all-test: ## run the unit tests of the server code using pytest
 	pytest -v serverlib --scospec alltest.yaml
 single-test:
 	pytest -v serverlib -k test_ChemStock
-all-coverage: ## run the unit tests of the server code, then show the test coverage 
+all-coverage: ## run the unit tests of the server code without QAI code, then show the test coverage 
 	coverage run -m py.test serverlib
 	coverage report -m --omit="serverlib/tests/*","serverlib/__init__.py"
 #--
@@ -38,8 +38,11 @@ qai-test: ## run the unit tests that access the test QAI webserver
 	# pytest -vvv serverlib --with_qai -k test_qai_helper
 	#pytest -vvv serverlib --with_qai -k test_reagent_receive
 qai-coverage: ## show test coverage of code accessing the test QAI server
-	coverage run -m py.test serverlib --with_qai -k test_qai_helper
+	# coverage run -m py.test serverlib --with_qai -k test_qai_helper
 	coverage report  -m --include="serverlib/qai_helper.py"
+qai-all-coverage: ## show test coverage of all code, including qai code
+	coverage run -m py.test serverlib -v --with_qai --with_cs_qai
+	coverage report  -m --omit="serverlib/tests/*","serverlib/__init__.py"
 #--
 dump_chemstock: ## reload the chemstock YAML file used for testing
 	pytest -v serverlib --dump_chemstock -k test_qai_dump --scospec dumpchemstocktest.yaml

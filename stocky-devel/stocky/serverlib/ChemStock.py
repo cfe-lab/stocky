@@ -420,9 +420,9 @@ class ChemStockDB:
 
         Strategy: we assign values to the various possible states and sort according
         to these values.
-        any missing record will be the first one.
-        the exp record is the last one (should exist, check the date with current date)
-        the nominal state is the second to last in the list.
+        Any missing record will be the first one.
+        The exp record is the last one (should exist, check the date with current date)
+        The nominal state is the second to last in the list.
         """
         if len(slst) < 2:
             # raise RuntimeError("state list is too short {}".format(slst))
@@ -443,7 +443,10 @@ class ChemStockDB:
             nom_state = slst[-2]
             ismissing = slst[0]['status'] == 'MISSING'
         # we could have no expired record, but a used up record instead.
-        if exp_dict['status'] == 'EXPIRED':
+        exp_state = exp_dict.get('status', None)
+        if exp_state is None:
+            raise RuntimeError("status field missing in state record {}".format(exp_dict))
+        elif exp_state == 'EXPIRED':
             # Cannot use fromisoformat in 3.6...
             # expiry_date = datetime.date.fromisoformat(exp_dict['occurred'])
             # the string is of the form '2011-04-20'

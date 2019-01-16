@@ -35,7 +35,7 @@ class DummyWebsocket:
         self.sec_interval = sec_interval
         self._set_data(data)
         self._isopen = True
-        self._sendlst = []
+        self._sendlst: typing.List[typing.Any] = []
 
     def _set_data(self, data: typing.Any = None) -> None:
         self.retdat: typing.Optional[bytes] = None if data is None else bytes(qai_helper.tojson(data), 'utf-8')
