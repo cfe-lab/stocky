@@ -435,13 +435,16 @@ class ChemStockDB:
         else:
             odct = dict(MISSING=-1, MADE=0, VALIDATED=1, IN_USE=2,
                         USED_UP=5, EXPIRED=6, RUO_EXPIRED=7, DISPOSED=8)
+            # create tuples of input dicts with scores from odct.
             try:
-                slst.sort(key=lambda a: odct[a['status']])
+                plst = [(d, odct.get(d['status'], None)) for d in slst]
             except KeyError:
                 raise RuntimeError("status field missing in state record {}".format(slst))
-            exp_dict = slst[-1]
-            nom_state = slst[-2]
-            ismissing = slst[0]['status'] == 'MISSING'
+            qlst = [tt for tt in plst if tt[1] is not None]
+            qlst.sort(key=lambda a: a[1])
+            exp_dict = qlst[-1][0]
+            nom_state = qlst[-2][0]
+            ismissing = qlst[0][0]['status'] == 'MISSING'
         # we could have no expired record, but a used up record instead.
         exp_state = exp_dict.get('status', None)
         if exp_state is None:

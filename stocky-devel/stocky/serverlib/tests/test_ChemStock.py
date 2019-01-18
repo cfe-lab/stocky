@@ -20,9 +20,12 @@ withchemstockANDqa1 = pytest.mark.skipif(not pytest.config.option.with_cs_qai,
                                          reason="needs --with_cs_qai option in order to run")
 
 
+TIME_ZONE = "America/Vancouver"
+
+
 class Test_funcs:
     """Test a number of helper functions in the ChemStock module,
-    These functions do not depend on ChemStockDB
+    These functions do not depend on having a ChemStockDB instance.
     """
     def test_sortloclist01(self) -> None:
         """ChemStock.sortloclist should preserve list length
@@ -83,7 +86,7 @@ class commontests:
         # assert False, " force fail"
 
     def test_generate_webclient_stocklist01(self):
-        """ generate_webclient_stocklist must return a dict with
+        """generate_webclient_stocklist() must return a dict with
         the required entries."""
         lverb = False
         rdct = self.csdb.generate_webclient_stocklist()
@@ -109,47 +112,13 @@ class commontests:
         assert set(rdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpted dict keys"
         # assert False, " force fail"
 
-    def test_calc_final_state01(self) -> None:
-        """Test calc_final_state with various inputs."""
-        calcfinalstate = self.csdb.calc_final_state
-        current_date = timelib.loc_nowtime().date()
-        cur_date_str = current_date.isoformat()
-        exp_dct = {'status': 'EXPIRED', 'occurred': cur_date_str}
-        inuse_dct = {'status': 'IN_USE', 'occurred': cur_date_str}
-        val_dct = {'status': 'VALIDATED', 'occurred': cur_date_str}
-        for in_lst, exp_res in [([exp_dct], (exp_dct, False, False)),
-                                ([inuse_dct], (inuse_dct, False, False)),
-                                ([inuse_dct, val_dct], (val_dct, False, False)),
-                                ([exp_dct, inuse_dct, val_dct], (inuse_dct, False, False))]:
-            got_res = calcfinalstate(in_lst)
-            print("GOT rt: '{}'".format(got_res))
-            assert isinstance(got_res, tuple), "tuple expected"
-            assert exp_res == got_res, "unexpected result"
-        # assert False, "force fail"
-
-    def test_calc_final_state02(self) -> None:
-        """calc_final_state should raise a RuntimeError when a dict has a missing status field
-        """
-        calcfinalstate = self.csdb.calc_final_state
-        current_date = timelib.loc_nowtime().date()
-        cur_date_str = current_date.isoformat()
-        exp_dct = {'statusBLA': 'EXPIRED', 'occurred': cur_date_str}
-        inuse_dct = {'statusBLA': 'IN_USE', 'occurred': cur_date_str}
-        val_dct = {'statusBLA': 'VALIDATED', 'occurred': cur_date_str}
-        for in_lst in [[exp_dct],
-                       [inuse_dct, val_dct],
-                       [exp_dct, inuse_dct, val_dct]]:
-            with pytest.raises(RuntimeError):
-                calcfinalstate(in_lst)
-        # assert False, "force fail"
-
 
 class Test_Chemstock_EMPTYDB(commontests):
     """Tests that require an empty DB AND no qai ACCESS"""
     @classmethod
     def setup_class(cls) -> None:
         locdbname = None
-        cls.csdb = ChemStock.ChemStockDB(locdbname, None, 'America/Vancouver')
+        cls.csdb = ChemStock.ChemStockDB(locdbname, None, TIME_ZONE)
 
     def test_update_nologin(self) -> None:
         """Calling update_from_QAI() without a qaisession should return
@@ -318,19 +287,58 @@ class Test_Chemstock_EMPTYDB(commontests):
         # remove all records to finish up
         csdb.reset_loc_changes()
 
+    def test_calc_final_state01(self) -> None:
+        """Test calc_final_state with various legal inputs and check results."""
+        calcfinalstate = self.csdb.calc_final_state
+        current_date = timelib.loc_nowtime().date()
+        cur_date_str = current_date.isoformat()
+        exp_dct = {'status': 'EXPIRED', 'occurred': cur_date_str}
+        inuse_dct = {'status': 'IN_USE', 'occurred': cur_date_str}
+        val_dct = {'status': 'VALIDATED', 'occurred': cur_date_str}
+        for in_lst, exp_res in [([exp_dct], (exp_dct, False, False)),
+                                ([inuse_dct], (inuse_dct, False, False)),
+                                ([inuse_dct, val_dct], (val_dct, False, False)),
+                                ([exp_dct, inuse_dct, val_dct], (inuse_dct, False, False))]:
+            got_res = calcfinalstate(in_lst)
+            print("GOT rt: '{}'".format(got_res))
+            assert isinstance(got_res, tuple), "tuple expected"
+            assert exp_res == got_res, "unexpected result"
+        # assert False, "force fail"
+
+    def test_calc_final_state02(self) -> None:
+        """calc_final_state should raise a RuntimeError when a dict has a missing status field
+        """
+        calcfinalstate = self.csdb.calc_final_state
+        current_date = timelib.loc_nowtime().date()
+        cur_date_str = current_date.isoformat()
+        exp_dct = {'statusBLA': 'EXPIRED', 'occurred': cur_date_str}
+        inuse_dct = {'statusBLA': 'IN_USE', 'occurred': cur_date_str}
+        val_dct = {'statusBLA': 'VALIDATED', 'occurred': cur_date_str}
+        for in_lst in [[exp_dct],
+                       [inuse_dct, val_dct],
+                       [exp_dct, inuse_dct, val_dct]]:
+            with pytest.raises(RuntimeError):
+                calcfinalstate(in_lst)
+        # assert False, "force fail"
+
 
 @withchemstock
 class Test_Chemstock_NOQAI(commontests):
-    """Tests in which we load some data from a YAML file."""
+    """Tests in which the database contains data which we load from a YAML file
+    into a ChemStock database.."""
 
     @classmethod
     def setup_class(cls) -> None:
-        # cls.locdbname = "bli.sqlite"
         cls.locdbname = None
-        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, None, 'America/Vancouver')
+        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, None, TIME_ZONE)
         print("DB NAME: {}".format(cls.csdb._locQAIfname))
         print("loading data from YAML file...")
-        qaids = yamlutil.readyamlfile("./qaidump.yaml")
+        try:
+            qaids = yamlutil.readyamlfile(test_qai_helper.QAI_DUMP_FILE)
+        except RuntimeError:
+            print("QAI yaml file not found. Generate this using the Test_dump test in test_qai_helper")
+            print("*** NOTE: the development Makefile has a target 'dump_chemstock' that runs this test.")
+            raise
         load_ok = cls.csdb.loadQAI_data(qaids)
         assert load_ok, "data load failed"
         # assert False, "force fail"
@@ -359,7 +367,7 @@ class Test_Chemstock_WITHQAI(commontests):
             print("**** QAI login failed ****")
         # cls.locdbname = "bli.sqlite"
         cls.locdbname = None
-        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, sess, 'America/Vancouver')
+        cls.csdb = ChemStock.ChemStockDB(cls.locdbname, sess, TIME_ZONE)
         print("DB NAME: {}".format(cls.csdb._locQAIfname))
         # assert False, "force fail"
 

@@ -14,55 +14,55 @@ interface browser as org.transcrypt.stubs.browser #Yellow
 interface typing as typing #Yellow
 package "qailib" {
 package "transcryptlib" {
+interface widgets as qailib.transcryptlib.widgets #Yellow
 interface forms as qailib.transcryptlib.forms #Yellow
 interface genutils as qailib.transcryptlib.genutils #Yellow
 interface htmlelements as qailib.transcryptlib.htmlelements #Yellow
-interface widgets as qailib.transcryptlib.widgets #Yellow
 interface simpletable as qailib.transcryptlib.simpletable #Yellow
-interface cleverlabels as qailib.transcryptlib.cleverlabels #Yellow
 interface SVGlib as qailib.transcryptlib.SVGlib #Yellow
-interface websocket as qailib.transcryptlib.websocket #Yellow
+interface cleverlabels as qailib.transcryptlib.cleverlabels #Yellow
 interface serversocket as qailib.transcryptlib.serversocket #Yellow
+interface websocket as qailib.transcryptlib.websocket #Yellow
 }
 package "common" {
 interface base as qailib.common.base #Yellow
 interface serversocketbase as qailib.common.serversocketbase #Yellow
 }
 }
-[qailib.transcryptlib.forms] --> [wcstatus]
-[typing] --> [wcstatus]
-[qailib.transcryptlib.genutils] --> [wcstatus]
-[qailib.transcryptlib.htmlelements] --> [wcstatus]
 [qailib.transcryptlib.widgets] --> [wcstatus]
-[webclient.commonmsg] --> [wcstatus]
-[qailib.transcryptlib.simpletable] --> [wcstatus]
+[qailib.transcryptlib.forms] --> [wcstatus]
 [qailib.common.base] --> [wcstatus]
-[qailib.transcryptlib.websocket] --> [webclient]
-[org.transcrypt.stubs.browser] --> [webclient]
-[qailib.transcryptlib.genutils] --> [webclient]
-[qailib.transcryptlib.serversocket] --> [webclient]
+[webclient.commonmsg] --> [wcstatus]
+[qailib.transcryptlib.genutils] --> [wcstatus]
+[typing] --> [wcstatus]
+[qailib.transcryptlib.htmlelements] --> [wcstatus]
+[qailib.transcryptlib.simpletable] --> [wcstatus]
 [webclient.wccontroller] --> [webclient]
-[org.transcrypt.stubs.browser] --> [wcviews]
-[typing] --> [wcviews]
-[qailib.transcryptlib.htmlelements] --> [wcviews]
-[qailib.transcryptlib.cleverlabels] --> [wcviews]
-[qailib.transcryptlib.SVGlib] --> [wcviews]
+[qailib.transcryptlib.genutils] --> [webclient]
+[org.transcrypt.stubs.browser] --> [webclient]
+[qailib.transcryptlib.serversocket] --> [webclient]
+[qailib.transcryptlib.websocket] --> [webclient]
 [qailib.transcryptlib.widgets] --> [wcviews]
-[webclient.commonmsg] --> [wcviews]
-[qailib.transcryptlib.simpletable] --> [wcviews]
-[webclient.wcstatus] --> [wcviews]
 [qailib.common.base] --> [wcviews]
+[webclient.commonmsg] --> [wcviews]
+[qailib.transcryptlib.SVGlib] --> [wcviews]
+[org.transcrypt.stubs.browser] --> [wcviews]
+[qailib.transcryptlib.cleverlabels] --> [wcviews]
+[typing] --> [wcviews]
+[webclient.wcstatus] --> [wcviews]
+[qailib.transcryptlib.htmlelements] --> [wcviews]
+[qailib.transcryptlib.simpletable] --> [wcviews]
 [typing] --> [commonmsg]
-[qailib.transcryptlib.forms] --> [wccontroller]
-[typing] --> [wccontroller]
-[qailib.transcryptlib.genutils] --> [wccontroller]
-[qailib.transcryptlib.htmlelements] --> [wccontroller]
 [qailib.transcryptlib.widgets] --> [wccontroller]
-[webclient.commonmsg] --> [wccontroller]
-[webclient.wcviews] --> [wccontroller]
-[webclient.wcstatus] --> [wccontroller]
 [qailib.common.base] --> [wccontroller]
+[qailib.transcryptlib.forms] --> [wccontroller]
+[webclient.wcviews] --> [wccontroller]
+[webclient.commonmsg] --> [wccontroller]
 [qailib.common.serversocketbase] --> [wccontroller]
+[qailib.transcryptlib.genutils] --> [wccontroller]
+[webclient.wcstatus] --> [wccontroller]
+[typing] --> [wccontroller]
+[qailib.transcryptlib.htmlelements] --> [wccontroller]
 wcstatus -[hidden]- qailib
 wcstatus -[hidden]- webclient
 wcstatus -[hidden]- wcviews

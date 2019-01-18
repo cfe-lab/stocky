@@ -31,6 +31,7 @@ withqai = pytest.mark.skipif(not pytest.config.getoption("with_qai"),
 dumpchemstock = pytest.mark.skipif(not pytest.config.option.dump_chemstock,
                                    reason="needs --dump_chemstock and --with_qai option in order to run")
 
+QAI_DUMP_FILE = "./qaidump.yaml"
 
 # this is James Nakagawa's test server
 # TESTqai_url = "http://192.168.69.170:4567"
@@ -993,4 +994,4 @@ class Test_dump:
     def test_qai_dump02(self):
         ds = self.s.get_QAI_dump()
         assert isinstance(ds, qai_helper.QAIDataset), "QAIDataset expected"
-        yamlutil.writeyamlfile(ds, "./qaidump.yaml")
+        yamlutil.writeyamlfile(ds, QAI_DUMP_FILE)

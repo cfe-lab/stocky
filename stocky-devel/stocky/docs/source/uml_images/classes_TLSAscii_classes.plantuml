@@ -135,8 +135,8 @@ class TLSReader {
 }
 
 TLSReader o-- undef
-TLSReader o-- stock
 TLSReader o-- radar
+TLSReader o-- stock
 TLSReader o-- RunningAve
 
 @enduml

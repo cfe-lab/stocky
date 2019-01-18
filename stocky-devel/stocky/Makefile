@@ -60,7 +60,7 @@ pep8: ## analyse the server code for compliance with pep8 using codestyle
 clean-test: ## clean up all test-related output files
 	rm -f *test.yaml
 doc-test: ## run all test suites needed for the stockyserver sphinx documentation
-	make all-test
-	make qai-test
-	make chemstock-test
-	make chemstock-qai-test
+	-${MAKE} -k all-test
+	-${MAKE} -k chemstock-test
+	-${MAKE} -k qai-test
+	-${MAKE} -k chemstock-qai-test

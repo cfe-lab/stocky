@@ -12,221 +12,214 @@ interface datetime as datetime #Yellow
 interface hashlib as hashlib #Yellow
 interface json as json #Yellow
 package "sqlalchemy" {
+interface orm as sqlalchemy.orm #Yellow
 package "ext" {
 interface declarative as sqlalchemy.ext.declarative #Yellow
 }
-interface orm as sqlalchemy.orm #Yellow
 }
 package "yaml" {
-interface parser as yaml.parser #Yellow
 interface scanner as yaml.scanner #Yellow
+interface parser as yaml.parser #Yellow
 }
 package "os" {
 interface path as os.path #Yellow
-}
-package "webclient" {
-interface commonmsg as webclient.commonmsg #Yellow
 }
 package "gevent" {
 interface subprocess as gevent.subprocess #Yellow
 interface queue as gevent.queue #Yellow
 }
-interface random as random #Yellow
 interface pathlib as pathlib #Yellow
+interface random as random #Yellow
+package "webclient" {
+interface commonmsg as webclient.commonmsg #Yellow
+}
+interface math as math #Yellow
 package "fuzzywuzzy" {
 interface process as fuzzywuzzy.process #Yellow
 }
-interface math as math #Yellow
 package "pytz" {
 interface exceptions as pytz.exceptions #Yellow
 }
 interface argparse as argparse #Yellow
 interface typing as typing #Yellow
-package "geventwebsocket" {
-interface exceptions as geventwebsocket.exceptions #Yellow
-}
 interface flask as flask #Yellow
 interface flask_sockets as flask_sockets #Yellow
 package "serverlib" {
+component [serverconfig] as serverlib.serverconfig
+component [ServerWebSocket] as serverlib.ServerWebSocket
 component [commlink] as serverlib.commlink
 component [stockyserver] as serverlib.stockyserver
-component [ServerWebSocket] as serverlib.ServerWebSocket
-component [serverconfig] as serverlib.serverconfig
 component [qai_helper] as serverlib.qai_helper
 component [ChemStock] as serverlib.ChemStock
 component [yamlutil] as serverlib.yamlutil
 component [Taskmeister] as serverlib.Taskmeister
 component [timelib] as serverlib.timelib
-component [deleteme_USBProc] as serverlib.deleteme_USBProc
-interface SubProc as serverlib.SubProc #Yellow
 component [TLSAscii] as serverlib.TLSAscii
-component [deleteme_SubProc] as serverlib.deleteme_SubProc
 }
 package "logging" {
 interface config as logging.config #Yellow
 }
+package "geventwebsocket" {
+interface exceptions as geventwebsocket.exceptions #Yellow
+}
+geventwebsocket --> [stocky]
 [logging.config] --> [stocky]
+[serverlib.serverconfig] --> [stocky]
+[serverlib.ServerWebSocket] --> [stocky]
 [serverlib.commlink] --> [stocky]
 [serverlib.stockyserver] --> [stocky]
 [flask_sockets] --> [stocky]
 [flask] --> [stocky]
-geventwebsocket --> [stocky]
-[serverlib.ServerWebSocket] --> [stocky]
 [typing] --> [stocky]
-[serverlib.serverconfig] --> [stocky]
-[webclient.commonmsg] --> [serverlib.commlink]
-[serverlib.qai_helper] --> [serverlib.commlink]
-[typing] --> [serverlib.commlink]
-[serial] --> [serverlib.commlink]
-gevent --> [serverlib.stockyserver]
-[serverlib.timelib] --> [serverlib.stockyserver]
-[serverlib.Taskmeister] --> [serverlib.stockyserver]
-[webclient.commonmsg] --> [serverlib.stockyserver]
-[serverlib.TLSAscii] --> [serverlib.stockyserver]
-[serverlib.ChemStock] --> [serverlib.stockyserver]
-[serverlib.ServerWebSocket] --> [serverlib.stockyserver]
-[typing] --> [serverlib.stockyserver]
-[serverlib.qai_helper] --> [serverlib.stockyserver]
-[serverlib.serverconfig] --> [serverlib.stockyserver]
-logging --> [serverlib.stockyserver]
-[gevent.queue] --> [serverlib.stockyserver]
-[webclient.commonmsg] --> [serverlib.ServerWebSocket]
-geventwebsocket --> [serverlib.ServerWebSocket]
-[serverlib.qai_helper] --> [serverlib.ServerWebSocket]
-[typing] --> [serverlib.ServerWebSocket]
-logging --> [serverlib.ServerWebSocket]
-[geventwebsocket.exceptions] --> [serverlib.ServerWebSocket]
 [pytz.exceptions] --> [serverlib.serverconfig]
-[math] --> [serverlib.serverconfig]
 [serverlib.yamlutil] --> [serverlib.serverconfig]
 pytz --> [serverlib.serverconfig]
 [fuzzywuzzy.process] --> [serverlib.serverconfig]
+[math] --> [serverlib.serverconfig]
+geventwebsocket --> [serverlib.ServerWebSocket]
+[webclient.commonmsg] --> [serverlib.ServerWebSocket]
+[geventwebsocket.exceptions] --> [serverlib.ServerWebSocket]
+[serverlib.qai_helper] --> [serverlib.ServerWebSocket]
+logging --> [serverlib.ServerWebSocket]
+[typing] --> [serverlib.ServerWebSocket]
+[webclient.commonmsg] --> [serverlib.commlink]
+[serverlib.qai_helper] --> [serverlib.commlink]
+[serial] --> [serverlib.commlink]
+[typing] --> [serverlib.commlink]
+[webclient.commonmsg] --> [serverlib.stockyserver]
+[serverlib.serverconfig] --> [serverlib.stockyserver]
+[serverlib.timelib] --> [serverlib.stockyserver]
+[serverlib.ServerWebSocket] --> [serverlib.stockyserver]
+[serverlib.qai_helper] --> [serverlib.stockyserver]
+[serverlib.TLSAscii] --> [serverlib.stockyserver]
+gevent --> [serverlib.stockyserver]
+[serverlib.ChemStock] --> [serverlib.stockyserver]
+logging --> [serverlib.stockyserver]
+[gevent.queue] --> [serverlib.stockyserver]
+[typing] --> [serverlib.stockyserver]
+[serverlib.Taskmeister] --> [serverlib.stockyserver]
 [random] --> [serverlib.qai_helper]
 [requests] --> [serverlib.qai_helper]
 [json] --> [serverlib.qai_helper]
 [time] --> [serverlib.qai_helper]
-[typing] --> [serverlib.qai_helper]
 logging --> [serverlib.qai_helper]
-sqlalchemy --> [serverlib.ChemStock]
-[serverlib.timelib] --> [serverlib.ChemStock]
-[sqlalchemy.ext.declarative] --> [serverlib.ChemStock]
+[typing] --> [serverlib.qai_helper]
 [serverlib.serverconfig] --> [serverlib.ChemStock]
-[json] --> [serverlib.ChemStock]
+[serverlib.timelib] --> [serverlib.ChemStock]
 [serverlib.yamlutil] --> [serverlib.ChemStock]
 [serverlib.qai_helper] --> [serverlib.ChemStock]
-[typing] --> [serverlib.ChemStock]
-[sqlalchemy.orm] --> [serverlib.ChemStock]
+sqlalchemy --> [serverlib.ChemStock]
+[json] --> [serverlib.ChemStock]
 [hashlib] --> [serverlib.ChemStock]
-logging --> [serverlib.ChemStock]
 [datetime] --> [serverlib.ChemStock]
+[sqlalchemy.orm] --> [serverlib.ChemStock]
+[sqlalchemy.ext.declarative] --> [serverlib.ChemStock]
+[typing] --> [serverlib.ChemStock]
+logging --> [serverlib.ChemStock]
 [os.path] --> [serverlib.yamlutil]
 yaml --> [serverlib.yamlutil]
-[serverlib.timelib] --> [serverlib.yamlutil]
-[yaml.parser] --> [serverlib.yamlutil]
 [yaml.scanner] --> [serverlib.yamlutil]
-os --> [serverlib.yamlutil]
+[serverlib.timelib] --> [serverlib.yamlutil]
 pytz --> [serverlib.yamlutil]
+[yaml.parser] --> [serverlib.yamlutil]
+os --> [serverlib.yamlutil]
 [typing] --> [serverlib.yamlutil]
-[pathlib] --> [serverlib.Taskmeister]
-[random] --> [serverlib.Taskmeister]
-gevent --> [serverlib.Taskmeister]
 [webclient.commonmsg] --> [serverlib.Taskmeister]
+[random] --> [serverlib.Taskmeister]
+[pathlib] --> [serverlib.Taskmeister]
 [gevent.subprocess] --> [serverlib.Taskmeister]
 [serverlib.ServerWebSocket] --> [serverlib.Taskmeister]
-[typing] --> [serverlib.Taskmeister]
+gevent --> [serverlib.Taskmeister]
 [gevent.queue] --> [serverlib.Taskmeister]
+[typing] --> [serverlib.Taskmeister]
 pytz --> [serverlib.timelib]
 [dateutil.parser] --> [serverlib.timelib]
 [typing] --> [serverlib.timelib]
 [datetime] --> [serverlib.timelib]
-[serverlib.SubProc] --> [serverlib.deleteme_USBProc]
-gevent --> [serverlib.deleteme_USBProc]
-[serverlib.commlink] --> [serverlib.TLSAscii]
-gevent --> [serverlib.TLSAscii]
-[enum] --> [serverlib.TLSAscii]
-[math] --> [serverlib.TLSAscii]
-[serverlib.Taskmeister] --> [serverlib.TLSAscii]
 [webclient.commonmsg] --> [serverlib.TLSAscii]
-[typing] --> [serverlib.TLSAscii]
+[serverlib.commlink] --> [serverlib.TLSAscii]
+[enum] --> [serverlib.TLSAscii]
+gevent --> [serverlib.TLSAscii]
+[math] --> [serverlib.TLSAscii]
 [gevent.queue] --> [serverlib.TLSAscii]
-gevent --> [serverlib.deleteme_SubProc]
-[gevent.subprocess] --> [serverlib.deleteme_SubProc]
+[typing] --> [serverlib.TLSAscii]
+[serverlib.Taskmeister] --> [serverlib.TLSAscii]
+[argparse] --> [dbdump]
 [serverlib.qai_helper] --> [dbdump]
 [serverlib.serverconfig] --> [dbdump]
 [serverlib.ChemStock] --> [dbdump]
-[argparse] --> [dbdump]
+stocky -[hidden]- geventwebsocket
 stocky -[hidden]- logging
 stocky -[hidden]- serverlib
-stocky -[hidden]- geventwebsocket
 stocky -[hidden]- dbdump
 stocky -[hidden]- pytz
 stocky -[hidden]- fuzzywuzzy
-stocky -[hidden]- gevent
 stocky -[hidden]- webclient
+stocky -[hidden]- gevent
 stocky -[hidden]- os
 stocky -[hidden]- yaml
 stocky -[hidden]- sqlalchemy
 stocky -[hidden]- dateutil
-logging -[hidden]- serverlib
-logging -[hidden]- geventwebsocket
-logging -[hidden]- dbdump
-logging -[hidden]- pytz
-logging -[hidden]- fuzzywuzzy
-logging -[hidden]- gevent
-logging -[hidden]- webclient
-logging -[hidden]- os
-logging -[hidden]- yaml
-logging -[hidden]- sqlalchemy
-logging -[hidden]- dateutil
-serverlib -[hidden]- geventwebsocket
-serverlib -[hidden]- dbdump
-serverlib -[hidden]- pytz
-serverlib -[hidden]- fuzzywuzzy
-serverlib -[hidden]- gevent
-serverlib -[hidden]- webclient
-serverlib -[hidden]- os
-serverlib -[hidden]- yaml
-serverlib -[hidden]- sqlalchemy
-serverlib -[hidden]- dateutil
+geventwebsocket -[hidden]- logging
+geventwebsocket -[hidden]- serverlib
 geventwebsocket -[hidden]- dbdump
 geventwebsocket -[hidden]- pytz
 geventwebsocket -[hidden]- fuzzywuzzy
-geventwebsocket -[hidden]- gevent
 geventwebsocket -[hidden]- webclient
+geventwebsocket -[hidden]- gevent
 geventwebsocket -[hidden]- os
 geventwebsocket -[hidden]- yaml
 geventwebsocket -[hidden]- sqlalchemy
 geventwebsocket -[hidden]- dateutil
+logging -[hidden]- serverlib
+logging -[hidden]- dbdump
+logging -[hidden]- pytz
+logging -[hidden]- fuzzywuzzy
+logging -[hidden]- webclient
+logging -[hidden]- gevent
+logging -[hidden]- os
+logging -[hidden]- yaml
+logging -[hidden]- sqlalchemy
+logging -[hidden]- dateutil
+serverlib -[hidden]- dbdump
+serverlib -[hidden]- pytz
+serverlib -[hidden]- fuzzywuzzy
+serverlib -[hidden]- webclient
+serverlib -[hidden]- gevent
+serverlib -[hidden]- os
+serverlib -[hidden]- yaml
+serverlib -[hidden]- sqlalchemy
+serverlib -[hidden]- dateutil
 dbdump -[hidden]- pytz
 dbdump -[hidden]- fuzzywuzzy
-dbdump -[hidden]- gevent
 dbdump -[hidden]- webclient
+dbdump -[hidden]- gevent
 dbdump -[hidden]- os
 dbdump -[hidden]- yaml
 dbdump -[hidden]- sqlalchemy
 dbdump -[hidden]- dateutil
 pytz -[hidden]- fuzzywuzzy
-pytz -[hidden]- gevent
 pytz -[hidden]- webclient
+pytz -[hidden]- gevent
 pytz -[hidden]- os
 pytz -[hidden]- yaml
 pytz -[hidden]- sqlalchemy
 pytz -[hidden]- dateutil
-fuzzywuzzy -[hidden]- gevent
 fuzzywuzzy -[hidden]- webclient
+fuzzywuzzy -[hidden]- gevent
 fuzzywuzzy -[hidden]- os
 fuzzywuzzy -[hidden]- yaml
 fuzzywuzzy -[hidden]- sqlalchemy
 fuzzywuzzy -[hidden]- dateutil
-gevent -[hidden]- webclient
-gevent -[hidden]- os
-gevent -[hidden]- yaml
-gevent -[hidden]- sqlalchemy
-gevent -[hidden]- dateutil
+webclient -[hidden]- gevent
 webclient -[hidden]- os
 webclient -[hidden]- yaml
 webclient -[hidden]- sqlalchemy
 webclient -[hidden]- dateutil
+gevent -[hidden]- os
+gevent -[hidden]- yaml
+gevent -[hidden]- sqlalchemy
+gevent -[hidden]- dateutil
 os -[hidden]- yaml
 os -[hidden]- sqlalchemy
 os -[hidden]- dateutil
