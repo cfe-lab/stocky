@@ -44,6 +44,12 @@ DOCKER_RUN_CMD = docker run  --rm --privileged --net=host \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
 -v ${DEV_DIR}:${DEV_DIR} -w /stockysrc ${ENV_OPTS} 
 
+# run for production
+DOCKER_PRODRUN_CMD = docker run  --privileged --net=host --restart always\
+ -v ${STOCKY_STATE_DIR}:/stockystate \
+ -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
+ -v ${DEV_DIR}:${DEV_DIR} -w /stockysrc ${ENV_OPTS} 
+
 
 default: help
 
@@ -74,7 +80,7 @@ runlocal:  ## run the stocky docker image with local code interactively with bas
 	${DOCKER_RUN_CMD} -v ${DEV_SRC}:/stockysrc -it ${BASE_IMAGE_NAME} tcsh
 
 runprod: ## run the stocky docker image for production.
-	${DOCKER_RUN_CMD} -d --name ${STOCKY_PROD_NAME} ${BASE_IMAGE_NAME}
+	${DOCKER_PRODRUN_CMD} -d --name ${STOCKY_PROD_NAME} ${BASE_IMAGE_NAME}
 	notify-send "stocky server is running"
 stopprod: ## stop a container previously srated with runprod
 	docker stop ${STOCKY_PROD_NAME}
