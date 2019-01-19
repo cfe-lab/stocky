@@ -1,21 +1,20 @@
 # docker file for the stocky server
 # FROM python:3.7.1-stretch
-FROM python:3.7.1-slim-stretch
+FROM python:3.7.2-slim-stretch
 
 MAINTAINER wscott@cfenet.ubc.ca
 
 # less tcsh and minicom are usefull, but not required
 RUN apt-get update ;\
     apt-get -y upgrade ;\
-    apt-get install -y less make tcsh minicom host sqlite3 bluez;\
+    apt-get install -y less make tcsh minicom host sqlite3 bluez gcc libyaml-dev;\
     apt-get clean
 
 # Copy the source code into the image
 COPY stocky /stockysrc
 WORKDIR /stockysrc
 
-RUN apt-get install -y gcc libyaml-dev && \
-   pip install --upgrade pip &&\
+RUN pip install --upgrade pip &&\
    pip install --no-cache-dir -r requirements.txt && \
    apt-get remove -y gcc libyaml-dev
    
@@ -38,7 +37,9 @@ WORKDIR webclient
 # RUN make webclient rfidpingtest
 RUN make clean
 RUN make webclient
+# RUN ls -al __target__/webclien*
 RUN make rfidpingtest
+# RUN ls -al __target__/webclien*
 
 WORKDIR /stockysrc
 CMD ./runserver.sh

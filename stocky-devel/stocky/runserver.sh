@@ -7,7 +7,7 @@
 export FLASK_DEBUG=1
 
 # build the javascript of the client...
-# (cd webclient; make webclient)
+(cd webclient; make webclient)
 
 # this is the insecure version (no encryption via https, wss)
 # gunicorn -k flask_sockets.worker "stocky:init_app('serverconfig.yaml')" --bind 0.0.0.0:5000

@@ -106,7 +106,7 @@ class CNVWebsocket:
     def send(self, data_to_server) -> None:
         """Convert the data structure to JSON before sending it
         to the server."""
-        print("CNVWebsocket.send {}".format(data_to_server))
+        # print("CNVWebsocket.send {}".format(data_to_server))
         self._rawws.send_raw(self.encode(data_to_server))
 
     def is_open(self) -> bool:

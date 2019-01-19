@@ -63,6 +63,7 @@ class WCstatus(base.base_obj):
 
     def __init__(self, idstr: str,
                  mainprog: widgets.base_controller,
+                 # mainprog: wccontroller.stocky_mainprog,
                  login_popup: forms.modaldiv) -> None:
         """Initialise the webclient status bar.
 
@@ -78,6 +79,7 @@ class WCstatus(base.base_obj):
         Note:
            All visual HTML elements of this class are built into a
            predefined div in the DOM called state-div.
+           If this div is missing in the DOM, then nothing is built.
         """
         super().__init__(idstr)
         self._stat_is_loggedin = False

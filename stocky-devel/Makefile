@@ -80,7 +80,7 @@ runlocal:  ## run the stocky docker image with local code interactively with bas
 	${DOCKER_RUN_CMD} -v ${DEV_SRC}:/stockysrc -it ${BASE_IMAGE_NAME} tcsh
 
 runprod: ## run the stocky docker image for production.
-	${DOCKER_PRODRUN_CMD} -d --name ${STOCKY_PROD_NAME} ${BASE_IMAGE_NAME}
+	${DOCKER_RUN_CMD} -d --name ${STOCKY_PROD_NAME} ${BASE_IMAGE_NAME}
 	notify-send "stocky server is running"
 stopprod: ## stop a container previously srated with runprod
 	docker stop ${STOCKY_PROD_NAME}

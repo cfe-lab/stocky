@@ -60,11 +60,6 @@ rfidpingtest: __target__/rfidpingtest.js ## compile the rfidpingtest web client 
 __target__/rfidpingtest.js: Makefile rfidpingtest.py  ${LIBS} ${COMMON}
 	transcrypt ${OPTS} rfidpingtest
 
-sockwebby: __target__/sockwebby.js ## compile the sockwebby task (from python to javascript)
-
-__target__/sockwebby.js: Makefile sockwebby.py  ${LIBS} ${COMMON}
-	transcrypt ${OPTS} -p .none sockwebby
-
 typetest:
 	transcrypt ${OPTS} typetest.py
 clean: ## remove all javascript code

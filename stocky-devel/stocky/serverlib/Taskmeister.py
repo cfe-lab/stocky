@@ -390,7 +390,7 @@ class WebSocketReader(BaseTaskMeister):
         #
         if retmsg is not None and retmsg.msg == CommonMSG.MSG_WC_EOF:
             self._SetTaskFinished()
-        mmm = "WS.generate_msg returning commonmsg {}".format(retmsg)
+        mmm = "WebSocketReader.generate_msg returning commonmsg..."
         self._log_debug(mmm)
         print(mmm)
         return retmsg

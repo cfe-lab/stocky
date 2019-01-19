@@ -255,7 +255,8 @@ class StockyServer(BaseServer):
            msg: the message to handle.
         """
         self.logger.debug("server handling msg...")
-        print("server handling msg...{}".format(msg))
+        # print("server handling msg...{}".format(msg))
+        print("server handling msg...")
         if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
             radar_on = msg.data
             self.logger.debug("RADAR mode...{}".format(radar_on))
@@ -328,7 +329,8 @@ class StockyServer(BaseServer):
         else:
             self.logger.error("server not handling message {}".format(msg))
             raise RuntimeError("unhandled message {}".format(msg))
-        print("--END of server handling msg...{}".format(msg))
+        # print("--END of server handling msg...{}".format(msg))
+        print("--END of server handling msg...")
 
     def handleRFID_filestatechange(self, file_is_made: bool) -> None:
         """React to the serial device associated with the RFID reader appearing/disappearing.
