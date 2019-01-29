@@ -164,6 +164,9 @@ class Locmutation(Base):
     When stock taking, keep track of RFID's that have changed position.
     """
     __tablename__ = 'locmutation'
+
+    VALID_OPS = frozenset(['missing', 'found', 'moved'])
+
     reag_item_id = sql.Column(sql.Integer, primary_key=True)
     locid = sql.Column(sql.Integer)
     # rfid = sql.Column(sql.String)
@@ -655,8 +658,14 @@ class ChemStockDB:
                 raise ValueError("reag_itm_id must be an int")
             if not isinstance(opstring, str):
                 raise ValueError("opstring must be a string")
+            if opstring not in Locmutation.VALID_OPS:
+                raise ValueError("unknown opstring '{}', valid ops: {}".format(opstring,
+                                                                               Locmutation.VALID_OPS))
         s = self._sess
         for reag_itm_id, opstring in locdat:
+            # we overwrite any existing records with the same reag_item_id,
+            # except on one case:
+            # do_not_write = newop == 'missing' AND oldop == 'moved' and newloc_id != oldloc_id
             lm = Locmutation(**dict(reag_item_id=reag_itm_id,
                                     locid=locid,
                                     op=opstring,
@@ -701,7 +710,7 @@ class ChemStockDB:
            The tuples are of the form (reagent item id, operation string,
                                        row id, row ignore boolean)
            If the hash does match, return the newhash and None. In this case, the stocky server
-           will know that the webclient already has an a uo-to-date version of the location changes.
+           will know that the webclient already has an a up-to-date version of the location changes.
         """
         oldhash = oldhash or ""
         ret_dct: typing.Dict[int, LocChangeList] = {}

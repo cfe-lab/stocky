@@ -2,7 +2,7 @@
 # a single dictionary
 #
 # configuration file version
-VERSION: 1.1
+VERSION: 1.2
 #
 # The linux device name over which communication with the RFID reader takes place.
 # when connected by USB, this is usually something like '/dev/ttyUSB0'
@@ -14,6 +14,14 @@ RFCOMM_PROGRAM: '/usr/bin/rfcomm'
 
 # The bluetooth adress of the RFID reader to connect with.
 RFID_READER_BT_ADDRESS: '88:6B:0F:86:4D:F9'
+
+
+
+#---configs for the stocky DB server ----------
+# this is the location of the RFID server. The webclient will be sent this information
+# and connect to it.
+RFID_SERVER_IP: "wss://localhost:6000"
+
 
 #
 QAI_URL: "https://qai.cfenet.ubc.ca:3000/qcs_reagents/json_get"

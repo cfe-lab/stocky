@@ -1,5 +1,5 @@
-# The stocky web server main program using Flask socket
-# See the runserver.sh script in this directory for how to launch the program.
+# The stocky RFID server main program using Flask socket
+# See the runrfidserver.sh script in this directory for how to launch the program.
 
 import typing
 
@@ -63,22 +63,6 @@ socky: typing.Optional[Sockets] = Sockets(app)
 the_main: typing.Optional[stockyserver.CommonStockyServer] = None
 
 
-def initDBserver(cfgname: str) -> flask.Flask:
-    """This routine is used as a helper in order to launch the StockyServer class with the
-    name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
-    we would write something like:
-    gunicorn -k flask_sockets.worker "stocky:init_app('scoconfig.yaml')" --bind 0.0.0.0:5000
-    """
-    print("hello from init_DBserver")
-    global the_main
-    # test_logging(app.logger)
-    the_main = stockyserver.StockyDBServer(app.logger, cfgname)
-    print("yama")
-    # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
-    print("goodbye from init_DBserver")
-    return app
-
-
 def initRFIDserver(cfgname: str) -> flask.Flask:
     """This routine is used as a helper in order to launch the StockyServer class with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
@@ -109,40 +93,6 @@ def goo(rawws: websocket):
         print("goo: exited mainloop")
     else:
         print('the_main is None!')
-
-
-# this launches the RFID_Ping_Server in response to the webclient program running in
-# the browser opening a websocket connection. The server-side websocket connection
-# used for communication with the webclient is passed in from flask_sockets.
-@socky.route('/rfidping')
-def rfid_pinger(rawws: websocket):
-    # print("bla before '{}'".format(rawws))
-    ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
-    my_server = stockyserver.RFID_Ping_Server(app.logger, "RFIDPinger")
-    print("goo: got a websocket")
-    my_server.set_websocket(ws)
-    print("goo: entering mainloop")
-    my_server.mainloop()
-    print("goo: exited mainloop")
-
-
-# serve the rfidping main page
-@app.route('/rfidping')
-def rfid_page():
-    return flask.render_template('rfidpingtest.html')
-
-
-# this is required to serve the javascript code
-@app.route('/webclient/__target__/<path:path>')
-def send_js(path):
-    return flask.send_from_directory('webclient/__target__', path)
-
-
-# serve the Stocky webclient main page
-@app.route('/')
-def main_page():
-    return flask.render_template('mainpage.html')
-
 
 if __name__ == "__main__":
     print("Sorry Dave, stocky.py main program will not run....")

@@ -23,6 +23,8 @@ ADDSTOCK_VIEW_NAME = 'addstock'
 QAI_DOWNLOAD_VIEW_NAME = 'download'
 CHECK_STOCK_VIEW_NAME = 'checkstock'
 RADAR_VIEW_NAME = 'radar'
+LOCMUT_UPLOAD_VIEW_NAME = 'upload'
+
 
 STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 
@@ -46,17 +48,17 @@ menulst = [
                 'title': "Compare scanned items to current stocklist",
                 'id': 'BV3'}
      },
+    {'name': LOCMUT_UPLOAD_VIEW_NAME,
+     'viewclass': wcviews.UploadLocMutView,
+     'button': {'label': 'Upload status changes to QAI',
+                'title': "Write the reviewed reagent item locations back to QAI",
+                'id': 'BV5'}
+     },
     {'name': RADAR_VIEW_NAME,
      'viewclass': wcviews.RadarView,
      'button': {'label': 'Locate a Specific Item',
                 'title': "Search for an item with a given EPC",
                 'id': 'BV4'}
-     },
-    {'name': 'upload',
-     'viewclass': wcviews.UploadLocMutView,
-     'button': {'label': 'Upload status changes to QAI',
-                'title': "Write the reviewed reagent item locations back to QAI",
-                'id': 'BV5'}
      },
     {'name': 'status',
      'viewclass': wcviews.ConfigStatusView,
@@ -82,29 +84,27 @@ class WebClientController(widgets.base_controller):
            ws: the websocket instance used to communicate to the server.
         """
         super().__init__(myname)
-        self._ws = ws
-        ws.addObserver(self, base.MSGD_SERVER_MSG)
-        ws.addObserver(self, base.MSGD_COMMS_ARE_UP)
-        ws.addObserver(self, base.MSGD_COMMS_ARE_DOWN)
         self.numlst: typing.List[int] = []
-        self.init_view()
+        ws.addObserver(self, base.MSGD_SERVER_MSG)
+        self.wcstatus: typing.Optional[wcstatus.WCstatus] = None
+        self.init_view(ws)
 
     def send_WS_msg(self, msg: CommonMSG) -> None:
-        """Send a message to the server via websocket."""
-        if self.wcstatus.is_WS_up():
-            self._ws.send(msg.as_dict())
-        else:
-            print("SEND IS NOOOT HAPPENING")
+        if self.wcstatus is not None:
+            self.wcstatus.send_WS_msg(msg)
 
-    def init_view(self) -> None:
-        """Initialise the servers html elements as required for the application"""
+    def init_view(self, ws: serversocketbase.base_server_socket) -> None:
+        """Initialise the servers html elements as required for the application.
+
+        This method must initialise self.wcstatus, passing it the server websocket.
+        """
         pass
 
 
 class stocky_mainprog(WebClientController):
     """The main program for the stocky webclient"""
 
-    def init_view(self):
+    def init_view(self, ws: serversocketbase.base_server_socket):
         topdoc = html.getPyElementById('stockyframe')
         if topdoc is not None:
             log('topdoc GOOOTIT')
@@ -133,7 +133,7 @@ class stocky_mainprog(WebClientController):
         log("LOGINFORM OK")
         # status bar (top right)
         print("TRYING WCSTATUS")
-        self.wcstatus = wcstatus.WCstatus("WCSTAT", self, popup)
+        self.wcstatus = wcstatus.WCstatus("WCSTAT", ws, self, popup)
         print("WCSTATUS OK")
 
         # now make switchviews and menubuttons from the menulst
@@ -175,7 +175,8 @@ class stocky_mainprog(WebClientController):
         """Display the login status in the window"""
         # if not is_logged_in:
         self.loginform.set_login_response(resdct)
-        self.wcstatus.set_login_response(resdct)
+        if self.wcstatus is not None:
+            self.wcstatus.set_login_response(resdct)
 
     def start_QAI_download(self):
         """Tell server to start download of QAI data..."""
@@ -189,12 +190,25 @@ class stocky_mainprog(WebClientController):
 
     def set_qai_update(self, resdct: dict) -> None:
         """The server has told us about a new QAI update.
-        ==> tell the wcstatus icons
+        ==> send the new data to wcstatus
         ==? also tell the download view.
         """
-        self.wcstatus.set_QAIupdate_state(resdct)
+        if self.wcstatus is not None:
+            self.wcstatus.set_QAIupdate_state(resdct)
         dnl_view = self.switch.getView(QAI_DOWNLOAD_VIEW_NAME)
         dnl_view.stop_download(resdct)
+
+    def set_locmut_update(self, rdct: dict, newhash: str) -> None:
+        """The server has told us about a new locmut dict,
+        or the server has told us there have been no changes since we last
+        polled (rdct will be None in this case).
+        ==> send the data to wcstatus if required.
+        ==> also tell the locmut view to change its busy status.
+        """
+        if rdct is not None and self.wcstatus is not None:
+            self.wcstatus.set_locmut_dct(rdct, newhash)
+        locmut_view = self.switch.getView(LOCMUT_UPLOAD_VIEW_NAME)
+        locmut_view.stop_locmut_download()
 
     def rcvMsg(self, whofrom: base.base_obj,
                msgdesc: base.MSGdesc_Type,
@@ -210,11 +224,11 @@ class stocky_mainprog(WebClientController):
                 return
             cmd = msgdat.get("msg", None)
             val = msgdat.get("data", None)
-            if cmd == CommonMSG.MSG_SV_RFID_STATREP:
+            if cmd == CommonMSG.MSG_SV_RFID_STATREP and self.wcstatus is not None:
                 print("GOT RFID state {}".format(val))
                 self.wcstatus.set_RFID_state(val)
                 print("state set OK")
-            elif cmd == CommonMSG.MSG_SV_RFID_ACTIVITY:
+            elif cmd == CommonMSG.MSG_SV_RFID_ACTIVITY and self.wcstatus is not None:
                 self.wcstatus.set_RFID_state(CommonMSG.RFID_ON)
                 self.wcstatus.set_rfid_activity(val)
             elif cmd == CommonMSG.MSG_SV_RAND_NUM:
@@ -232,7 +246,7 @@ class stocky_mainprog(WebClientController):
                 self.sndMsg(base.MSGD_RFID_CLICK, val)
             elif cmd == CommonMSG.MSG_SV_LOGIN_RES:
                 self.set_login_status(val)
-            elif cmd == CommonMSG.MSG_SV_LOGOUT_RES:
+            elif cmd == CommonMSG.MSG_SV_LOGOUT_RES and self.wcstatus is not None:
                 self.wcstatus.set_logout_status()
             elif cmd == CommonMSG.MSG_SV_STOCK_INFO_RESP:
                 self.set_qai_update(val)
@@ -240,8 +254,8 @@ class stocky_mainprog(WebClientController):
                 self.addnewstock(val)
             elif cmd == CommonMSG.MSG_SV_LOCMUT_RESP:
                 rdct, newhash = val['data'], val['hash']
-                self.wcstatus.set_locmut_dct(rdct, newhash)
-            elif cmd == CommonMSG.MSG_SV_SRV_CONFIG_DATA:
+                self.set_locmut_update(rdct, newhash)
+            elif cmd == CommonMSG.MSG_SV_SRV_CONFIG_DATA and self.wcstatus is not None:
                 self.wcstatus.set_server_cfg_data(val)
             else:
                 print("unrecognised server command {}".format(msgdat))
@@ -272,9 +286,6 @@ class stocky_mainprog(WebClientController):
                 # se_ndx, se_val = self.lb.get_selected()
                 # print("showchecklist: got LOCKY VBAL '{}'  '{}'".format(se_ndx, se_val))
                 # self.showchecklist(se_ndx)
-            elif cmd == 'logout':
-                # the logout button was pressed
-                self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGOUT_TRY, 1))
             elif cmd == wcviews.AddNewStockView.GO_ADD_NEW_STOCK or\
                     cmd == wcviews.AddNewStockView.GO_ADD_NEW_RFIDTAG:
                 # the GO button of add new stock was pressed:
@@ -288,16 +299,6 @@ class stocky_mainprog(WebClientController):
             else:
                 print('webclient: unrecognised cmd {}'.format(cmd))
                 return
-        elif msgdesc == base.MSGD_COMMS_ARE_UP:
-            # this happens when the websocket first comes online. Use it for
-            # some initial caching.
-            print("COMMS ARE UP")
-            self.wcstatus.set_WS_state(True)
-            self.wcstatus.refresh_locmut_dct()
-        elif msgdesc == base.MSGD_COMMS_ARE_DOWN:
-            # this happens when the stocky server crashes, taking
-            # the websocket connection with it
-            self.wcstatus.set_WS_state(False)
         elif msgdesc == base.MSGD_FORM_SUBMIT:
             # the login form has sent us a login request. pass this to the server
             # for verification

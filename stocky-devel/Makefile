@@ -29,11 +29,12 @@ ENV_OPTS =
 
 # the stocky server will listen on this port
 PORTNUM=5000
+PORTNUM_RFID=6000
 
 #NOTE Must run the docker image with --privileged to give the container access to devices
 DEV_DIR = /dev
 
-DOCKER_TESTRUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} \
+DOCKER_TESTRUN_CMD = docker run  --rm --privileged -p=${PORTNUM}:${PORTNUM} -p=${PORTNUM_RFID}:${PORTNUM_RFID}\
 -v ${STOCKY_STATE_DIR}:/stockystate \
 -v ${STOCKY_CONFIG_DIR}:/stockyconfig \
 -w /stockysrc ${ENV_OPTS} 

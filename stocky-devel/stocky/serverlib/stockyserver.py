@@ -11,6 +11,7 @@ import serverlib.qai_helper as qai_helper
 import serverlib.ChemStock as ChemStock
 import serverlib.Taskmeister as Taskmeister
 import serverlib.serverconfig as serverconfig
+import serverlib.commlink as commlink
 
 from webclient.commonmsg import CommonMSG
 
@@ -102,7 +103,7 @@ class BaseServer:
 AVENUM = 5
 
 
-class StockyServer(BaseServer):
+class CommonStockyServer(BaseServer):
     """The class that implements the standard stocky web server. It is instantiated as a
     singleton in the main program, and mainloop is called with a websocket when the
     web client makes websocket connection.
@@ -133,13 +134,11 @@ class StockyServer(BaseServer):
                                 CommonMSG.MSG_SV_TIMER_TICK,
                                 CommonMSG.MSG_WC_LOCATION_INFO])
 
-    def __init__(self, logger: logging.Logger, CommLinkClass, cfgname: str) -> None:
+    def __init__(self, logger: logging.Logger, cfgname: str) -> None:
         """
 
         Args:
            logger: a logging instance
-           CommLinkClass: the name of the class to use for communicating\
-              with the RFID reader (Commlink = serial communication link)
            cfgname: the name of the server configuration file (a YAML file)
 
         This class pull all of the data streams together and passes data
@@ -153,6 +152,7 @@ class StockyServer(BaseServer):
           - a local database of chemical stocks is opened.
 
         """
+        print("Begin CommonStockyServer")
         super().__init__(logger, "Johnny")
         self.logger.info("serverclass: reading config file '{}'".format(cfgname))
         try:
@@ -164,6 +164,38 @@ class StockyServer(BaseServer):
         self.logger.debug("serverclass: config file read...{}".format(self.cfg_dct))
         timelib.set_local_timezone(self.cfg_dct['TZINFO'])
 
+        # create a timer tick for use in radar mode
+        self.logger.info("Instantiating Tickgenerator")
+        self.timerTM = Taskmeister.TickGenerator(self.msgQ, self.logger, 1, 'radartick')
+        self.timerTM.set_active(False)
+        self.logger.info("End of serverclass.__init__")
+
+        self.cl: typing.Optional[commlink.BaseCommlink] = None
+        self.tls: typing.Optional[TLSAscii.TLSReader] = None
+        print("Begin CommonStockyServer")
+
+    def _init_DB_server(self) -> None:
+        """Perform initialisation activities for the Database server
+        (no RFID activities).
+        """
+        self.logger.info("Begin of _init_DB_server")
+        # now: set up our channel to QAI
+        qai_url = self.cfg_dct['QAI_URL']
+        self.qai_file = self.cfg_dct['LOCAL_STOCK_DB_FILE']
+        self.logger.info("QAI info URL: '{}', file: '{}'".format(qai_url, self.qai_file))
+        self.qaisession = qai_helper.QAISession(qai_url)
+        self.logger.info("Instantiating ChemStock")
+        self.stockdb = ChemStock.ChemStockDB(self.qai_file,
+                                             self.qaisession,
+                                             self.cfg_dct['TIME_ZONE'])
+        # now: get our current stock list from QAI
+        self.logger.info("End of _init_DB_server")
+
+    def _init_RFID_server(self, CommLinkClass) -> None:
+        """Perform initialisation activities for the RFID server.
+        This server only talks to the RFID reader via rfcomm and serves
+        the results via websockets.
+        """
         # start the rfcomm daemon...
         # the command to run is something along the lines of:
         # "/usr/bin/rfcomm connect /dev/rfcomm0 88:6B:0F:86:4D:F9"
@@ -185,22 +217,6 @@ class StockyServer(BaseServer):
         self.cl = CommLinkClass(self.cfg_dct)
         self.logger.debug("serverclass: instantiating TLSAscii...")
         self.tls = TLSAscii.TLSReader(self.msgQ, self.logger, self.cl, AVENUM)
-        # now: set up our channel to QAI
-        qai_url = self.cfg_dct['QAI_URL']
-        self.qai_file = self.cfg_dct['LOCAL_STOCK_DB_FILE']
-        self.logger.info("QAI info URL: '{}', file: '{}'".format(qai_url, self.qai_file))
-        self.qaisession = qai_helper.QAISession(qai_url)
-        self.logger.info("Instantiating ChemStock")
-        self.stockdb = ChemStock.ChemStockDB(self.qai_file,
-                                             self.qaisession,
-                                             self.cfg_dct['TIME_ZONE'])
-        # now: get our current stock list from QAI
-
-        # create a timer tick for use in radar mode
-        self.logger.info("Instantiating Tickgenerator")
-        self.timerTM = Taskmeister.TickGenerator(self.msgQ, self.logger, 1, 'radartick')
-        self.timerTM.set_active(False)
-
         # create messages and a delayTM for the RFID activity spinner
         self._rfid_act_on = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, True)
         rfid_act_off = CommonMSG(CommonMSG.MSG_SV_RFID_ACTIVITY, False)
@@ -209,7 +225,6 @@ class StockyServer(BaseServer):
                                                             self.logger,
                                                             1.5,
                                                             rfid_act_off)
-        self.logger.info("End of serverclass.__init__")
 
     def activate_RFID_spinner(self):
         """Send messages to the webclient in order to get the 'RFID activity' spinner
@@ -226,7 +241,7 @@ class StockyServer(BaseServer):
         dd = self.cfg_dct
         cfg_dct = dict([(k, dd[k]) for k in serverconfig.known_set])
         # extract information about the RFID reader if its online.
-        rfid_info_dct = self.cl.get_info_dct()
+        rfid_info_dct = self.cl.get_info_dct() if self.cl is not None else None
         if rfid_info_dct is not None:
             for k, v in rfid_info_dct.items():
                 cfg_dct[k] = v
@@ -254,8 +269,8 @@ class StockyServer(BaseServer):
         Args:
            msg: the message to handle.
         """
-        self.logger.debug("server handling msg...")
-        # print("server handling msg...{}".format(msg))
+        # self.logger.debug("server handling msg...")
+        print("server handling msg...{}".format(msg))
         print("server handling msg...")
         if msg.msg == CommonMSG.MSG_WC_RADAR_MODE:
             radar_on = msg.data
@@ -264,7 +279,7 @@ class StockyServer(BaseServer):
         elif msg.msg == CommonMSG.MSG_SV_TIMER_TICK:
             self.logger.debug("server received tick...")
             # print("MY logger is called '{}'".format(get_logger_name(self.logger)))
-            if self.tls.is_in_radarmode():
+            if self.tls is not None and self.tls.is_in_radarmode():
                 self.tls.RadarGet()
         elif msg.msg == CommonMSG.MSG_WC_LOGIN_TRY:
             self.logger.debug("server received LOGIN request...")
@@ -310,22 +325,21 @@ class StockyServer(BaseServer):
             qai_str = self.qaisession.generate_receive_url(locid, rfidstrlst, new_stock)
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_ADD_STOCK_RESP, qai_str))
         elif msg.msg == CommonMSG.MSG_SV_RFID_STATREP:
-            print("state change enter")
+            # print("state change enter")
             self.handleRFID_CLstatechange(msg.data)
-            print("state change exit")
+            # print("state change exit")
         elif msg.msg == CommonMSG.MSG_SV_FILE_STATE_CHANGE:
-            print("state change enter")
+            # print("state change enter")
             self.handleRFID_filestatechange(msg.data)
-            print("state change exit")
+            # print("state change exit")
         elif msg.msg == CommonMSG.MSG_WC_LOCATION_INFO:
             # location change information: save to DB
             self.stockdb.add_loc_changes(msg.data['locid'], msg.data['locdat'])
         elif msg.msg == CommonMSG.MSG_WC_LOCMUT_REQ:
             client_hash = msg.data
             newhash, rdct = self.stockdb.get_loc_changes(client_hash)
-            if rdct is not None:
-                self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOCMUT_RESP,
-                                           dict(data=rdct, hash=newhash)))
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOCMUT_RESP,
+                                       dict(data=rdct, hash=newhash)))
         else:
             self.logger.error("server not handling message {}".format(msg))
             raise RuntimeError("unhandled message {}".format(msg))
@@ -399,19 +413,23 @@ class StockyServer(BaseServer):
         :meth:`server_handle_msg` .
         """
         lverb = True
-        print("mainloop begin")
+        IS_RFID_SERVER = (self.cl is not None)
+
+        print("mainloop begin: is_rfid_server: {}".format(IS_RFID_SERVER))
+        self.logger.info("mainloop begin")
         # start a random generator thread for testing....
         # self.randTM = Taskmeister.RandomGenerator(self.msgQ, self.logger)
         # self.randTM.set_active(True)
 
-        # send the RFID status to the webclient
-        rfid_stat = self.cl.get_RFID_state()
-        self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, rfid_stat))
-        # send the stocky server config data
-        self.send_server_config()
-
-        # send the QAI update status to the webclient
-        self.send_QAI_status(None)
+        if IS_RFID_SERVER:
+            # send the RFID status to the webclient
+            rfid_stat = self.cl.get_RFID_state()
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_RFID_STATREP, rfid_stat))
+        else:
+            # send the stocky server config data
+            self.send_server_config()
+            # send the QAI update status to the webclient
+            self.send_QAI_status(None)
 
         do_loop = True
         while do_loop:
@@ -433,15 +451,15 @@ class StockyServer(BaseServer):
                 self.activate_RFID_spinner()
 
             is_handled = False
-            if self.ws is not None and msg.msg in StockyServer.MSG_FOR_WC_SET:
+            if self.ws is not None and msg.msg in CommonStockyServer.MSG_FOR_WC_SET:
                 is_handled = True
                 # print("sending to WS...")
                 self.send_WS_msg(msg)
                 # print("...OK send")
-            if msg.msg in StockyServer.MSG_FOR_RFID_SET:
+            if self.tls is not None and msg.msg in CommonStockyServer.MSG_FOR_RFID_SET:
                 is_handled = True
                 self.tls.send_RFID_msg(msg)
-            if msg.msg in StockyServer.MSG_FOR_ME_SET:
+            if msg.msg in CommonStockyServer.MSG_FOR_ME_SET:
                 print("msg for me: {}".format(msg.msg))
                 is_handled = True
                 self.server_handle_msg(msg)
@@ -452,6 +470,35 @@ class StockyServer(BaseServer):
                 print(mmm)
             print("end of ML.while")
         print("OUT OF LOOP")
+
+
+class StockyDBServer(CommonStockyServer):
+    def __init__(self, logger: logging.Logger, cfgname: str) -> None:
+        """
+        Args:
+           logger: a logging instance
+           CommLinkClass: the name of the class to use for communicating\
+              with the RFID reader (Commlink = serial communication link)
+           cfgname: the name of the server configuration file (a YAML file)
+        """
+        print("DB server 01!")
+        super().__init__(logger, cfgname)
+        print("DB server 02!")
+        self._init_DB_server()
+
+
+class StockyRFIDServer(CommonStockyServer):
+    def __init__(self, logger: logging.Logger, cfgname: str, CommLinkClass) -> None:
+        """
+
+        Args:
+           logger: a logging instance
+           CommLinkClass: the name of the class to use for communicating\
+              with the RFID reader (Commlink = serial communication link)
+           cfgname: the name of the server configuration file (a YAML file)
+        """
+        super().__init__(logger, cfgname)
+        self._init_RFID_server(CommLinkClass)
 
 
 class RFID_Ping_Server(BaseServer):

@@ -30,8 +30,11 @@ ENV FLASK_APP=/stockysrc/stocky.py
 ENV STOCKY_CONFIG_DIR=/stockyconfig
 ENV STOCKY_STATE_DIR=/stockystate
 
-# The web server listens on this port number
+# The stocky server listens on this port number
 EXPOSE 5000
+
+# the stocky RFID server listens on this port number
+EXPOSE 5050
 
 WORKDIR webclient
 # RUN make webclient rfidpingtest

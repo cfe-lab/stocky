@@ -32,6 +32,11 @@ https://www.w3schools.com/colors/colors_names.asp
 
 */
 
+
+.sco-push-click:active  {
+    transform: translateY(4px);
+}
+
 .helptext {
     display: inline-block;
     color: #880;

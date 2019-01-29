@@ -107,10 +107,11 @@ class CommonMSG:
     # The web client is sending the server some stock location change data.
     # This data is produced in the course of the stock taking procedure, i.e.,
     # which RFID tags were detected at a particular location.
+    # the server will store/overwrite these to its local database.
     MSG_WC_LOCATION_INFO = 'WC_LOCATION_INFO'
 
-    # When reviewing location mutation list, wc will request all location changes
-    # this data will be provided by the stocky server.
+    # When reviewing location mutation list, the webcient will request all
+    # location changes. This data will be provided by the stocky server.
     MSG_WC_LOCMUT_REQ = 'WC_LOCMUT_REQ'
     MSG_SV_LOCMUT_RESP = 'SV_LOCMUT_RESP'
 

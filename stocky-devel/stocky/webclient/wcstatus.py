@@ -9,10 +9,12 @@ import typing
 import qailib.common.base as base
 
 
+import qailib.common.serversocketbase as serversocketbase
+import qailib.transcryptlib.websocket as websocket
+import qailib.transcryptlib.serversocket as serversock
 import qailib.transcryptlib.genutils as genutils
 import qailib.transcryptlib.htmlelements as html
 import qailib.transcryptlib.forms as forms
-import qailib.transcryptlib.widgets as widgets
 import qailib.transcryptlib.simpletable as simpletable
 
 from webclient.commonmsg import CommonMSG
@@ -24,11 +26,13 @@ RFID_TIMEOUT = CommonMSG.RFID_TIMEOUT
 
 log = genutils.log
 
-# May not import wccontroller or wcviews
-# import wccontroller
+# NOTE: May not import wccontroller or wcviews
 
 
 STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
+
+CMD_LOGOUT = 'logout'
+CMD_TRY_RFID_SERVER = 'try_rfid_server'
 
 
 class WCstatus(base.base_obj):
@@ -62,26 +66,27 @@ class WCstatus(base.base_obj):
     LOC_NOSEL_NAME = "No Defined Location"
 
     def __init__(self, idstr: str,
-                 mainprog: widgets.base_controller,
-                 # mainprog: wccontroller.stocky_mainprog,
+                 ws: serversocketbase.base_server_socket,
+                 msg_listener: base.base_obj,
                  login_popup: forms.modaldiv) -> None:
         """Initialise the webclient status bar.
 
         Args:
            idstr: the instance's name
-           mainprog: the webclient main program controller instance
+           ws: the websocket used for communication with the stocky server.
+           msg_listener: the object that should receive messages from the RFID websocket.
            login_popup: the popup to be used to log a user in.
-
-        Note:
-        mainprog is actually a "wccontroller.stocky_mainprog" instance, but
-        because of javascript restrictions, cannot import that module here.
-
         Note:
            All visual HTML elements of this class are built into a
            predefined div in the DOM called state-div.
            If this div is missing in the DOM, then nothing is built.
         """
         super().__init__(idstr)
+        self._rfid_ws: typing.Optional[serversock.JSONserver_socket] = None
+        self._server_ws = ws
+        self._msg_listener = msg_listener
+        ws.addObserver(self, base.MSGD_COMMS_ARE_UP)
+        ws.addObserver(self, base.MSGD_COMMS_ARE_DOWN)
         self._stat_is_loggedin = False
         self._stat_WS_isup = False
         # empty stock information.. these are set in _setstockdata
@@ -91,9 +96,8 @@ class WCstatus(base.base_obj):
         # empty locmut data..
         self.locmut_hash = "bla"
         self.locmut_dct = {}
-        self.srv_config_data = None
+        self.srv_config_data: typing.Optional[typing.Dict[str, str]] = None
         #
-        self.mainprog = mainprog
         self.login_popup = login_popup
         self.statediv = statediv = html.getPyElementById("state-div")
         if statediv is None:
@@ -124,6 +128,9 @@ class WCstatus(base.base_obj):
                 return
             #
             mytab.set_alignment(rownum, WCstatus.INFO_COL, "center")
+        rfid_led = self.ledlst[WCstatus.RFID_ROW]
+        rfid_led.setAttribute(STARATTR_ONCLICK, {'cmd': CMD_TRY_RFID_SERVER})
+        rfid_led.addObserver(self, base.MSGD_BUTTON_CLICK)
         # the login led is an opener for the login form
         # login_popup.attach_opener(self.ledlst[WCstatus.QAI_ROW])
 
@@ -178,6 +185,13 @@ class WCstatus(base.base_obj):
             log("cell table error 3")
             return
 
+    def send_WS_msg(self, msg: CommonMSG) -> None:
+        """Send a message to the server via websocket."""
+        if self.is_WS_up():
+            self._server_ws.send(msg.as_dict())
+        else:
+            print("SEND IS NOOOT HAPPENING")
+
     def set_login_response(self, resdct: dict) -> None:
         """Set the visual QAI logged in status according to resdct."""
         statusled = self.ledlst[WCstatus.QAI_ROW]
@@ -194,10 +208,10 @@ class WCstatus(base.base_obj):
             txthelptext = "Logged in to QAI. Click here to log out"
             txt.removeClass(out_col)
             txt.addClass(in_col)
-            txt.setAttribute(STARATTR_ONCLICK, {'cmd': 'logout'})
+            txt.setAttribute(STARATTR_ONCLICK, {'cmd': CMD_LOGOUT})
             # the username text is NOT an opener for the login form
             # self.login_popup.remove_opener(txt)
-            txt.addObserver(self.mainprog, base.MSGD_BUTTON_CLICK)
+            txt.addObserver(self, base.MSGD_BUTTON_CLICK)
         else:
             # error:
             labtext = "not logged in"
@@ -210,7 +224,7 @@ class WCstatus(base.base_obj):
             txt.setAttribute(STARATTR_ONCLICK, dict(msg=forms.modaldiv._OPN_MSG))
             # the username text is an opener for the login form
             self.login_popup.attach_opener(txt)
-            txt.remObserver(self.mainprog, base.MSGD_BUTTON_CLICK)
+            txt.remObserver(self, base.MSGD_BUTTON_CLICK)
 
         txt.set_text(labtext)
         txt.setAttribute("title", txthelptext)
@@ -314,6 +328,47 @@ class WCstatus(base.base_obj):
         """
         return self._stat_WS_isup
 
+    def rcvMsg(self, whofrom: base.base_obj,
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        lverb = True
+        if lverb:
+            # print("{}.rcvMsg: {}: {} from {}".format(self._idstr, msgdesc, msgdat, whofrom._idstr))
+            print("{}.rcvMsg: {} from {}".format(self._idstr, msgdesc, whofrom._idstr))
+        if msgdesc == base.MSGD_BUTTON_CLICK:
+            print("wcstatus GOT BUTTON CLICK msgdat={}".format(msgdat))
+            if msgdat is None:
+                print("msgdat is None")
+                return
+            cmd = msgdat.get("cmd", None)
+            print("wcstatus GOT BUTTON CLICK CMD {}".format(cmd))
+            if cmd == CMD_LOGOUT:
+                # the logout button was pressed
+                self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOGOUT_TRY, 1))
+            elif cmd == CMD_TRY_RFID_SERVER:
+                self._check_for_RFID_server()
+            else:
+                print('wcstatus: unrecognised cmd {}'.format(cmd))
+                return
+        elif msgdesc == base.MSGD_COMMS_ARE_UP:
+            # this happens when the stocky server or RFID server websocket first comes online.
+            # Use it for setting status and some initial data caching.
+            print("COMMS ARE UP: {}".format(whofrom))
+            if whofrom == self._server_ws:
+                self.set_WS_state(True)
+                self.refresh_locmut_dct()
+            elif whofrom == self._rfid_ws:
+                print("MSG FROM RFID server!!")
+        elif msgdesc == base.MSGD_COMMS_ARE_DOWN:
+            # this happens when the stocky server crashes, taking
+            # the websocket connection with it
+            print("COMMS ARE DOWN: {}".format(whofrom))
+            if whofrom == self._server_ws:
+                self.set_WS_state(False)
+            elif whofrom == self._rfid_ws:
+                self._rfid_ws = None
+                self.set_RFID_state(RFID_OFF)
+
     def set_QAIupdate_state(self, d: dict) -> None:
         """Set the string describing when the local DB was last
         updated from QAI"""
@@ -380,9 +435,10 @@ class WCstatus(base.base_obj):
             sel.add_or_set_option(WCstatus.LOC_NOSEL_ID, WCstatus.LOC_NOSEL_NAME)
 
     def get_reagent_info(self, rid: str) -> typing.Optional[dict]:
-        """Rge returned dict is taken directly from the ChemStock.Reagent_table
+        """The returned dict is taken directly from the ChemStock.Reagent_table
         and is of the form:
-        {basetype: stockchem, catalog_number: TDF, category: Antiviral drugs/stds, date_msds_expires: null,
+        {basetype: stockchem, catalog_number: TDF, category: Antiviral drugs/stds,
+         date_msds_expires: null,
          disposed: t, expiry_time: 2555, hazards: null, id: 6371, location: 605 dessicator,
          msds_filename: null, name: Tenofovir Tablet, needs_validation: null, notes: null,
          qcs_document_id: null, storage: Room Temperature, supplier: Pharmacy}
@@ -405,16 +461,71 @@ class WCstatus(base.base_obj):
         This is done by sending a hash of the current data.
         The server will send an update if our data is out of date.
         """
-        self.mainprog.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOCMUT_REQ, self.locmut_hash))
+        self.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_LOCMUT_REQ, self.locmut_hash))
 
-    def set_locmut_dct(self, dct: dict, newhash: str) -> None:
-        """Set the location mutation dictionary"""
+    def set_locmut_dct(self, newdct: dict, newhash: str) -> None:
+        """Set the location mutation dictionary.
+        If the data has changed from a previous server poll, this will generate a
+        MSGD_ON_CHANGE message.
+        """
         print("NEW HASH {}".format(newhash))
-        self.locmut_dct = dct
+        self.locmut_dct = newdct
+        oldhash = self.locmut_hash
         self.locmut_hash = newhash
+        if oldhash != newhash:
+            msgdat = dict(msg='locmutdata')
+            self.sndMsg(base.MSGD_ON_CHANGE, msgdat)
+
+    def get_locmut_dct(self) -> dict:
+        """Return the current location mutation dictionary.
+        """
+        return self.locmut_dct
+
+    def get_stockloc_dct(self) -> typing.Dict[int, str]:
+        """Return a dict locid : loc name.
+        NOTE: self._stockloc_lst is a list of dicts... we undo this here
+        """
+        return dict([(locdct['id'], locdct['name']) for locdct in self._stockloc_lst])
+
+    def get_reagent_item_dct(self) -> dict:
+        """Return a dict of reagent items. The key is the reagent item id,
+        and the value is a dict of the form
+        {'id': 17713, 'last_seen': {},
+          'lot_num': '705274',
+        'notes': 'For MS Vacuum Pump - no expiry designated on product, just made up a date.',
+        'qcs_location_id': 10032, 'qcs_reag_id': 8726,
+        'rfid': '(no RFID)'
+        }
+        """
+        # NOTE: can't seem to get nested list comprehensions to work in transcrypt..
+        ll = []
+        for list_list in self._ritemdct.values():
+            ll.extend([(ri['id'], ri) for ri in list_list])
+        return dict(ll)
 
     def set_server_cfg_data(self, new_cfg: dict) -> None:
+        """This method is called in order to set stocky server configuration data
+        to wcstatus.
+
+        Args:
+           new_cfg: a dict containing the stocky server configuration.
+        """
         self.srv_config_data = new_cfg
+        self._check_for_RFID_server()
 
     def get_server_cfg_data(self) -> typing.Optional[dict]:
         return self.srv_config_data
+
+    def _check_for_RFID_server(self) -> None:
+        print("check_for_RFID_server !!")
+        urlstr = self.srv_config_data['RFID_SERVER_IP'] + '/goo'
+        print("RFID URLSTR is '{}'".format(urlstr))
+        if self._rfid_ws is None:
+            rawsock = websocket.RawWebsocket(urlstr, ['/'])
+            ws = serversock.JSONserver_socket('rfidsock', rawsock)
+            ws.addObserver(self, base.MSGD_COMMS_ARE_UP)
+            ws.addObserver(self, base.MSGD_COMMS_ARE_DOWN)
+            ws.addObserver(self._msg_listener, base.MSGD_SERVER_MSG)
+            self._rfid_ws = ws
+        else:
+            print("RFID socket already open")

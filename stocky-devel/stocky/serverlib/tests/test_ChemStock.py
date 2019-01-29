@@ -183,13 +183,15 @@ class Test_Chemstock_EMPTYDB(commontests):
         assert isinstance(ngot, int), "int expected"
         assert ngot == 0, "n should be zero!"
 
-        # c) opstrings are not strings
-        wronglocdat = [(1, 'missing'), (2, 1001), (3, 'missing')]
-        with pytest.raises(ValueError):
-            csdb.add_loc_changes(99, wronglocdat)
-        ngot = csdb.number_of_loc_changes()
-        assert isinstance(ngot, int), "int expected"
-        assert ngot == 0, "n should be zero!"
+        # c) opstrings are not strings or illegal strings
+        wronglocdatA = [(1, 'missing'), (2, 1001), (3, 'missing')]
+        wronglocdatB = [(1, 'missing'), (2, 'bla'), (3, 'missing')]
+        for wronglocdat in [wronglocdatA, wronglocdatB]:
+            with pytest.raises(ValueError):
+                csdb.add_loc_changes(99, wronglocdat)
+            ngot = csdb.number_of_loc_changes()
+            assert isinstance(ngot, int), "int expected"
+            assert ngot == 0, "n should be zero!"
 
     def test_set_ignore_flag01(self) -> None:
         """Calling set_ignore_flag with wrong parameter types must raise a ValueError"""
@@ -287,6 +289,34 @@ class Test_Chemstock_EMPTYDB(commontests):
         # remove all records to finish up
         csdb.reset_loc_changes()
 
+    def test_addlocchanges03(self) -> None:
+        """Reporting an item missing at one location and
+        found at another should produced the same result independently
+        of the order of the operations.
+        """
+        csdb = self.csdb
+        locidA = 99
+        locidB = 100
+        # reset should remove all records
+        csdb.reset_loc_changes()
+        ngot = csdb.number_of_loc_changes()
+        assert isinstance(ngot, int), "int expected"
+        assert ngot == 0, "n should be zero!"
+        missing_op = (locidA, [(1, 'missing')])
+        found_op = (locidB, [(1, 'found')])
+        
+        csdb.add_loc_changes(missing_op[0], missing_op[1])
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 1, "expected one!"
+        
+        csdb.add_loc_changes(found_op[0], found_op[1])
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 1, "expected one!"
+        # raise False, "force fail"
+
+
+
+        
     def test_calc_final_state01(self) -> None:
         """Test calc_final_state with various legal inputs and check results."""
         calcfinalstate = self.csdb.calc_final_state

@@ -12,6 +12,7 @@ pip3 install --upgrade pip
 
 pip3 install flake8
 pip3 install transcrypt
+pip3 install pylint
 
 
 

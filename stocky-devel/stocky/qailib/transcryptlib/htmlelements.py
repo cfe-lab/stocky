@@ -1032,6 +1032,24 @@ class select(element, OnChangeMixin):
         val = self._el.options[sel_ndx].value
         return (int(sel_ndx), val)
 
+    def set_selected(self, idstr: str) -> None:
+        """Make the option with the provided idstr the currently selected
+        option.
+        This is achieved by setting the selected attribute of the designated
+        option item.
+        If no idstr is found, a message is written to console and the function
+        returns.
+        """
+        opt = self._optdct.get(idstr, None)
+        if opt is None:
+            print("select: no option with idstr: {}".format(idstr))
+            return
+        for iidstr, opt in self._optdct.items():
+            if iidstr == idstr:
+                opt.setAttribute('selected')
+            else:
+                opt.removeAttribute('selected')
+
     def has_option_id(self, idstr: str) -> bool:
         """Return 'the select element has an option field with an id == idstr' """
         return self._optdct.get(idstr, None) is not None
@@ -1051,6 +1069,10 @@ class select(element, OnChangeMixin):
         self._optdct[idstr] = opt
 
     def add_or_set_option(self, idstr: str, name: str) -> None:
+        """Add a new option to the select .
+        Each option has a unique  idstr for identification of the option
+        and a name which is displayed.
+        """
         opt = self._optdct.get(idstr, None)
         if opt is None:
             self._add_option(idstr, name)
@@ -1058,7 +1080,7 @@ class select(element, OnChangeMixin):
             opt.setInnerHTML(name)
 
 
-class input(element):
+class input(element, OnChangeMixin):
     """An input HTML element.
     Input elements are primarily used in HTML forms as the various ways of allowing
     the user to enter data (such as text, toggle buttons, submit buttons)
@@ -1079,6 +1101,7 @@ class input(element):
         else:
             attrdct['type'] = inp_type
         generic_element.__init__(self, 'input', parent, idstr, attrdct, jsel)
+        OnChangeMixin.__init__(self)
 
     def get_stringval(self) -> str:
         return self._el.value
@@ -1096,7 +1119,6 @@ class input(element):
 class input_list(input):
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         self.idstr = idstr
-        # super().__init__(parent, idstr, 'button', attrdct)
         generic_element.__init__(self, 'div', parent, idstr, attrdct, jsel)
         self._ellst: typing.List[input] = []
 
@@ -1117,6 +1139,22 @@ class input_button(input):
 class input_submit(input):
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         super().__init__(parent, idstr, 'submit', attrdct, jsel)
+
+
+class input_checkbox(input):
+    """An HTML input checkbox class
+    """
+    def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
+        super().__init__(parent, idstr, 'checkbox', attrdct, jsel)
+        self.set_checked(False)
+
+    def set_checked(self, on: bool) -> None:
+        """Set the checked state to on/off"""
+        self._el.checked = on
+
+    def get_checked(self) -> bool:
+        """Return the checked state of the checkbox."""
+        return self._el.checked
 
 
 class LEDElement(div):

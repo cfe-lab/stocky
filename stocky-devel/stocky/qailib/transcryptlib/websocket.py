@@ -89,7 +89,7 @@ class RawWebsocket(BaseRawWebSocket):
     def close(self) -> None:
         self._ws.close()
 
-    def send_raw(self, data_to_server) -> None:
+    def send_raw(self, data_to_server: typing.Any) -> None:
         if self._isopen:
             self._ws.send(data_to_server)
         else:
@@ -103,7 +103,7 @@ class CNVWebsocket:
         self._rawws = rawws
         rawws.set_CB_handler(self)
 
-    def send(self, data_to_server) -> None:
+    def send(self, data_to_server: typing.Any) -> None:
         """Convert the data structure to JSON before sending it
         to the server."""
         # print("CNVWebsocket.send {}".format(data_to_server))
@@ -112,7 +112,7 @@ class CNVWebsocket:
     def is_open(self) -> bool:
         return self._rawws.is_open()
 
-    def on_message_JSON(self, data) -> None:
+    def on_message_JSON(self, data: typing.Any) -> None:
         """This method will be called whenever a message is received from the server.
         The data from the server will be provided in a javascript data structure.
         """
@@ -121,15 +121,18 @@ class CNVWebsocket:
     def on_close_cb(self, event) -> None:
         print("CNVWebsocket: on_close_cb")
 
+    def on_error_cb(self, event) -> None:
+        print("CNVWebsocket: on_error_cb")
+
     def on_message_cb(self, event) -> None:
         datain = self.decode(event.data)
         self.on_message_JSON(datain)
 
-    def encode(self, data_to_server) -> typing.Any:
+    def encode(self, data_to_server: typing.Any) -> typing.Any:
         """encode the data from transfer..."""
         raise NotImplementedError('encode not implemented')
 
-    def decode(self, data_from_server) -> typing.Any:
+    def decode(self, data_from_server: typing.Any) -> typing.Any:
         """Decode data from the server"""
         raise NotImplementedError('decode not implemented')
 
@@ -140,10 +143,10 @@ class JSONWebsocket(CNVWebsocket):
     data before passing it to the client via the on_message_JSON method.
     """
 
-    def encode(self, data_to_server) -> typing.Any:
+    def encode(self, data_to_server: typing.Any) -> typing.Any:
         """encode the data from transfer..."""
         return JSON.stringify(data_to_server)
 
-    def decode(self, data_from_server) -> typing.Any:
+    def decode(self, data_from_server: typing.Any) -> typing.Any:
         """Decode data from the server"""
         return JSON.parse(data_from_server)

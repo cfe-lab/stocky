@@ -15,7 +15,7 @@ if genutils.for_transcrypt:
     # this is the main program that runs in the browser when the page is loaded
     print('hello world')
     # all we do is open a websocket and start the main program
-    # urlstr = 'ws://localhost:5000/goo'
+    # urlstr = 'wss://localhost:6000/goo'
     urlstr = 'wss://{}/goo'.format(location.host)
     print("URLSTR is '{}'".format(urlstr))
     rawsock = websocket.RawWebsocket(urlstr, ['/'])

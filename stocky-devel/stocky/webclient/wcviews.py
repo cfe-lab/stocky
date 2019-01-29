@@ -23,6 +23,8 @@ STARATTR_ONCLICK = html.base_element.STARATTR_ONCLICK
 
 LOC_NOSEL_ID = wcstatus.WCstatus.LOC_NOSEL_ID
 
+button_classes = 'w3-button w3-border sco-push-click'
+
 
 class SwitcheeView(widgets.BasicView):
     def __init__(self, contr: widgets.base_controller,
@@ -60,7 +62,7 @@ class SwitcheeView(widgets.BasicView):
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         if msgdesc == base.MSGD_BUTTON_CLICK:
             if msgdat is None:
-                print("msgdat is None")
+                print("SwitcheeView: msgdat is None")
                 return
             cmd = msgdat.get("cmd", None)
             # val = msgdat.get("target", None)
@@ -299,9 +301,8 @@ items to be added to QAI for the first time."""
         contr.addObserver(self, base.MSGD_RFID_CLICK)
 
     def Redraw(self):
-        """This method called whener the view becomes active (because the user
-        has selected the respective view button.
-        Subclasses should set up their pages in here.
+        """Build the view for adding new stock: present a table of scanned RFID labels.
+        Allow user to modify this list, then add them to QAI when ready.
         """
         print("Add New stock REDRAW")
         # list of scanned RFID tags...
@@ -310,7 +311,6 @@ items to be added to QAI for the first time."""
         else:
             self.scanlist.reset()
         # now add a 'GO' button
-        button_classes = 'w3-button w3-border'
         if self.resetbutton is None:
             idstr = "addloc-but1"
             attrdct = {'class': button_classes,
@@ -471,8 +471,10 @@ class CheckFSM(cleverlabels.SimpleFSM):
 
     def __init__(self, idstr: str,
                  isexpected: bool,
+                 hasRFIDlabel: bool,
                  detected_lab: cleverlabels.ToggleLabel) -> None:
         self.isexpected = isexpected
+        self.hasRFIDlabel = hasRFIDlabel
         self.isdetected_lab = detected_lab
         self.dd: dict = {}
         dd = self.dd
@@ -494,7 +496,10 @@ class CheckFSM(cleverlabels.SimpleFSM):
     def get_init_state(self) -> int:
         """Return the initial state of the FSM."""
         if self.isexpected:
-            return CheckFSM.ST_REPORT_MISSING
+            if self.hasRFIDlabel:
+                return CheckFSM.ST_REPORT_MISSING
+            else:
+                return CheckFSM.ST_IGNORE
         else:
             return CheckFSM.ST_ERROR_STATE
 
@@ -513,9 +518,10 @@ class CheckLabel(cleverlabels.FSMLabel):
     def __init__(self, parent: html.base_element,
                  idstr: str,
                  isexpected: bool,
+                 has_rfid_label: bool,
                  detected_lab: cleverlabels.ToggleLabel) -> None:
         self.detected_lab = detected_lab
-        myfsm = CheckFSM('checkfsm:{}'.format(idstr), isexpected, detected_lab)
+        myfsm = CheckFSM('checkfsm:{}'.format(idstr), isexpected, has_rfid_label, detected_lab)
         red_label = {'class': "w3-tag w3-red"}
         grn_label = {'class': "w3-tag w3-green"}
         org_label = {'class': "w3-tag w3-orange"}
@@ -527,8 +533,7 @@ class CheckLabel(cleverlabels.FSMLabel):
         at[CheckFSM.ST_IGNORE] = ('ignore', normal_label)
         at[CheckFSM.ST_ERROR_STATE] = ('ERROR state', red_label)
         #
-        cleverlabels.FSMLabel.__init__(self, parent, idstr,
-                                       myfsm, at)
+        cleverlabels.FSMLabel.__init__(self, parent, idstr, myfsm, at)
         detected_lab.addObserver(self, base.MSGD_STATE_CHANGE)
 
     def rcvMsg(self,
@@ -537,7 +542,7 @@ class CheckLabel(cleverlabels.FSMLabel):
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         if whofrom == self.detected_lab:
             if msgdesc == base.MSGD_STATE_CHANGE:
-                print('enter event 99 {}')
+                print('CheckLabel enter event 99')
                 self.enter_event(FSM_RFID_DETECT_EVENT)
 
 
@@ -560,11 +565,30 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
                  parent: widgets.base_widget,
                  idstr: str,
                  wcstatus: wcstatus.WCstatus,
-                 ll: typing.Optional[list]) -> None:
+                 ll: typing.Optional[list],
+                 rfid_sel_but: cleverlabels.SliderSwitch) -> None:
         attrdct: typing.Dict[str, str] = {'class': 'scanlist'}
         simpletable.simpletable.__init__(self, parent, idstr, attrdct, 0, CheckScanList._NUM_COLS)
         self.wcstatus = wcstatus
+        self.rfid_sel_but = rfid_sel_but
+        rfid_sel_but.addObserver(self, base.MSGD_ON_CHANGE)
         self.reset(ll)
+
+    def rcvMsg(self,
+               whofrom: 'base.base_obj',
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if msgdesc == base.MSGD_ON_CHANGE:
+            rfid_itms_only = self.rfid_sel_but.get_checked()
+            print("YAHOO MSG CHANGE {}".format(rfid_itms_only))
+            if rfid_itms_only:
+                # set on/off depending on presence of rfid label
+                for rtrack in self._row_dct.values():
+                    self.setrowvisible(rtrack.rownum, rtrack.has_rfid_label)
+            else:
+                # set all rows on
+                for rtrack in self._row_dct.values():
+                    self.setrowvisible(rtrack.rownum, True)
 
     def reset(self, ll: typing.Optional[list]):
         """Empty any existing list in the table, then
@@ -611,8 +635,17 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
         normal_label = {'class': "w3-tag"}
         on_attrdct = grn_label
         off_attrdct = red_label
-        # keep some salient information about the item in rtracker.
+        # keep some salient information about the item in an rtracker object;
+        # we keep a dict, _row_dct with the items's id as a key
         rtracker = rowtracker()
+        # see whether we have a valid rfid token...
+        has_rfid_label = rdct['rfid'].startswith('CHEM')
+        rtracker.has_rfid_label = has_rfid_label
+        if has_rfid_label:
+            rfid_str = rdct['rfid']
+            self._rfid_dct[rfid_str] = rtracker
+        else:
+            rfid_str = "none"
         rtracker.id = id_str = rdct['id']
         self._row_dct[id_str] = rtracker
         rtracker.expected = True
@@ -627,13 +660,6 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             return
         is_new_row = myrow.isnew
         # print("exp row {} {}".format(rownum, is_new_row))
-
-        # see whether we have a valid rfid token...
-        if rdct['rfid'].startswith('CHEM'):
-            rfid_str = rdct['rfid']
-            self._rfid_dct[rfid_str] = rtracker
-        else:
-            rfid_str = "none"
 
         # assemble description string
         reagent_id = rdct['qcs_reag_id']
@@ -678,9 +704,9 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             if vcell is not None:
                 on_text = "detected"
                 off_text = "undetected"
-                scan_lab = cleverlabels.ToggleLabel(vcell, "scanstat_tog{}".format(rownum),
-                                                    on_attrdct, on_text,
-                                                    off_attrdct, off_text)
+                scan_lab = cleverlabels.DropToggleLabel(vcell, "scanstat_tog{}".format(rownum),
+                                                        on_attrdct, on_text,
+                                                        off_attrdct, off_text)
                 myrow.setcellcontent(CheckScanList._SCANSTAT_COL, scan_lab)
             self.set_alignment(rownum, CheckScanList._SCANSTAT_COL, "center")
         else:
@@ -692,12 +718,10 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
         if is_new_row:
             vcell = myrow.getcell(CheckScanList._ACTION_COL)
             if vcell is not None:
-                # on_text = "report"
-                # off_text = "ignore"
-                # tog_lab = cleverlabels.ToggleLabel(vcell, "action_tog{}".format(rownum),
-                #                                   on_attrdct, on_text,
-                #                                   off_attrdct, off_text)
-                tog_lab = CheckLabel(vcell, "action_tog{}".format(rownum), True, scan_lab)
+                tog_lab = CheckLabel(vcell, "action_tog{}".format(rownum),
+                                     True,
+                                     has_rfid_label,
+                                     scan_lab)
                 myrow.setcellcontent(CheckScanList._ACTION_COL, tog_lab)
             self.set_alignment(rownum, CheckScanList._ACTION_COL, "center")
         else:
@@ -769,6 +793,7 @@ class CheckStockView(SwitcheeView):
         self.location_sel: typing.Optional[html.select] = None
         self.gobutton: typing.Optional[html.textbutton] = None
         self.scanlist: typing.Optional[CheckScanList] = None
+        self.rfid_sel_but: typing.Optional[cleverlabels.SliderSwitch] = None
         contr.addObserver(self, base.MSGD_RFID_CLICK)
 
     def rcvMsg(self,
@@ -812,7 +837,15 @@ class CheckStockView(SwitcheeView):
                                                                     htext, False)
             self.location_sel.addObserver(self, base.MSGD_BUTTON_CLICK)
         else:
+            print("Redraw: locsel exists")
             self.wcstatus.update_location_selector(self.location_sel, False)
+        # add a RFID label selection button...
+        if self.rfid_sel_but is None:
+            attrA = {'class': "w3-tag w3-green w3-border-yellow w3-topbar w3-bottombar"}
+            attrB = {'class': "w3-tag w3-red w3-border-yellow w3-topbar w3-bottombar"}
+            self.rfid_sel_but = cleverlabels.SliderSwitch(self, "scoslider",
+                                                          attrA, "Display All items",
+                                                          attrB, "RFID tagged items only")
         # here add a table of items at this location...
         ndx, val = self.location_sel.get_selected()
         print("LOCKY: {} {}".format(ndx, val))
@@ -825,20 +858,177 @@ class CheckStockView(SwitcheeView):
         #   'qcs_location_id': 10046, 'qcs_reag_id': 8158, 'rfid': '(no RFID)'}
         # the id is a reagent item id...
         if self.scanlist is None:
-            self.scanlist = CheckScanList(self, "scocheckscanlist", self.wcstatus, loc_items)
+            self.scanlist = CheckScanList(self,
+                                          "scocheckscanlist",
+                                          self.wcstatus,
+                                          loc_items,
+                                          self.rfid_sel_but)
         else:
             self.scanlist.reset(loc_items)
         # now add a 'GO' button
         if self.gobutton is None:
             idstr = "checkstock-but"
-            attrdct = {'class': 'w3-button',
+            attrdct = {'class': button_classes,
                        'title': "Save the current stock status for this location for later upload to QAI",
                        STARATTR_ONCLICK: dict(cmd=CheckStockView.GO_CHECK_STOCK)}
             buttontext = "Confirm Stock Status"
             self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
             self.gobutton.addObserver(self, base.MSGD_BUTTON_CLICK)
         self.wcstatus.set_busy(False)
-        print("CHECKSTOCK REDRAW DONE")
+        # print("CHECKSTOCK REDRAW DONE")
+
+
+class LocMutTable(simpletable.simpletable):
+    """This class is used when adding new stock to the inventory.
+    It displays a list of RFID tags (left column) that have been scanned,
+    and allows the user to choose whether they should be added
+    or not (right column).
+    """
+    _LOC_COL = 0
+    _ITID_COL = 1
+    _RFID_COL = 2
+    _DESC_COL = 3
+    _OPSTR_COL = 4
+    _TIME_COL = 5
+    _IGNORE_COL = 6
+    _NUM_COLS = 7
+
+    def __init__(self,
+                 parent: widgets.base_widget,
+                 idstr: str,
+                 wcstatus: wcstatus.WCstatus) -> None:
+        attrdct: typing.Dict[str, str] = {'class': 'scanlist'}
+        simpletable.simpletable.__init__(self, parent, idstr, attrdct, 0, LocMutTable._NUM_COLS)
+        self.wcstatus = wcstatus
+        self.wcstatus.addObserver(self, base.MSGD_ON_CHANGE)
+        self.reset()
+
+    def reset(self) -> None:
+        with html.ParentUncouple(self):
+            if not self.has_header_row():
+                print("adding header...")
+                self.add_header_row()
+                kattrdct = {'class': "w3-tag w3-blue"}
+                for colnum, txt in [(LocMutTable._LOC_COL, "Location"),
+                                    (LocMutTable._ITID_COL, "Item ID"),
+                                    (LocMutTable._RFID_COL, "RFID label"),
+                                    (LocMutTable._DESC_COL, "Description"),
+                                    (LocMutTable._OPSTR_COL, "opstring"),
+                                    (LocMutTable._TIME_COL, "Time"),
+                                    (LocMutTable._IGNORE_COL, "Ignore?")]:
+                    kcell = self.getheader(colnum)
+                    if kcell is not None:
+                        html.label(kcell, "", kattrdct, txt, None)
+            # now fill in data rows...
+            locdct = self.wcstatus.get_stockloc_dct()
+            locmut_dct = self.wcstatus.get_locmut_dct()
+            reag_item_dct = self.wcstatus.get_reagent_item_dct()
+            # print("RESETTY {}".format(locmut_dct))
+            # print("LOCDCT {}".format(locdct))
+            # print("REAGDCT {}".format(reag_item_dct))
+            ll = []
+            for locid, mutlst in locmut_dct.items():
+                locname = locdct[locid]
+                for ritm_id, opstr, ignore_flag, time_str in mutlst:
+                    ritm_dct = reag_item_dct[ritm_id]
+                    # print("RITM {}".format(ritm_dct))
+                    # see whether we have a valid rfid token...
+                    has_rfid_label = ritm_dct['rfid'].startswith('CHEM')
+                    if has_rfid_label:
+                        rfid_str = ritm_dct['rfid']
+                    else:
+                        rfid_str = "none"
+                    lot_num = ritm_dct['lot_num']
+                    qcs_reag_id = ritm_dct['qcs_reag_id']
+                    dct = dict(locid=locid, locname=locname,
+                               item_id=ritm_id, opstr=opstr, rfid_str=rfid_str,
+                               ign_flag=ignore_flag, time_str=time_str,
+                               lot_num=lot_num, qcs_reag_id=qcs_reag_id)
+                    ll.append(dct)
+            # NOTE: might want to sort the list here...
+            self.adjust_row_number(len(ll))
+            print("dunnn 01: len = {}".format(len(ll)))
+            print("LL {}".format(ll))
+            for rownum, rdct in enumerate(ll):
+                self._add_locmut_row(rownum, rdct)
+
+    def _add_locmut_row(self, rownum: int, ldct: dict) -> None:
+        """Add a dict to the table here.
+
+        ldct is of the form:
+        {'locid': '10032', 'locname': '647 Powell St', 'item_id': 17713,
+          'opstr': 'found', 'rfid_str': 'none', 'ign_flag': False,
+          'time_str': '2019-01-23 13:11:19-08:00'}
+        """
+        # we retrieve the row to see whether we can reuse some of its columns...
+        myrow = self.getrow(rownum)
+        if myrow is None:
+            print("row number {} is None".format(rownum))
+            return
+        is_new_row = myrow.isnew
+        # red_label = {'class': "w3-tag w3-red"}
+        # grn_label = {'class': "w3-tag w3-green"}
+        # org_label = {'class': "w3-tag w3-orange"}
+        normal_label = {'class': "w3-tag"}
+
+        loc_name = ldct['locname']
+        id_str = ldct['item_id']
+        rfid_str = ldct['rfid_str']
+        desc_str = "DESC_STR"
+        op_str = ldct['opstr']
+        time_str = ldct['time_str']
+        ign_str = 'IGN_FLAG'
+        helptext = "plain vanilla help text"
+        reagent_id = ldct['qcs_reag_id']
+        lotnum = ldct['lot_num']
+        reag_dct = self.wcstatus.get_reagent_info(reagent_id)
+        # put additional information about the reagent into a helptext that will be visible
+        # by hovering the mouse over the description element.
+        if reag_dct is None:
+            desc_str = "reagent id {} , lot: {}".format(reagent_id, lotnum)
+            helptext = ""
+        else:
+            desc_str = "{}".format(reag_dct['name'])
+            hazstr = reag_dct['hazards'] or "none"
+            helptext = "basetype: {}, cat: {}, hazards: {}, storage: {}, reagent_id: {}".format(reag_dct['basetype'],
+                                                                                                reag_dct['category'],
+                                                                                                hazstr,
+                                                                                                reag_dct['storage'],
+                                                                                                reag_dct['id'])
+        desc_attrdct = {'class': "w3-tag", 'title': helptext}
+        for colnum, coltext, field_attrdct in [(LocMutTable._LOC_COL, loc_name, normal_label),
+                                               (LocMutTable._ITID_COL, id_str, normal_label),
+                                               (LocMutTable._RFID_COL, rfid_str, normal_label),
+                                               (LocMutTable._DESC_COL, desc_str, desc_attrdct),
+                                               (LocMutTable._OPSTR_COL, op_str, normal_label),
+                                               (LocMutTable._TIME_COL, time_str, normal_label),
+                                               (LocMutTable._IGNORE_COL, ign_str, normal_label)]:
+            if is_new_row:
+                kcell = myrow.getcell(colnum)
+                if kcell is not None:
+                    lab = html.label(kcell, "", field_attrdct, coltext, None)
+                    myrow.setcellcontent(colnum, lab)
+                else:
+                    print("error 99")
+                    return
+            else:
+                lab = myrow.getcellcontent(colnum)
+                # print("setty {}".format(lab))
+                lab.set_text(coltext)
+                if colnum == CheckScanList._DESC_COL:
+                    lab.removeAttribute('title')
+                    lab.setAttribute('title', helptext)
+
+    def rcvMsg(self,
+               whofrom: 'base.base_obj',
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if msgdesc == base.MSGD_ON_CHANGE and whofrom == self.wcstatus:
+            # we have received new locmut changes from the server.
+            print("GOOTCHA LOCMUT {}".format(msgdat))
+            self.reset()
+        else:
+            super().rcvMsg(whofrom, msgdesc, msgdat)
 
 
 class UploadLocMutView(SwitcheeView):
@@ -855,11 +1045,36 @@ class UploadLocMutView(SwitcheeView):
                  attrdct: dict,
                  jsel) -> None:
         title_text = "QAI Database Upload Page"
-        htext = """Update the QAI system with the modified reagent item statuses determined
-during Stock Check. For this to work, the stocky computer must be plugged in to ethernet and you must first log in."""
+        htext = """Update the QAI system with the modified reagent item statuses
+        determined during Stock Check. For this to work, the stocky computer must be
+        plugged in to ethernet and you must first log in."""
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
-        # self.stat_tab: typing.Optional[simpletable.dict_table] = None
+        self.locmut_tab: typing.Optional[LocMutTable] = None
+
+    def Redraw(self):
+        """This method is called whenever the view becomes active (because the user
+        has selected the respective view button.
+        Subclasses should set up their pages in here.
+
+        Note:
+        This method could also be called in response to user input.
+        Example: the user has chosen a different location, so we must redraw the page...
+        """
+        print("UPLOAD LOCMUT REDRAW")
+        self._start_locmut_download()
+        if self.locmut_tab is None:
+            self.locmut_tab = LocMutTable(self, "locmuttab", self.wcstatus)
+
+    def _start_locmut_download(self) -> None:
+        self.wcstatus.set_busy(True)
+        self.wcstatus.refresh_locmut_dct()
+
+    def stop_locmut_download(self) -> None:
+        """This is called when the server tells us that a locmut data upload to the webclient
+        has completed. The new data is found in self.wcstatus.
+        """
+        self.wcstatus.set_busy(False)
 
 
 class ConfigStatusView(SwitcheeView):

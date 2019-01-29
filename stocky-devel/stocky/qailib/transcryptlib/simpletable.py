@@ -323,6 +323,20 @@ class simpletable(html.element):
         if retcell is not None:
             retcell.set_content(newcont)
 
+    def setrowvisible(self, rownum: int, is_visible: bool) -> None:
+        """Set the visibility of a specified row.
+
+        Args:
+           rownum: the row number
+           is_visible: the new visibikity state of the rowattrdct
+
+        Note:
+           If rownum is out of range, this routine silently fails.
+        """
+        row = self.getrow(rownum)
+        if row is not None:
+            row.set_visible(is_visible)
+
     def set_alignment(self, rownum: int, colnum: int, alignstr: str) -> None:
         """Set the alignment of the given cell by setting the style attribute.
 
