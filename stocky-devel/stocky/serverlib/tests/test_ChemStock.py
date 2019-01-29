@@ -304,19 +304,16 @@ class Test_Chemstock_EMPTYDB(commontests):
         assert ngot == 0, "n should be zero!"
         missing_op = (locidA, [(1, 'missing')])
         found_op = (locidB, [(1, 'found')])
-        
+
         csdb.add_loc_changes(missing_op[0], missing_op[1])
         ngot = csdb.number_of_loc_changes()
         assert ngot == 1, "expected one!"
-        
+
         csdb.add_loc_changes(found_op[0], found_op[1])
         ngot = csdb.number_of_loc_changes()
         assert ngot == 1, "expected one!"
         # raise False, "force fail"
 
-
-
-        
     def test_calc_final_state01(self) -> None:
         """Test calc_final_state with various legal inputs and check results."""
         calcfinalstate = self.csdb.calc_final_state
