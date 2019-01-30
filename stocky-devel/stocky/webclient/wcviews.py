@@ -580,7 +580,6 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
                msgdat: typing.Optional[base.MSGdata_Type]) -> None:
         if msgdesc == base.MSGD_ON_CHANGE:
             rfid_itms_only = self.rfid_sel_but.get_checked()
-            print("YAHOO MSG CHANGE {}".format(rfid_itms_only))
             if rfid_itms_only:
                 # set on/off depending on presence of rfid label
                 for rtrack in self._row_dct.values():
@@ -599,7 +598,7 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             self._rfid_dct = {}
             self._row_dct = {}
             if not self.has_header_row():
-                print("adding header...")
+                # print("adding header...")
                 self.add_header_row()
                 kattrdct = {'class': "w3-tag w3-blue"}
                 for colnum, txt in [(CheckScanList._ITID_COL, "Item ID"),
@@ -614,7 +613,6 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             # -- add the elements from ll, all with an 'undetected' scan status.
             ll = ll or []
             self.adjust_row_number(len(ll))
-            print("dunnn 01")
             for rownum, rdct in enumerate(ll):
                 self._add_expected_row(rownum, rdct)
 
@@ -805,16 +803,13 @@ class CheckStockView(SwitcheeView):
             if self.scanlist is not None and msgdat is not None:
                 self.scanlist.add_scan(msgdat)
         elif msgdesc == base.MSGD_BUTTON_CLICK:
-            # print("YOYO BLABLA {}".format(whofrom))
             if self.location_sel is not None and whofrom == self.location_sel:
                 # a new location has been selected: redraw the screen with
                 # the new location
-                print("new LOCKCHECK")
                 self.Redraw()
             elif self.gobutton is not None and whofrom == self.gobutton:
                 # the 'confirm stock' button has been pressed: upload the
                 # current stock status for this location to the stocky server.
-                print("UPLOAD NEW STATES!!")
                 menu_num, locidstr = self.location_sel.get_selected()
                 if locidstr is not None and self.scanlist is not None:
                     move_lst = self.scanlist.get_move_list()
@@ -889,9 +884,8 @@ class LocMutTable(simpletable.simpletable):
     _RFID_COL = 2
     _DESC_COL = 3
     _OPSTR_COL = 4
-    _TIME_COL = 5
-    _IGNORE_COL = 6
-    _NUM_COLS = 7
+    _IGNORE_COL = 5
+    _NUM_COLS = 6
 
     def __init__(self,
                  parent: widgets.base_widget,
@@ -914,7 +908,6 @@ class LocMutTable(simpletable.simpletable):
                                     (LocMutTable._RFID_COL, "RFID label"),
                                     (LocMutTable._DESC_COL, "Description"),
                                     (LocMutTable._OPSTR_COL, "opstring"),
-                                    (LocMutTable._TIME_COL, "Time"),
                                     (LocMutTable._IGNORE_COL, "Ignore?")]:
                     kcell = self.getheader(colnum)
                     if kcell is not None:
@@ -929,7 +922,7 @@ class LocMutTable(simpletable.simpletable):
             ll = []
             for locid, mutlst in locmut_dct.items():
                 locname = locdct[locid]
-                for ritm_id, opstr, ignore_flag, time_str in mutlst:
+                for ritm_id, opstr, ignore_flag in mutlst:
                     ritm_dct = reag_item_dct[ritm_id]
                     # print("RITM {}".format(ritm_dct))
                     # see whether we have a valid rfid token...
@@ -942,7 +935,7 @@ class LocMutTable(simpletable.simpletable):
                     qcs_reag_id = ritm_dct['qcs_reag_id']
                     dct = dict(locid=locid, locname=locname,
                                item_id=ritm_id, opstr=opstr, rfid_str=rfid_str,
-                               ign_flag=ignore_flag, time_str=time_str,
+                               ign_flag=ignore_flag,
                                lot_num=lot_num, qcs_reag_id=qcs_reag_id)
                     ll.append(dct)
             # NOTE: might want to sort the list here...
@@ -957,8 +950,7 @@ class LocMutTable(simpletable.simpletable):
 
         ldct is of the form:
         {'locid': '10032', 'locname': '647 Powell St', 'item_id': 17713,
-          'opstr': 'found', 'rfid_str': 'none', 'ign_flag': False,
-          'time_str': '2019-01-23 13:11:19-08:00'}
+          'opstr': 'found', 'rfid_str': 'none', 'ign_flag': False }
         """
         # we retrieve the row to see whether we can reuse some of its columns...
         myrow = self.getrow(rownum)
@@ -966,6 +958,7 @@ class LocMutTable(simpletable.simpletable):
             print("row number {} is None".format(rownum))
             return
         is_new_row = myrow.isnew
+        print("locmut row {} {}".format(rownum, is_new_row))
         # red_label = {'class': "w3-tag w3-red"}
         # grn_label = {'class': "w3-tag w3-green"}
         # org_label = {'class': "w3-tag w3-orange"}
@@ -976,7 +969,6 @@ class LocMutTable(simpletable.simpletable):
         rfid_str = ldct['rfid_str']
         desc_str = "DESC_STR"
         op_str = ldct['opstr']
-        time_str = ldct['time_str']
         ign_str = 'IGN_FLAG'
         helptext = "plain vanilla help text"
         reagent_id = ldct['qcs_reag_id']
@@ -1001,7 +993,6 @@ class LocMutTable(simpletable.simpletable):
                                                (LocMutTable._RFID_COL, rfid_str, normal_label),
                                                (LocMutTable._DESC_COL, desc_str, desc_attrdct),
                                                (LocMutTable._OPSTR_COL, op_str, normal_label),
-                                               (LocMutTable._TIME_COL, time_str, normal_label),
                                                (LocMutTable._IGNORE_COL, ign_str, normal_label)]:
             if is_new_row:
                 kcell = myrow.getcell(colnum)
@@ -1015,9 +1006,10 @@ class LocMutTable(simpletable.simpletable):
                 lab = myrow.getcellcontent(colnum)
                 # print("setty {}".format(lab))
                 lab.set_text(coltext)
-                if colnum == CheckScanList._DESC_COL:
+                if colnum == LocMutTable._DESC_COL:
                     lab.removeAttribute('title')
                     lab.setAttribute('title', helptext)
+        myrow.isnew = False
 
     def rcvMsg(self,
                whofrom: 'base.base_obj',
@@ -1038,6 +1030,9 @@ class UploadLocMutView(SwitcheeView):
       * allow user to ignore certain mutations in the table.
       * Instruct the server to upload the changes to QAI.
     """
+
+    GO_UPLOAD_LOCMUT = 'go_upload_locmut'
+
     def __init__(self,
                  contr: widgets.base_controller,
                  parent: widgets.base_widget,
@@ -1051,6 +1046,24 @@ class UploadLocMutView(SwitcheeView):
         SwitcheeView.__init__(self, contr, parent, idstr, attrdct, jsel,
                               title_text, htext)
         self.locmut_tab: typing.Optional[LocMutTable] = None
+        self.gobutton: typing.Optional[html.textbutton] = None
+
+    def rcvMsg(self,
+               whofrom: 'base.base_obj',
+               msgdesc: base.MSGdesc_Type,
+               msgdat: typing.Optional[base.MSGdata_Type]) -> None:
+        if msgdesc == base.MSGD_BUTTON_CLICK:
+            # print("YOYO BLABLA {}".format(whofrom))
+            if self.gobutton is not None and whofrom == self.gobutton:
+                # the 'upload locmutation' button has been pressed: upload the
+                # current stock status for this location to the stocky server.
+                print("UPLOAD LOCMUTS!!")
+                if self.locmut_tab is not None:
+                    print("DO SOMETHING HERE")
+            else:
+                super().rcvMsg(whofrom, msgdesc, msgdat)
+        else:
+            super().rcvMsg(whofrom, msgdesc, msgdat)
 
     def Redraw(self):
         """This method is called whenever the view becomes active (because the user
@@ -1065,6 +1078,15 @@ class UploadLocMutView(SwitcheeView):
         self._start_locmut_download()
         if self.locmut_tab is None:
             self.locmut_tab = LocMutTable(self, "locmuttab", self.wcstatus)
+        # now add a 'GO' button
+        if self.gobutton is None:
+            idstr = "checkstock-but"
+            attrdct = {'class': button_classes,
+                       'title': "Upload the current Location changes to QAI.",
+                       STARATTR_ONCLICK: dict(cmd=UploadLocMutView.GO_UPLOAD_LOCMUT)}
+            buttontext = "Upload to QAI"
+            self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
+            self.gobutton.addObserver(self, base.MSGD_BUTTON_CLICK)
 
     def _start_locmut_download(self) -> None:
         self.wcstatus.set_busy(True)

@@ -175,7 +175,7 @@ class Locmutation(Base):
     # before it is uploaded to QAI
     ignore = sql.Column(sql.Boolean, default=False, nullable=False)
     # keep track of when the location change was recorded on the laptop
-    created_at = sql.Column(sql.TIMESTAMP(timezone=True), default=timelib.utc_nowtime)
+    # created_at = sql.Column(sql.TIMESTAMP(timezone=True), default=timelib.utc_nowtime)
 
 
 class node:
@@ -250,6 +250,9 @@ class ChemStockDB:
                  (qai_helper.QAISession.QAIDCT_REAGENTS, Reagent),
                  (qai_helper.QAISession.QAIDCT_REAGENT_ITEMS, Reagent_Item),
                  (qai_helper.QAISession.QAIDCT_REAITEM_STATUS, Reagent_Item_Status)]
+
+    _not_write_set = frozenset([('moved', 'missing'), ('missing', 'missing'),
+                                ('found', 'missing')])
 
     def __init__(self,
                  locQAIfname: typing.Optional[str],
@@ -664,13 +667,21 @@ class ChemStockDB:
         s = self._sess
         for reag_itm_id, opstring in locdat:
             # we overwrite any existing records with the same reag_item_id,
-            # except on one case:
-            # do_not_write = newop == 'missing' AND oldop == 'moved' and newloc_id != oldloc_id
-            lm = Locmutation(**dict(reag_item_id=reag_itm_id,
-                                    locid=locid,
-                                    op=opstring,
-                                    ignore=False))
-            s.merge(lm)
+            # except in certain cases:
+            # do_not_write = newloc_id != oldloc_id
+            do_write = True
+            if opstring == 'missing':
+                my_locmut = s.query(Locmutation).filter(Locmutation.reag_item_id == reag_itm_id).first()
+                if my_locmut is not None and locid != my_locmut.locid:
+                    # we have a record, and the location is different. Now decide whether
+                    # we should overwrite the record or not based on (old_op, new_op) pair.
+                    do_write = (my_locmut.op, opstring) not in self._not_write_set
+            if do_write:
+                lm = Locmutation(**dict(reag_item_id=reag_itm_id,
+                                        locid=locid,
+                                        op=opstring,
+                                        ignore=False))
+                s.merge(lm)
 
     def set_ignore_flag(self, reag_item_id: int, do_ignore: bool) -> dict:
         """Set/reset the ignore location change flag.
@@ -716,11 +727,11 @@ class ChemStockDB:
         ret_dct: typing.Dict[int, LocChangeList] = {}
         # NOTE: we sort by reag_item_id in order to make hashing reproducible.
         for row in self._sess.execute(Locmutation.__table__.select().order_by(Locmutation.reag_item_id)):
-            time_str = timelib.datetime_to_str(row.created_at, in_local_tz=True)
+            # time_str = timelib.datetime_to_str(row.created_at, in_local_tz=True)
             ret_dct.setdefault(row.locid, []).append((row.reag_item_id,
                                                       row.op,
-                                                      row.ignore,
-                                                      time_str))
+                                                      row.ignore))
+            # time_str))
         newhash = do_hash(ret_dct)
         if oldhash != newhash:
             return newhash, ret_dct

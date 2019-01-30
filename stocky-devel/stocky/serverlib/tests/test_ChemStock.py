@@ -221,12 +221,13 @@ class Test_Chemstock_EMPTYDB(commontests):
         assert len(retdct.keys()) == 1, "single key expected in dict"
         rlst = retdct[locid]
         assert len(rlst) == 3, "list len of three expected"
-        for reag_item_id, opstring, ignore, created_at in rlst:
+        for reag_item_id, opstring, ignore in rlst:
+            # for reag_item_id, opstring, ignore, created_at in rlst:
             assert isinstance(reag_item_id, int), "int expected"
             assert isinstance(opstring, str), "string expected"
             assert isinstance(ignore, bool), "bool expected"
             assert not ignore, "ignore == False expected"
-            assert isinstance(created_at, str), "string expected"
+            # assert isinstance(created_at, str), "string expected"
         # --
         # adding the same records again -- expect no change..
         csdb.add_loc_changes(locid, locdat)
@@ -254,7 +255,8 @@ class Test_Chemstock_EMPTYDB(commontests):
         assert hashcode != newhashcode, "unexpected hash code!"
         assert retdct != newretdct, "expected a different dict!"
         # now make sure the ignore flag was actually set
-        for reag_item_id, opstring, ignore, created_at in newretdct[locid]:
+        # for reag_item_id, opstring, ignore, created_at in newretdct[locid]:
+        for reag_item_id, opstring, ignore in newretdct[locid]:
             my_cond = (reag_item_id == test_reag_item) ^ (not ignore)
             assert my_cond, "unexpected ignore flag {}: {}".format(reag_item_id, ignore)
 
@@ -268,7 +270,8 @@ class Test_Chemstock_EMPTYDB(commontests):
         assert isinstance(dct, dict), "dict expected"
         assert isinstance(hashkey, str), "string expected"
         # changing the opstring should also have reset the do_ignore flag to False.
-        for reag_item_id, opstring, ignore, created_at in dct[locid]:
+        # for reag_item_id, opstring, ignore, created_at in dct[locid]:
+        for reag_item_id, opstring, ignore in dct[locid]:
             assert not ignore, "ignore == False expected"
         # print("dd {}".format(dct))
         # attempt to set the ignore flag of an non-existant locmutation
@@ -302,9 +305,11 @@ class Test_Chemstock_EMPTYDB(commontests):
         ngot = csdb.number_of_loc_changes()
         assert isinstance(ngot, int), "int expected"
         assert ngot == 0, "n should be zero!"
-        missing_op = (locidA, [(1, 'missing')])
-        found_op = (locidB, [(1, 'found')])
+        my_reagent_id = 1
+        missing_op = (locidA, [(my_reagent_id, 'missing')])
+        found_op = (locidB, [(my_reagent_id, 'found')])
 
+        # first do missing, then found.
         csdb.add_loc_changes(missing_op[0], missing_op[1])
         ngot = csdb.number_of_loc_changes()
         assert ngot == 1, "expected one!"
@@ -312,7 +317,24 @@ class Test_Chemstock_EMPTYDB(commontests):
         csdb.add_loc_changes(found_op[0], found_op[1])
         ngot = csdb.number_of_loc_changes()
         assert ngot == 1, "expected one!"
-        # raise False, "force fail"
+
+        locchange1 = csdb.get_loc_changes()
+        print("LOCY 01 {}".format(locchange1))
+
+        # then found, then missing.
+        csdb.reset_loc_changes()
+        csdb.add_loc_changes(found_op[0], found_op[1])
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 1, "expected one!"
+
+        csdb.add_loc_changes(missing_op[0], missing_op[1])
+        ngot = csdb.number_of_loc_changes()
+        assert ngot == 1, "expected one!"
+        locchange2 = csdb.get_loc_changes()
+        print("LOCY 02 {}".format(locchange2))
+
+        assert locchange1 == locchange2, "changes differ!"
+        # assert False, "force fail"
 
     def test_calc_final_state01(self) -> None:
         """Test calc_final_state with various legal inputs and check results."""
