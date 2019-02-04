@@ -593,7 +593,7 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
         """Empty any existing list in the table, then
         write a new table from the list of dicts...
         """
-        print("reset ll")
+        print("checkscanlist.reset ll {}".format(ll))
         with html.ParentUncouple(self):
             self._rfid_dct = {}
             self._row_dct = {}
@@ -615,7 +615,6 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             self.adjust_row_number(len(ll))
             for rownum, rdct in enumerate(ll):
                 self._add_expected_row(rownum, rdct)
-
         print("end reset ll")
 
     def _add_expected_row(self, rownum: int, rdct: dict) -> None:
@@ -628,6 +627,7 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
         NOTE: the table is expected to have the correct number of rows...just
         modify the cells on the give rownum here.
         """
+        print("ADD_EXPECTED: {}".format(rdct))
         red_label = {'class': "w3-tag w3-red"}
         grn_label = {'class': "w3-tag w3-green"}
         normal_label = {'class': "w3-tag"}
@@ -662,20 +662,25 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
         # assemble description string
         reagent_id = rdct['qcs_reag_id']
         lotnum = rdct['lot_num']
+        last_seen_str = rdct['last_seen'] or 'never'
+        # last_seen_str = 'never'
         reag_dct = self.wcstatus.get_reagent_info(reagent_id)
         # put additional information about the reagent into a helptext that will be visible
         # by hovering the mouse over the description element.
+        print("reag_dct is {}".format(reag_dct))
         if reag_dct is None:
             desc_str = "reagent id {} , lot: {}".format(reagent_id, lotnum)
             helptext = ""
         else:
             desc_str = "{}".format(reag_dct['name'])
             hazstr = reag_dct['hazards'] or "none"
-            helptext = "basetype: {}, cat: {}, hazards: {}, storage: {}, reagent_id: {}".format(reag_dct['basetype'],
-                                                                                                reag_dct['category'],
-                                                                                                hazstr,
-                                                                                                reag_dct['storage'],
-                                                                                                reag_dct['id'])
+            helptext = """basetype: {}, cat: {}, hazards: {},\
+storage: {}, reagent_id: {}, last_seen: {}""".format(reag_dct['basetype'],
+                                                     reag_dct['category'],
+                                                     hazstr,
+                                                     reag_dct['storage'],
+                                                     reag_dct['id'],
+                                                     last_seen_str)
         desc_attrdct = {'class': "w3-tag", 'title': helptext}
         for colnum, coltext, field_attrdct in [(CheckScanList._ITID_COL, id_str, normal_label),
                                                (CheckScanList._RFID_COL, rfid_str, normal_label),
@@ -711,7 +716,6 @@ class CheckScanList(simpletable.simpletable, BaseScanList):
             scan_lab = myrow.getcellcontent(CheckScanList._SCANSTAT_COL)
         scan_lab.set_state(False)
         rtracker.scanstat_tog = scan_lab
-
         # action column
         if is_new_row:
             vcell = myrow.getcell(CheckScanList._ACTION_COL)
@@ -946,8 +950,13 @@ class LocMutTable(simpletable.simpletable):
                 self._add_locmut_row(rownum, rdct)
 
     def _add_locmut_row(self, rownum: int, ldct: dict) -> None:
-        """Add a dict to the table here.
+        """Add a dict containing information about a single locmut to the table row.
 
+        Args:
+           rownum: the table row number to add the information to
+           ldct: the dict containing the row information
+
+        Note:
         ldct is of the form:
         {'locid': '10032', 'locname': '647 Powell St', 'item_id': 17713,
           'opstr': 'found', 'rfid_str': 'none', 'ign_flag': False }
@@ -1011,6 +1020,12 @@ class LocMutTable(simpletable.simpletable):
                     lab.setAttribute('title', helptext)
         myrow.isnew = False
 
+    def get_locmove_list(self) -> dict:
+        """Return the selected locmutations from the table.
+        Note: for now, just return all of them.
+        """
+        return self.wcstatus.get_locmut_dct()
+
     def rcvMsg(self,
                whofrom: 'base.base_obj',
                msgdesc: base.MSGdesc_Type,
@@ -1060,6 +1075,7 @@ class UploadLocMutView(SwitcheeView):
                 print("UPLOAD LOCMUTS!!")
                 if self.locmut_tab is not None:
                     print("DO SOMETHING HERE")
+                    self._start_report_move()
             else:
                 super().rcvMsg(whofrom, msgdesc, msgdat)
         else:
@@ -1075,6 +1091,11 @@ class UploadLocMutView(SwitcheeView):
         Example: the user has chosen a different location, so we must redraw the page...
         """
         print("UPLOAD LOCMUT REDRAW")
+        is_logged_in = self.wcstatus.is_QAI_logged_in()
+        print("LOGGED IN {}".format(is_logged_in))
+        if not is_logged_in:
+            html.scoalert("Upload only possible once logged in")
+            return
         self._start_locmut_download()
         if self.locmut_tab is None:
             self.locmut_tab = LocMutTable(self, "locmuttab", self.wcstatus)
@@ -1088,6 +1109,18 @@ class UploadLocMutView(SwitcheeView):
             self.gobutton = html.textbutton(self, idstr, attrdct, buttontext)
             self.gobutton.addObserver(self, base.MSGD_BUTTON_CLICK)
 
+    # these are for upload TO the server
+    def _start_report_move(self) -> None:
+        self.wcstatus.set_busy(True)
+        move_lst = self.locmut_tab.get_locmove_list()
+        print("movelst {}".format(move_lst))
+        dd = {'locmove': move_lst}
+        self._contr.send_WS_msg(CommonMSG(CommonMSG.MSG_WC_DO_LOCMUT_REQ, dd))
+        print("moving {} items".format(len(move_lst)))
+    # def stop_report_move(self) -> None:
+    #    self.wcstatus.set_busy(False)
+
+    # these are for download FROM the server
     def _start_locmut_download(self) -> None:
         self.wcstatus.set_busy(True)
         self.wcstatus.refresh_locmut_dct()

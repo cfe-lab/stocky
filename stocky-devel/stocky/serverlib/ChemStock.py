@@ -161,7 +161,7 @@ class TableChange(Base):
 
 class Locmutation(Base):
     """A class to keep track of a change in location of a reagent item:
-    When stock taking, keep track of RFID's that have changed position.
+    When stock taking, keep track of reagent+items that have changed position.
     """
     __tablename__ = 'locmutation'
 
@@ -176,6 +176,9 @@ class Locmutation(Base):
     ignore = sql.Column(sql.Boolean, default=False, nullable=False)
     # keep track of when the location change was recorded on the laptop
     # created_at = sql.Column(sql.TIMESTAMP(timezone=True), default=timelib.utc_nowtime)
+    #
+    # whether this Locmutation has been successfully reported to QAI
+    sent_to_qai = sql.Column(sql.Boolean, default=False, nullable=False)
 
 
 class node:
@@ -656,6 +659,7 @@ class ChemStockDB:
         # any type exception does no change the database.
         if not isinstance(locid, int):
             raise ValueError("locid must be an int")
+        print("ADDLOCCHANGES : {}".format(locdat))
         for reag_itm_id, opstring in locdat:
             if not isinstance(reag_itm_id, int):
                 raise ValueError("reag_itm_id must be an int")
@@ -667,8 +671,7 @@ class ChemStockDB:
         s = self._sess
         for reag_itm_id, opstring in locdat:
             # we overwrite any existing records with the same reag_item_id,
-            # except in certain cases:
-            # do_not_write = newloc_id != oldloc_id
+            # except in certain cases.
             do_write = True
             if opstring == 'missing':
                 my_locmut = s.query(Locmutation).filter(Locmutation.reag_item_id == reag_itm_id).first()
@@ -682,6 +685,7 @@ class ChemStockDB:
                                         op=opstring,
                                         ignore=False))
                 s.merge(lm)
+        s.commit()
 
     def set_ignore_flag(self, reag_item_id: int, do_ignore: bool) -> dict:
         """Set/reset the ignore location change flag.
@@ -737,3 +741,44 @@ class ChemStockDB:
             return newhash, ret_dct
         else:
             return newhash, None
+
+    def perform_loc_changes(self, move_dct: dict) -> dict:
+        """
+         * Report the required changes from the list provided to QAI.
+         * Update the local Locmutation table accordingly
+         * Purge successfully recorded locmutations
+         * Replenish our DB from QAI.
+         * Return a dict in response (success/failure)
+        """
+        res = self._report_loc_changes(move_dct)
+        # now purge all records that are marked as sent_to_qai.
+        s = self._sess
+        s.query(Locmutation).filter_by(sent_to_qai=True).delete()
+        s.commit()
+        return res
+
+    def _report_loc_changes(self, move_dct: dict) -> dict:
+        qaisession = self.qaisession
+        s = self._sess
+        print("PERFORM LOC_CHANGE")
+        for locid_string, mvlst in move_dct.items():
+            locid = int(locid_string)
+            print("LOCID {}".format(locid))
+            for reag_item_id, opstring, do_ignore in mvlst:
+                if isinstance(reag_item_id, str):
+                    # print('stringy {}'.format(reag_item_id))
+                    reag_item_id = int(reag_item_id)
+                print("   mm {} {} {}".format(reag_item_id, opstring, do_ignore))
+                if not do_ignore:
+                    locmut = s.query(Locmutation).filter_by(reag_item_id=reag_item_id).first()
+                    if locmut is None:
+                        return dict(ok=False,
+                                    msg="no locmutation record for reag_item_id={}".format(reag_item_id))
+                    resdct = qaisession.report_item_location(reag_item_id, locid, opstring)
+                    is_ok = resdct.get('ok', False)
+                    if is_ok:
+                        locmut.sent_to_qai = True
+                        s.commit()
+                    else:
+                        return resdct
+        return dict(res='ok')

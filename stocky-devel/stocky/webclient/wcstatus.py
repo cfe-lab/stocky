@@ -452,7 +452,7 @@ class WCstatus(base.base_obj):
         """
         retval = self._locid_item_dct.get(locid, None)
         retval = retval[1] if retval else None
-        # print("getregitems for loc: {}: {}".format(locid, retval))
+        print("getregitems for loc: {}: {}".format(locid, retval))
         return retval
 
     def refresh_locmut_dct(self) -> None:
@@ -468,7 +468,8 @@ class WCstatus(base.base_obj):
         If the data has changed from a previous server poll, this will generate a
         MSGD_ON_CHANGE message.
         """
-        print("NEW HASH {}".format(newhash))
+        print("NEW locmut HASH {}".format(newhash))
+        print("NEW locmut dct {}".format(newdct))
         self.locmut_dct = newdct
         oldhash = self.locmut_hash
         self.locmut_hash = newhash

@@ -12,15 +12,15 @@ import serverlib.qai_helper as qai_helper
 import serverlib.yamlutil as yamlutil
 
 # this is 200
-HTTP_OK = requests.codes.ok
+HTTP_OK = qai_helper.HTTP_OK
 # this is 201
-HTTP_CREATED = requests.codes.created
+HTTP_CREATED = qai_helper.HTTP_CREATED
 
 # this 500
-HTTP_INTERNAL_SERVER_ERROR = requests.codes.internal_server_error
+HTTP_INTERNAL_SERVER_ERROR = qai_helper.HTTP_INTERNAL_SERVER_ERROR
 
 # this is 422
-HTTP_UNPROCESSABLE = requests.codes.unprocessable
+HTTP_UNPROCESSABLE = qai_helper.HTTP_UNPROCESSABLE
 
 
 # withqai = pytest.mark.skipif(not pytest.config.option.with_qai,
@@ -52,7 +52,6 @@ PATH_REAGENT_LIST_REAGENTS = qai_helper.PATH_REAGENT_LIST_REAGENTS
 PATH_REAGENT_LIST = qai_helper.PATH_REAGENT_LIST
 PATH_REAGENT_LOCITEMS = qai_helper.PATH_REAGENT_LOCITEMS
 PATH_REAGENT_SHOW = qai_helper.PATH_REAGENT_SHOW
-PATH_REAGITEM_STATUS = qai_helper.PATH_REAGITEM_STATUS
 PATH_REAGITEM_STATUS = qai_helper.PATH_REAGITEM_STATUS
 PATH_REAGENT_VERIFY_LOCATION = qai_helper.PATH_REAGENT_VERIFY_LOCATION
 PATH_REAGITEM_LIST = qai_helper.PATH_REAGITEM_LIST
@@ -946,6 +945,17 @@ class Test_qai_helper_get(DATAQAItester):
         if lverb:
             print("res VER1 {}".format(res))
         assert rcode == HTTP_OK, "called failed"
+        # 2019-01-30: this code is not implemented on the API side....
+        # now try the same thing via item_ids, not RFID's.
+        # now change the RFIDs at the location
+        # mod_dct = {'location_id': locId,
+        #           'remove_qcs_reagent_item_ids': [],
+        #           'add_qcs_reagent_item_ids': [item_id],
+        #           }
+        # rcode, res = self.s.patch_json(PATH_REAGENT_VERIFY_LOCATION, data=mod_dct)
+        # if lverb:
+        #    print("res VER2 {}".format(res))
+        # assert rcode == HTTP_OK, "called failed"
 
     def test_changedata(self):
         d = self.s.get_QAI_ChangeData()

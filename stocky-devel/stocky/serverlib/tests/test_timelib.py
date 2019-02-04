@@ -39,12 +39,19 @@ class Test_timelib:
 
     def test_loc03(self):
         """timelib.loc_nowtime() must return a timelib.DateTimeType instance
-        if a valid timezone was previously set by timelib.set_local_timezone
+        if a valid timezone was previously set by timelib.set_local_timezone.
+        timelib.loc_nowtime_as_string() must return a string.
         """
         tzinfo = pytz.timezone('Europe/Amsterdam')
         timelib.set_local_timezone(tzinfo)
         nn = timelib.loc_nowtime()
         assert isinstance(nn, timelib.DateTimeType), "wrong type returned"
+
+        s = timelib.loc_nowtime_as_string()
+        assert s is not None, 'got None'
+        assert isinstance(s, str), "string expected"
+        print("goo time: {}".format(s))
+        # assert False, "force fail"
 
     def convert_test(self, dtin: timelib.DateTimeType) -> None:
         """Convert a datetime to string then back to datetime.

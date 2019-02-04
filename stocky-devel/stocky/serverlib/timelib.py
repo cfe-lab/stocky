@@ -57,6 +57,11 @@ def loc_nowtime() -> DateTimeType:
     return loc_t
 
 
+def loc_nowtime_as_string() -> str:
+    dt = loc_nowtime()
+    return datetime_to_str(dt, True)
+
+
 def datetime_to_str(dt: DateTimeType, in_local_tz=False) -> str:
     """Convert a date time into a string.
     Args:

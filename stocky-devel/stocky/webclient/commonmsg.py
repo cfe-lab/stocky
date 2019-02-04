@@ -111,9 +111,15 @@ class CommonMSG:
     MSG_WC_LOCATION_INFO = 'WC_LOCATION_INFO'
 
     # When reviewing location mutation list, the webcient will request all
-    # location changes. This data will be provided by the stocky server.
+    # location changes stored on the server. This data will be provided by the stocky server.
     MSG_WC_LOCMUT_REQ = 'WC_LOCMUT_REQ'
     MSG_SV_LOCMUT_RESP = 'SV_LOCMUT_RESP'
+
+    # when the user has selected a number of location changes to accept, these are sent
+    # to the stocky server. The stocky server will respond with a result indicating
+    # success or otherwise.
+    MSG_WC_DO_LOCMUT_REQ = 'WC_DO_LOCMUT_REQ'
+    MSG_SV_DO_LOCMUT_RESP = 'SV_DO_LOCMUT_RESP'
 
     # the RFID reader has produced some radar data
     MSG_RF_RADAR_DATA = 'RF_RADAR_DATA'
@@ -125,7 +131,7 @@ class CommonMSG:
     MSG_SV_SRV_CONFIG_DATA = "SV_CONFIG_DATA"
 
     # total number of messages: just for cross checking.
-    NUM_MSG = 23
+    NUM_MSG = 25
 
     @classmethod
     def _init_class(cls):
@@ -150,7 +156,9 @@ class CommonMSG:
                              cls.MSG_WC_LOCMUT_REQ, cls.MSG_SV_LOCMUT_RESP,
                              cls.MSG_RF_RADAR_DATA,
                              cls.MSG_RF_CMD_RESP,
-                             cls.MSG_SV_SRV_CONFIG_DATA
+                             cls.MSG_SV_SRV_CONFIG_DATA,
+                             cls.MSG_WC_DO_LOCMUT_REQ,
+                             cls.MSG_SV_DO_LOCMUT_RESP
                              ]
         # cls.MSG_WC_STOCK_CHECK,cls.MSG_SV_NEW_STOCK_LIST
         # , cls.MSG_RF_STOCK_DATA

@@ -1006,6 +1006,14 @@ class option(element):
     def __init__(self, parent: base_element, idstr: str, attrdct: dict, jsel) -> None:
         generic_element.__init__(self, 'option', parent, idstr, attrdct, jsel)
 
+    def set_selected(self, on: bool) -> None:
+        """Set the selected flag of the option.
+
+        Args:
+           on: whether this option is selected or not.
+        """
+        self._el.selected = on
+
 
 class select(element, OnChangeMixin):
     """A select element. We also keep a list of options (python objects).
@@ -1045,10 +1053,7 @@ class select(element, OnChangeMixin):
             print("select: no option with idstr: {}".format(idstr))
             return
         for iidstr, opt in self._optdct.items():
-            if iidstr == idstr:
-                opt.setAttribute('selected')
-            else:
-                opt.removeAttribute('selected')
+            opt.set_selected(iidstr == idstr)
 
     def has_option_id(self, idstr: str) -> bool:
         """Return 'the select element has an option field with an id == idstr' """

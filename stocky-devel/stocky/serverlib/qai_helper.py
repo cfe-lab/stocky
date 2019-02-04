@@ -1,11 +1,13 @@
 """Implement a client-side http API to a QAI server for chemical stocks."""
 
+import typing
 import json
 import logging
 from random import Random
 import requests
 import time
-import typing
+
+import serverlib.timelib as timelib
 
 logger = logging.getLogger('qai_helper')
 
@@ -13,6 +15,16 @@ logger = logging.getLogger('qai_helper')
 StatusCode = int
 
 RequestValue = typing.Tuple[StatusCode, typing.Any]
+
+# this is 200
+HTTP_OK = requests.codes.ok
+
+# this is 201
+HTTP_CREATED = requests.codes.created
+# this 500
+HTTP_INTERNAL_SERVER_ERROR = requests.codes.internal_server_error
+# this is 422
+HTTP_UNPROCESSABLE = requests.codes.unprocessable
 
 
 def tojson(data: typing.Any) -> str:
@@ -172,7 +184,7 @@ class Session(requests.Session):
                         data: typing.Any = None,
                         params: dict = None,
                         retries: int = 3,
-                        expect_json: bool = True) ->requests.Response:
+                        expect_json: bool = True) -> requests.Response:
         if not self._islogged_in:
             raise RuntimeError("Must log in before using the call API")
         json_data = data and tojson(data)
@@ -335,7 +347,10 @@ PATH_REAGENT_VERIFY_LOCATION = '/qcs_reagent/verify_location'
 # reagent item get
 PATH_REAGITEM_LIST = '/qcs_reagent/list_reagent_items'
 
-# reagent item post
+# reagent item patch and post
+PATH_REAGENT_ITEM = '/qcs_reagent/item'
+
+# reagent item status post
 PATH_REAGITEM_STATUS = '/qcs_reagent/item_status'
 
 # suppliers
@@ -353,9 +368,6 @@ DUMP_REAG_ITEM_STATUS = '/table_dump/qcs_reag_item_status'
 DUMP_REAG_ITEM_COMPOSITION = '/table_dump/qcs_reag_composition'
 DUMP_LOCATION = '/table_dump/qcs_location'
 DUMP_USERS = '/table_dump/qcs_users'
-
-HTTP_OK = requests.codes.ok
-HTTP_CREATED = requests.codes.created
 
 
 QAIdct = typing.Dict[str, typing.Any]
@@ -549,3 +561,44 @@ class QAISession(Session):
             else:
                 logger.debug('skipping QAi {} url {}'.format(k, dataurl))
         return retdct
+
+    def _post_reagitem_status(self, reag_item_id: int, new_state: str) -> RequestValue:
+        upd_dct = {'qcs_reag_item_id': reag_item_id,
+                   'status': new_state}
+        return self.post_json(PATH_REAGITEM_STATUS, data=upd_dct)
+
+    def _set_reagitem_location(self, reag_item_id: int, locid: int) -> RequestValue:
+        time_string = timelib.loc_nowtime_as_string()
+        print("GOOLY TIMESTRING '{}'".format(time_string))
+        upd_dct = {'id': reag_item_id,
+                   'qcs_location_id': locid,
+                   'last_seen': time_string,
+                   'notes': 'set by scotty'}
+        return self.patch_json(PATH_REAGENT_ITEM, data=upd_dct)
+
+    def report_item_location(self, reag_item_id: int, locid: int, opstring: str) -> dict:
+        """Report the location status of a reagent item to QAI.
+
+        opstring
+        'missing': the item is missing from the expected locid.
+        'found'  : the item was found at the expected locid.
+        'moved'  : the item was moved to the current locid (from somewhere else)
+        """
+        if not isinstance(opstring, str):
+            raise ValueError("opstring must be a string")
+        if not isinstance(reag_item_id, int):
+            raise ValueError("reag_item_id must be an int")
+        if not isinstance(locid, int):
+            raise ValueError("locid must be an int")
+        if opstring == 'missing':
+            # report as missing
+            rcode, postres = self._post_reagitem_status(reag_item_id, 'MISSING')
+            if rcode != HTTP_CREATED:
+                return dict(ok=False, rcode=rcode, res=postres)
+        elif opstring == 'found' or opstring == 'moved':
+            # confirm position, or set to current position.
+            rcode, postres = self._set_reagitem_location(reag_item_id, locid)
+
+        else:
+            raise RuntimeError("illegal opstring='{}'".format(opstring))
+        return dict(ok=True)

@@ -49,6 +49,14 @@ class BaseServer:
         self.name = name
         self.msgQ = Queue()
 
+    def enQueue(self, msg: CommonMSG) -> None:
+        """Put msg on the internal task queue.
+
+        Args:
+           msg: the message to put on the queue.
+        """
+        self.msgQ.put(msg)
+
     def sleep(self, secs: int) -> None:
         gevent.sleep(secs)
 
@@ -132,7 +140,8 @@ class CommonStockyServer(BaseServer):
                                 CommonMSG.MSG_WC_LOCMUT_REQ,
                                 CommonMSG.MSG_WC_ADD_STOCK_REQ,
                                 CommonMSG.MSG_SV_TIMER_TICK,
-                                CommonMSG.MSG_WC_LOCATION_INFO])
+                                CommonMSG.MSG_WC_LOCATION_INFO,
+                                CommonMSG.MSG_WC_DO_LOCMUT_REQ])
 
     def __init__(self, logger: logging.Logger, cfgname: str) -> None:
         """
@@ -340,6 +349,13 @@ class CommonStockyServer(BaseServer):
             newhash, rdct = self.stockdb.get_loc_changes(client_hash)
             self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_LOCMUT_RESP,
                                        dict(data=rdct, hash=newhash)))
+        elif msg.msg == CommonMSG.MSG_WC_DO_LOCMUT_REQ:
+            move_dct = msg.data['locmove']
+            res = self.stockdb.perform_loc_changes(move_dct)
+            self.send_WS_msg(CommonMSG(CommonMSG.MSG_SV_DO_LOCMUT_RESP,
+                                       dict(data=res)))
+            self.enQueue(CommonMSG(CommonMSG.MSG_WC_STOCK_INFO_REQ, dict(do_update=True)))
+            self.enQueue(CommonMSG(CommonMSG.MSG_WC_LOCMUT_REQ, dict(data=None)))
         else:
             self.logger.error("server not handling message {}".format(msg))
             raise RuntimeError("unhandled message {}".format(msg))
