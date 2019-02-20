@@ -758,6 +758,14 @@ class ChemStockDB:
         return res
 
     def _report_loc_changes(self, move_dct: dict) -> dict:
+        """Report all location changes in the local database to QAI.
+        If a an individual location change was successfully recorded with QAI,
+        then mark the sent_to_qai field of the record.
+        This will allows us to delete all successfully reported changes.
+
+        If an error occurs in any of the qai interactions, then a dict containing ok=False
+        is returned.
+        """
         qaisession = self.qaisession
         s = self._sess
         print("PERFORM LOC_CHANGE")

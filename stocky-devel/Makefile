@@ -80,6 +80,9 @@ build-nocache: $(BASE_DOCKERFILE) ## build the docker image for stocky from scra
 runlocal:  ## run the stocky docker image with local code interactively with bash.
 	${DOCKER_RUN_CMD} -v ${DEV_SRC}:/stockysrc -it ${BASE_IMAGE_NAME} tcsh
 
+runrfid: ## run the rfid server image for production
+	${DOCKER_PRODRUN_CMD} ${BASE_IMAGE_NAME} ./runrfidserver.sh
+
 runprod: ## run the stocky docker image for production.
 	${DOCKER_RUN_CMD} -d --name ${STOCKY_PROD_NAME} ${BASE_IMAGE_NAME}
 	notify-send "stocky server is running"

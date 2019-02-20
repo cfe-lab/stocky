@@ -310,15 +310,13 @@ Input:
 
 ** PATCH /qcs_reagent/verify_location
 PATCH /qcs_reagent/verify_location
-Description: Add RFIDs or remove RFIDs from a location. Use with /qcs_reagents/list with
+Description: Add or remove reagent item ids from a location. Use with /qcs_reagents/list with
 location_id parameter to get expected inventory.
 reagent_items (e.g. those without RFID tags) can also be moved.
 {
         location_id: number,
-        add_rfids: string[],
-        remove_rfids: string[],
-        # add_qcs_reagent_item_ids: string[],
-        # remove_qcs_reagent_item_ids: string[]
+        add_ids: string[],
+        remove_ids: string[]
 }
 Responds with: HTTP code 200, 422, or 500
 200: { message: 'OK' }

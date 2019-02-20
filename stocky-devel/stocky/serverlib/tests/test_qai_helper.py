@@ -368,6 +368,18 @@ class SimpleQAItester:
             print("userlst: {}".format(userlst))
             raise RuntimeError('failed to find test user')
         cls.test_user = fndlst[0]
+        test_user_id = cls.test_user['id']
+        cls.test_stat_lst = [
+            {'status': 'MADE',
+             'occurred': '1956-03-31T00:00:00Z',
+             'qcs_user_id': test_user_id},
+            {'status': 'EXPIRED',
+             'occurred': '1956-03-31T00:00:00Z',
+             'qcs_user_id': test_user_id},
+            {'status': 'RUO_EXPIRED',
+             'occurred': '1956-03-31T00:00:00Z',
+             'qcs_user_id': test_user_id}]
+
         cls.test_reagent_item_lot_num = 'testlotAAA'
         cls.test_reagent_item_notes = "A fictitious stock item for software testing purposes"
         cls.test_itema_rfid = random_string(8)
@@ -482,9 +494,7 @@ class Test_creation(SimpleQAItester):
                  'notes': self.test_reagent_item_notes,
                  'rfid': test_rfid,
                  'source_ids': [],
-                 'statuses': [{'status': 'MADE',
-                               'occurred': '1956-03-31T00:00:00Z',
-                               'qcs_user_id': self.test_user['id']}]}
+                 'statuses': self.test_stat_lst}
         rcode, res = self.s.post_json(TPATH_REAGENT_ITEM, data={'items': [itema]})
         print("itema {}".format(itema))
         print("postres '{}'".format(res))
@@ -502,9 +512,7 @@ class Test_creation(SimpleQAItester):
                  'lot_num': self.test_reagent_item_lot_num,
                  'notes': self.test_reagent_item_notes,
                  'source_ids': [],
-                 'statuses': [{'status': 'MADE',
-                               'occurred': '1956-03-31T00:00:00Z',
-                               'qcs_user_id': self.test_user['id']}]}
+                 'statuses': self.test_stat_lst}
         for i in range(2):
             test_rfid = random_string(6)
             itema['rfid'] = test_rfid
@@ -627,7 +635,7 @@ class DATAQAItester(SimpleQAItester):
         cls.test_itema_locid = None
         rcode, reagitemlst = cls.s.get_json(PATH_REAGITEM_LIST,
                                             params=dict(id=cls.test_reagent_id))
-        assert rcode == HTTP_OK, "called failed"
+        assert rcode == HTTP_OK, "call to PATH_REAGITEM_LIST failed"
         if lverb:
             yamlutil.writeyamlfile(reagitemlst, "./reagitemlst.yaml")
         fndlst = [d for d in reagitemlst if d['rfid'] == cls.test_itema_rfid]
@@ -649,11 +657,9 @@ class DATAQAItester(SimpleQAItester):
                          'lot_num': cls.test_reagent_item_lot_num,
                          'notes': cls.test_reagent_item_notes,
                          'source_ids': [],
-                         'statuses': [{'status': 'MADE',
-                                       'occurred': '1956-03-31T00:00:00Z',
-                                       'qcs_user_id': cls.test_user['id']}]}
+                         'statuses': cls.test_stat_lst}
                 rcode, res = cls.s.post_json(TPATH_REAGENT_ITEM, data={'items': [itema]})
-                assert rcode == HTTP_OK, "called failed"
+                assert rcode == HTTP_CREATED, "called failed"
                 print("postres '{}'".format(res))
             itm_rec = cls.get_reagent_item_record(cls.test_itema_rfid, isrfid=True)
             cls.test_itema_id = itm_rec['id']
@@ -923,39 +929,24 @@ class Test_qai_helper_get(DATAQAItester):
         # assert False, "force fail"
 
     def test_verify_location01(self):
-        """ Update the RFID's at a location.
-
+        """ Update the reagent item id's at a location.
         patch PATH_REAGENT_VERIFY_LOCATION
         """
         lverb = True
         # ensure preconditions are met
         item_id = self.test_itema_id
         locId = self.test_itema_locid
-        itm_RFID = self.test_itema_rfid
         org_rec = self.get_reagent_item_record(item_id)
         assert org_rec['loc_id'] == locId, "unexpected location"
-        assert org_rec['rfid'] == itm_RFID, "unexpected RFID"
-
-        # now change the RFIDs at the location
+        # now change the item_ids at the location
         mod_dct = {'location_id': locId,
-                   'remove_rfids': [itm_RFID],
-                   'add_rfids': []
+                   'remove_ids': [],
+                   'add_ids': [item_id],
                    }
         rcode, res = self.s.patch_json(PATH_REAGENT_VERIFY_LOCATION, data=mod_dct)
         if lverb:
-            print("res VER1 {}".format(res))
+            print("res VER2 {}".format(res))
         assert rcode == HTTP_OK, "called failed"
-        # 2019-01-30: this code is not implemented on the API side....
-        # now try the same thing via item_ids, not RFID's.
-        # now change the RFIDs at the location
-        # mod_dct = {'location_id': locId,
-        #           'remove_qcs_reagent_item_ids': [],
-        #           'add_qcs_reagent_item_ids': [item_id],
-        #           }
-        # rcode, res = self.s.patch_json(PATH_REAGENT_VERIFY_LOCATION, data=mod_dct)
-        # if lverb:
-        #    print("res VER2 {}".format(res))
-        # assert rcode == HTTP_OK, "called failed"
 
     def test_changedata(self):
         d = self.s.get_QAI_ChangeData()

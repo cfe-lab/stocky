@@ -370,8 +370,11 @@ class WCstatus(base.base_obj):
                 self.set_RFID_state(RFID_OFF)
 
     def set_QAIupdate_state(self, d: dict) -> None:
-        """Set the string describing when the local DB was last
-        updated from QAI"""
+        """Set the data state from the stocky server. This includes
+        the whole chemical stock database.
+        It also includes the string describing when the local DB was last
+        updated from QAI.
+        """
         upd_str = d['upd_time']
         did_dbreq = d.get("did_dbreq", False)
         dbreq_ok = d.get("dbreq_ok", False)
