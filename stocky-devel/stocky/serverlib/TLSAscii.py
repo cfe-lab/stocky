@@ -28,7 +28,7 @@ from webclient.commonmsg import CommonMSG
 
 BarcodeType = str
 
-# and electronic producet code type. Also see is_valid_EPC
+# and electronic producet code type. Also see is_valid_epc
 EPCstring = str
 
 
@@ -46,7 +46,7 @@ class Buzzertone(Enum):
     high = 'hig'
 
 
-onoffdct = {True: 'on', False: 'off'}
+ON_OFF_DCT = {True: 'on', False: 'off'}
 
 
 class AlertParams:
@@ -94,8 +94,9 @@ class BarcodeParams:
             raise ValueError("BarcodeParams: read_time is out of range!")
 
     def tostr(self) -> str:
-        cmdstr = "-al {} -dt {} -t {}".format(onoffdct[self.doalert],
-                                              onoffdct[self.with_date_time],
+        """Convert these paramaters to a a string."""
+        cmdstr = "-al {} -dt {} -t {}".format(ON_OFF_DCT[self.doalert],
+                                              ON_OFF_DCT[self.with_date_time],
                                               self.read_time_secs)
         return cmdstr
 
@@ -110,12 +111,14 @@ class QStype(Enum):
 
 
 class BankSelectType(Enum):
+    """An RFID memory back selection type"""
     epc = 'epc'
     tid = 'tid'
     usr = 'usr'
 
 
 class SelectTargetType(Enum):
+    """An RFID back selection type"""
     s0 = 's0'
     s1 = 's1'
     s2 = 's2'
@@ -123,7 +126,7 @@ class SelectTargetType(Enum):
     sl = 'sl'
 
 
-rfid_lst = [('do_alert', 'al'),
+RFID_LST = [('do_alert', 'al'),
             ('with_epc_cs', 'c'),
             ('with_epc_pc', 'e'),
             ('with_fast_id', 'fi'),
@@ -150,23 +153,23 @@ rfid_lst = [('do_alert', 'al'),
             ('tag_focus_on', 'tf'),
             ('reset_to_default', 'x')]
 
-valid_rfid_dct = dict(rfid_lst)
+VALID_RFID_DCT = dict(RFID_LST)
 # the order in this list is signicant: its the order in which the .iv parameters are interpreted
-rfid_order_lst = ['x', 'al', 'c', 'e', 'r', 'ie', 'dt', 'fs', 'ix', 'sb',
+RFID_ORDER_LST = ['x', 'al', 'c', 'e', 'r', 'ie', 'dt', 'fs', 'ix', 'sb',
                   'so', 'sl', 'sd', 'o', 'io', 'sa', 'st', 'qa', 'ql', 'qs',
                   'qt', 'qv', 'fi', 'tf', 'p', 'n']
 
-hexnums = [chr(ord('0') + i) for i in range(10)]
-hexletters = [chr(ord('A') + i) for i in range(6)]
-hexchars = frozenset(hexnums + hexletters)
+HEXNUMS = [chr(ord('0') + i) for i in range(10)]
+HEXLETTERS = [chr(ord('A') + i) for i in range(6)]
+HEXCHARS = frozenset(HEXNUMS + HEXLETTERS)
 
 
 def is_hex_string(s: str) -> bool:
     """Return: 'this string contains only valid hex characters'"""
-    return sum([ch in hexchars for ch in s]) == len(s)
+    return sum([ch in HEXCHARS for ch in s]) == len(s)
 
 
-def is_valid_EPC(epc: EPCstring) -> bool:
+def is_valid_epc(epc: EPCstring) -> bool:
     """Perform a somple sanity check on the EPC code.
     Return 'the EPC code is not apparently broken'
     EPC code must be 96 bits in length. This is 24 4-bit hex characters.
@@ -212,19 +215,20 @@ class RFIDParams:
         # self.with_date_time = with_date_time
         self.pdct: typing.Dict[str, str] = {}
         got_err = False
-        for kuser, v in kw.items():
-            kinternal = valid_rfid_dct.get(kuser, None)
+        for kuser, val in kw.items():
+            kinternal = VALID_RFID_DCT.get(kuser, None)
             if kinternal is None:
                 got_err = True
                 print("unknown RFIDparam '{}'".format(kuser))
             else:
-                self.pdct[kinternal] = v
+                self.pdct[kinternal] = val
         if got_err:
             raise RuntimeError("Error in RFIDParams")
 
     def tostr(self) -> str:
+        """Convert these RFIDParams to a string."""
         retstr = ""
-        for rfidopt in rfid_order_lst:
+        for rfidopt in RFID_ORDER_LST:
             if rfidopt in self.pdct:
                 optval = self.pdct.get(rfidopt, None)
                 if optval is None:
@@ -234,7 +238,7 @@ class RFIDParams:
         return retstr
 
 
-class tls_mode(Enum):
+class TlsMode(Enum):
     """TLS data mode"""
     stock = 'sto'
     radar = 'rad'
@@ -253,27 +257,29 @@ RIDList = typing.List[RIdict]
 
 class RunningAve:
     """Implement a running average of distance values"""
-    def __init__(self, logger, Nave: int) -> None:
+    A_OFFSET = -65
+    N_PROP_TEN = 2.7*10.0
+
+    def __init__(self, logger, nave: int) -> None:
         self.logger = logger
-        if Nave <= 0:
-            raise RuntimeError("Runningave: Nave must be > 0")
-        self.Nave = Nave
+        if nave <= 0:
+            raise RuntimeError("Runningave: nave must be > 0")
+        self.nave = nave
         self._dlst: RIDList = []
 
     def reset_average(self):
+        """Reset the running average to start from scratch"""
         self._dlst = []
 
     @staticmethod
-    def RI2dist(ri: int) -> float:
+    def ri2dist(ri: int) -> float:
         """Use an approximate formula to convert an RI into a distance in metres.
         The formula for this is taken from here:
         https://electronics.stackexchange.com/questions/83354/calculate-distance-from-rssi
         The parameters for A_OFFSET were determined experimentally, and that for
         N_PROP_TEN was guessed. This is a value between 2.7 and 4.3 , with 2.0 for free space.
         """
-        A_OFFSET = -65
-        N_PROP_TEN = 2.7*10.0
-        return math.pow(10.0, (ri - A_OFFSET)/-N_PROP_TEN)
+        return math.pow(10.0, (ri - RunningAve.A_OFFSET)/-RunningAve.N_PROP_TEN)
 
     @staticmethod
     def _radar_data(logger, clresp: commlink.CLResponse) -> typing.Optional[RIdict]:
@@ -284,8 +290,8 @@ class RunningAve:
         """
         ret_lst: typing.Optional[typing.Iterator[typing.Tuple[str, int]]] = None
         ret_code: commlink.TLSRetCode = clresp.return_code()
-        if ret_code == commlink.BaseCommLink.RC_NO_TAGS or\
-           ret_code == commlink.BaseCommLink.RC_NO_BARCODE:
+        if ret_code in (commlink.BaseCommLink.RC_NO_TAGS,
+                        commlink.BaseCommLink.RC_NO_BARCODE):
             # the scan event failed to return any EPC or barcode data
             # -> we return an empty list
             ret_lst = iter([])
@@ -297,15 +303,15 @@ class RunningAve:
             rilst: typing.Optional[typing.List[int]] = None
             try:
                 rilst = [int(sri) for sri in rrlst]
-            except (ValueError, TypeError) as e:
-                logger.error("radar mode: failed to retrieve RI values {}".format(e))
+            except (ValueError, TypeError) as err:
+                logger.error("radar mode: failed to retrieve RI values {}".format(err))
             ret_lst = zip(eplst, rilst) if rilst is not None and len(eplst) == len(rilst) else None
         return None if ret_lst is None else dict(ret_lst)
 
     @staticmethod
-    def do_ave(numexp: int, tlst: typing.List[int]) -> int:
+    def do_ave(tlst: typing.List[int]) -> int:
         """Average the RI values in the list.
-        numexp: is the number of times the RFID tags were queried.
+        tlst: the list of values to average over.
 
         If a return did not happen in a particular instance, then we currently ignore
         that now, i.e. just return the normal, average using the actual number of
@@ -314,60 +320,62 @@ class RunningAve:
         return sum(tlst)//len(tlst)
 
     def add_clresp(self, clresp: commlink.CLResponse) -> None:
+        """Add the radar data from a commlink response to the curren running average."""
         ridct = RunningAve._radar_data(self.logger, clresp)
         if ridct is not None:
             self._dlst.append(ridct)
-        while len(self._dlst) > self.Nave:
+        while len(self._dlst) > self.nave:
             self._dlst.pop(0)
 
     def get_runningave(self) -> typing.Optional[RIList]:
         """Return a running average of distances using the cached data.
         Return None if we do not have sufficient data for a running average.
         """
-        if len(self._dlst) < self.Nave:
+        if len(self._dlst) < self.nave:
             return None
         sumdct: typing.Dict[str, typing.List[int]] = {}
         for vdct in self._dlst:
-            for epc, ri in vdct.items():
-                assert isinstance(ri, int), "INT expected {}".format(ri)
-                sumdct.setdefault(epc, []).append(ri)
+            for epc, ri_val in vdct.items():
+                assert isinstance(ri_val, int), "INT expected {}".format(ri_val)
+                sumdct.setdefault(epc, []).append(ri_val)
         do_ave = RunningAve.do_ave
-        calc_dst = RunningAve.RI2dist
+        calc_dst = RunningAve.ri2dist
         ret_lst = [(epc, ri_ave, calc_dst(ri_ave)) for epc, ri_ave in
-                   [(epc, do_ave(self.Nave, vlst)) for epc, vlst in sumdct.items() if len(vlst) > 0]]
+                   [(epc, do_ave(vlst)) for epc, vlst in sumdct.items() if len(vlst) > 0]]
         ret_lst.sort(key=lambda a: a[0])
         return ret_lst
 
 
 class TLSReader(Taskmeister.BaseTaskMeister):
-    def __init__(self, msgQ: gevent.queue.Queue,
+    """Create a class that can talk to the RFID reader via the provided commlink class.
+       This class will convert data received from the RFID reader into CommonMSG instances
+       and put them on the provided message queue.
+    """
+    def __init__(self, msg_q: gevent.queue.Queue,
                  logger,
                  cl: commlink.BaseCommLink,
                  radar_ave_num: int) -> None:
-        """Create a class that can talk to the RFID reader via the provided commlink class.
-        This class will convert data received from the RFID reader into CommonMSG instances
-        and put them on the provided message queue.
-        """
-        super().__init__(msgQ, logger, 0.0, True)
+        super().__init__(msg_q, logger, 0.0, True)
         self._lverb = False
         self._cl = cl
-        self.mode = tls_mode.undef
+        self.mode = TlsMode.undef
         print("TLS init")
         self.cur_state: typing.Optional[int] = None
         print("TLS init got {}".format(self.cur_state))
-        if cl._is_alive():
-            self.BT_set_stock_check_mode()
+        if cl.is_alive():
+            self.bt_set_stock_check_mode()
         self.runningave = RunningAve(logger, radar_ave_num)
 
     def _sendcmd(self, cmdstr: str, comment: str = None) -> None:
         cl = self._cl
-        if cl._is_alive():
+        if cl.is_alive():
             cl.send_cmd(cmdstr, comment)
         else:
             self._log_error('commlink is not alive')
 
     def is_in_radarmode(self) -> bool:
-        return self.mode == tls_mode.radar
+        """Is the reader in radar mode ?"""
+        return self.mode == TlsMode.radar
 
     def _convert_message(self, clresp: commlink.CLResponse) -> typing.Optional[CommonMSG]:
         """Convert an RFID response into a common message.
@@ -393,9 +401,9 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             # we have a message because the user pressed the trigger --
             # try to determine what kind of message to send back
             # based on our current mode
-            if self.mode == tls_mode.radar:
+            if self.mode == TlsMode.radar:
                 msg_type = CommonMSG.MSG_RF_RADAR_DATA
-            elif self.mode == tls_mode.stock:
+            elif self.mode == TlsMode.stock:
                 msg_type = CommonMSG.MSG_RF_CMD_RESP
             else:
                 self._log_debug('no comment_str and no mode: returning None')
@@ -442,7 +450,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         self._log_debug("TLS GM enter")
         # check for a change of the state of the commlink first.
         # if the state has changed, report this.
-        new_state = self._cl.get_RFID_state()
+        new_state = self._cl.get_rfid_state()
         if new_state != self.cur_state:
             self.cur_state = new_state
             self._log_debug("TLS: state change reported. new state: {}".format(new_state))
@@ -456,9 +464,8 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             clresp: commlink.CLResponse = self._cl.raw_read_response()
             self._log_debug("TLS got {}".format(clresp))
             return self._convert_message(clresp)
-        else:
-            self._log_debug("TLS state is: {}, returning None".format(self.cur_state))
-            return None
+        self._log_debug("TLS state is: {}, returning None".format(self.cur_state))
+        return None
 
     def set_region(self, region_code: str) -> None:
         """Set the geographic region of the RFID reader.
@@ -488,16 +495,16 @@ class TLSReader(Taskmeister.BaseTaskMeister):
            p: defines the actions for the reader to perform.
         """
 
-        cmdstr = ".al -b{} -v{} -d{} -t{}\n".format(onoffdct[p.buzzeron],
-                                                    onoffdct[p.vibrateon],
+        cmdstr = ".al -b{} -v{} -d{} -t{}\n".format(ON_OFF_DCT[p.buzzeron],
+                                                    ON_OFF_DCT[p.vibrateon],
                                                     p.vblen.value,
                                                     p.pitch.value)
         self._sendcmd(cmdstr)
 
     def set_alert_default(self, p: AlertParams) -> None:
         """Set the default alert parameters."""
-        cmdstr = ".al -b{} -v{} -d{} -t{} -n\n".format(onoffdct[p.buzzeron],
-                                                       onoffdct[p.vibrateon],
+        cmdstr = ".al -b{} -v{} -d{} -t{} -n\n".format(ON_OFF_DCT[p.buzzeron],
+                                                       ON_OFF_DCT[p.vibrateon],
                                                        p.vblen.value,
                                                        p.pitch.value)
         self._sendcmd(cmdstr)
@@ -508,6 +515,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         self._sendcmd(cmdstr)
 
     def set_readbarcode_params(self, p: BarcodeParams) -> None:
+        """Read the curren bar code parameters from the RFID reader."""
         cmdstr = ".bc " + p.tostr() + " -n\n"
         self._sendcmd(cmdstr, "bcparams")
 
@@ -555,7 +563,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         if len(bt_pairing_code) != 4:
             raise ValueError("BT pairing code <> length 4!")
         protoname = 'spp' if bt_spp else 'hid'
-        cmdstr = '.bt -e{} -f"{}" -w{} -bi"{}" -bs"{}" -m{}\n'.format(onoffdct[bt_on],
+        cmdstr = '.bt -e{} -f"{}" -w{} -bi"{}" -bs"{}" -m{}\n'.format(ON_OFF_DCT[bt_on],
                                                                       bt_name,
                                                                       bt_pairing_code,
                                                                       bundle_id, bundle_seed_id,
@@ -584,17 +592,17 @@ class TLSReader(Taskmeister.BaseTaskMeister):
           a date of 30th February will be silently allowed.
         """
         if isinstance(hrs, int):
-            if not (0 <= hrs <= 24):
+            if not 0 <= hrs <= 24:
                 raise ValueError("hour is out of range")
         else:
             raise TypeError('int expected for hrs')
         if isinstance(mins, int):
-            if not (0 <= mins < 60):
+            if not 0 <= mins < 60:
                 raise ValueError("minute is out of range")
         else:
             raise TypeError('int expected for mins')
         if isinstance(secs, int):
-            if not (0 <= secs < 60):
+            if not 0 <= secs < 60:
                 raise ValueError("second is out of range")
         else:
             raise TypeError('int expected for secs')
@@ -607,12 +615,12 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         else:
             raise TypeError('int expected for year')
         if isinstance(mm, int):
-            if not (1 <= mm <= 12):
+            if not 1 <= mm <= 12:
                 raise ValueError("month is out of range")
         else:
             raise TypeError('int expected for month')
         if isinstance(dd, int):
-            if not (1 <= dd <= 31):
+            if not 1 <= dd <= 31:
                 raise ValueError("day is out of range")
         else:
             raise TypeError('int expected for day')
@@ -623,7 +631,7 @@ class TLSReader(Taskmeister.BaseTaskMeister):
         """Issue a command to reset the .iv options to the default ones."""
         self._sendcmd(".iv -x", "IVreset")
 
-    def BT_set_radar_mode(self, epc: typing.Optional[EPCstring]) -> None:
+    def bt_set_radar_mode(self, epc: typing.Optional[EPCstring]) -> None:
         """Set up the reader to search for a tag with a
            specific Electronic Product Code (EPC) by later on issuing RadarGet() commands.
 
@@ -636,30 +644,30 @@ class TLSReader(Taskmeister.BaseTaskMeister):
            See the TLS document: 'Application Note - Advice for Implementing a Tag Finder Feature V1.0.pdf'
         """
         if epc is not None:
-            if not is_valid_EPC(epc):
+            if not is_valid_epc(epc):
                 raise ValueError("radarsetup: illegal EPC: '{}'".format(epc))
         # NOTE: epc currently not actually used....
-        self.mode = tls_mode.radar
+        self.mode = TlsMode.radar
         self.reset_inventory_options()
         cmdstr = ".iv -al off -x -n -fi on -ron -io off -qt b -qs s0 -sa 4 -st s0 -sl 30 -so 0020"
         self._sendcmd(cmdstr, "radarsetup")
 
-    def RadarGet(self) -> None:
+    def radar_get(self) -> None:
         """Issue a command to get the RSSI value of the tag previously selected
         by its EPC in RadarSetup.
         The response will be available on the response queue."""
         self._sendcmd(".iv", comment='RAD')
 
-    def BT_set_stock_check_mode(self):
+    def bt_set_stock_check_mode(self):
         """Set the RFID reader into stock taking mode."""
-        self.mode = tls_mode.stock
+        self.mode = TlsMode.stock
         self.reset_inventory_options()
         alert_parms = AlertParams(buzzeron=False, vibrateon=True,
                                   vblen=BuzzViblen('med'),
                                   pitch=Buzzertone('med'))
         self.doalert(alert_parms)
 
-    def send_RFID_msg(self, msg: CommonMSG) -> None:
+    def send_rfid_msg(self, msg: CommonMSG) -> None:
         """The stocky server uses this routine to send messages (commands) to the
         RFID reader device.
 
@@ -677,11 +685,11 @@ class TLSReader(Taskmeister.BaseTaskMeister):
             is_radar_on = self.is_in_radarmode()
             if want_radar_on != is_radar_on:
                 if want_radar_on:
-                    self.BT_set_radar_mode(epc=None)
+                    self.bt_set_radar_mode(epc=None)
                 else:
-                    self.BT_set_stock_check_mode()
+                    self.bt_set_stock_check_mode()
         elif msg.msg == CommonMSG.MSG_SV_GENERIC_COMMAND:
-            self.mode = tls_mode.stock
+            self.mode = TlsMode.stock
             # self.BT_set_stock_check_mode()
             cmdstr = msg.data
             # print("BLACMD {}".format(cmdstr))
@@ -707,11 +715,11 @@ class TLSReader(Taskmeister.BaseTaskMeister):
            with the TSL ASCII 2 Protocol V1.33.pdf
 
         Raises:
-           ValueError: if is_valid_EPC(epc) returns False or len(data) is not
+           ValueError: if is_valid_epc(epc) returns False or len(data) is not
               a multiple of 4.
            TypeError: if data is not an instance of string.
         """
-        if not is_valid_EPC(epc):
+        if not is_valid_epc(epc):
             raise ValueError("illegal EPC = '{}'".format(epc))
         if isinstance(data, str):
             if not (len(data) % 4 == 0 and is_hex_string(data)):
@@ -734,11 +742,11 @@ class TLSReader(Taskmeister.BaseTaskMeister):
            num_chars: the number of bytes (chars) to read from the user bank.
 
         Raises:
-           ValueError: if is_valid_EPC(epc) returns False or num_chars is not a multiple
+           ValueError: if is_valid_epc(epc) returns False or num_chars is not a multiple
            of four.
            TypeError: if num_chars is not an integer.
         """
-        if not is_valid_EPC(epc):
+        if not is_valid_epc(epc):
             raise ValueError("illegal EPC = '{}'".format(epc))
         if isinstance(num_chars, int):
             if num_chars % 4 != 0:

@@ -19,13 +19,13 @@ ME_VAL = 'ME'
 CS_VAL = 'CS'
 EP_VAL = 'EP'
 
-resp_code_lst = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'DA', 'DP',
+RESP_CODE_LST = ['AB', 'AC', 'AE', 'AS', 'BA', 'BC', 'BP', 'BR', 'CH', 'CR', 'DA', 'DP',
                  'DT', 'EA', 'EB', 'FN', 'IA', 'IX', 'KS', 'LB', 'LE', 'LL', 'LK', 'LS',
                  'MF', 'QT', 'PC', 'PR', 'PV', 'RB', 'RD', 'RF', 'RS', 'SP', 'BV',
                  'SR', 'SW', 'TD', 'TM', 'UB', 'UF', 'US', 'WW', OK_RESP, ER_RESP, RI_VAL,
                  ME_VAL, CS_VAL, EP_VAL]
 
-resp_code_set = frozenset(resp_code_lst)
+RESP_CODE_SET = frozenset(RESP_CODE_LST)
 
 ResponseTuple = typing.Tuple[str, str]
 ResponseList = typing.List[ResponseTuple]
@@ -34,17 +34,17 @@ ResponseDict = typing.Dict[str, str]
 StringList = typing.List[str]
 
 
-command_lst = ['al', 'ab', 'bc', 'bl', 'bt', 'da', 'dp', 'ea', 'ec',
+COMMAND_LST = ['al', 'ab', 'bc', 'bl', 'bt', 'da', 'dp', 'ea', 'ec',
                'fd', 'hc', 'hd', 'hs', 'iv', 'ki', 'lk', 'lo', 'mt',
                'pd', 'ps', 'ra', 'rd', 'rl', 'sa', 'sl', 'sp', 'sr',
                'ss', 'st', 'tm', 'ts', 'vr', 'wa', 'wr', 'ws']
-command_set = frozenset(command_lst)
+COMMAND_SET = frozenset(COMMAND_LST)
 
 
-byteCR = b'\r'
-byteLF = b'\n'
+BYTE_CR = b'\r'
+BYTE_LF = b'\n'
 
-byteCRLF = b"\r\n"
+BYTE_CRLF = b"\r\n"
 
 OK_RESP_TUPLE = (OK_RESP, '')
 
@@ -58,11 +58,11 @@ TLSRetCode = int
 # (a negative value, bigger is closer. E.g. -40 is nearer than -75)
 RSSI = int
 
-hextab = dict([(chr(ord('0') + i), i) for i in range(0, 10)] +
-              [(chr(ord('A') + i), i+10) for i in range(0, 6)])
+_HEXTAB = dict([(chr(ord('0') + i), i) for i in range(0, 10)] +
+               [(chr(ord('A') + i), i+10) for i in range(0, 6)])
 
 
-def HexStrtoStr(instr: str) -> str:
+def hexstr_to_str(instr: str) -> str:
     """Convert a string of hex characters into legible characters.
 
     Depending on the RFID label being read, and the settings of the RFID reader,
@@ -89,13 +89,13 @@ def HexStrtoStr(instr: str) -> str:
        The modified string upon successful conversion, otherwise
        the original string.
     """
-    if len(instr) % 2 == 1 or len(instr) == 0:
+    if not instr or len(instr) % 2 == 1:
         return instr
     # strlst: list of strings of length two representing hex numbers.
     strlst = [instr[i:i+2] for i in range(0, len(instr), 2)]
     # numlst: list of integers. if this fails, give up, as we do not have Hex numbers
     try:
-        numlst = [hextab[hexstr[0]] * 16 + hextab[hexstr[1]] for hexstr in strlst]
+        numlst = [_HEXTAB[hexstr[0]] * 16 + _HEXTAB[hexstr[1]] for hexstr in strlst]
     except KeyError:
         return instr
     # NOTE: also return the original string if the leading char is not a 'reasonable' ASCII
@@ -138,14 +138,14 @@ class CLResponse:
 
     @staticmethod
     def _hexify(rl: ResponseList) -> ResponseList:
-        return [(EP_VAL, HexStrtoStr(tt[1])) if tt[0] == EP_VAL else tt for tt in rl]
+        return [(EP_VAL, hexstr_to_str(tt[1])) if tt[0] == EP_VAL else tt for tt in rl]
 
     def __getitem__(self, respcode: str) -> typing.Optional[StringList]:
         """Return a list with only those response codes equal to respcode.
         Return None if no entries of type respcode are found.
         NOTE: this routine overwrites the [] operator for this class.
         """
-        assert respcode in resp_code_set, "illegal respcode"
+        assert respcode in RESP_CODE_SET, "illegal respcode"
         # print("looking for '{}', have {}".format(respcode, self._mydct))
         return self._mydct.get(respcode, None)
 
@@ -162,8 +162,7 @@ class CLResponse:
             except ValueError:
                 raise RuntimeError("return_code: failed to convert to int")
             return ii
-        else:
-            raise RuntimeError("return_code: unexpected {}, expected {}".format(cmd, resp_code))
+        raise RuntimeError("return_code: unexpected {}, expected {}".format(cmd, resp_code))
 
     def return_code(self) -> TLSRetCode:
         """Determine a return code as an integer from a ResponseList received
@@ -176,17 +175,16 @@ class CLResponse:
         """
         if self.rl is None:
             return BaseCommLink.RC_TIMEOUT
-        if len(self.rl) == 0:
+        if not self.rl:
             return BaseCommLink.RC_FAULTY
         last_tup = self.rl[-1]
         if not isinstance(last_tup, tuple):
             return BaseCommLink.RC_FAULTY
         if last_tup == OK_RESP_TUPLE:
             return BaseCommLink.RC_OK
-        elif last_tup[0] == ER_RESP:
+        if last_tup[0] == ER_RESP:
             return CLResponse._check_get_int_val(last_tup, ER_RESP)
-        else:
-            return BaseCommLink.RC_FAULTY
+        return BaseCommLink.RC_FAULTY
 
     def _return_message(self) -> typing.Optional[str]:
         """Return a message sent from the RFID reader in the ME: field of the
@@ -194,8 +192,7 @@ class CLResponse:
         rlst = self.__getitem__(ME_VAL)
         if rlst is None or len(rlst) != 1:
             return None
-        else:
-            return rlst[0]
+        return rlst[0]
 
     def get_comment_dct(self) -> typing.Optional[dict]:
         return self._cdict
@@ -207,7 +204,7 @@ class CLResponse:
 class BaseCommLink:
     """A low-level communication link class that communicates with an RFID reader
     over a serial connection."""
-    # Return codes of the RFID reader, see _tlsretcode_dct
+    # Return codes of the RFID reader, see _TLSRETCODE_DCT
     RC_OK = 0
     RC_FAULTY = 1
     RC_TIMEOUT = 2
@@ -234,10 +231,10 @@ class BaseCommLink:
         self.logger = cfgdct['logger']
         # we keep track of command numbers.
         self._cmdnum = 0
-        self.mydev = self.open_device()
+        self.mydev: typing.Optional[typing.Any] = self.open_device()
         self._idstr: typing.Optional[str] = None
 
-    def open_device(self) -> typing.Any:
+    def open_device(self) -> typing.Optional[typing.Any]:
         # NOTE: we do not raise an notimplemented exception here, because otherwise
         # we would not be able to instantiate a BaseCommLink.
         self.logger.warning('BaseCommLink.opendevice() called, which should not happen')
@@ -246,7 +243,7 @@ class BaseCommLink:
     def _close_device(self) -> None:
         pass
 
-    def HandleStateChange(self, is_online: bool) -> None:
+    def handle_state_change(self, is_online: bool) -> None:
         """This routine is called when the serial device connecting to
         BT (typically /dev/rfcomm0)should be opened or closed.
           * If is_online == True:
@@ -257,7 +254,7 @@ class BaseCommLink:
             be made later.
         """
         if is_online:
-            self.mydev = self.open_device()
+            self.mydev: typing.Optional[typing.Any] = self.open_device()
             self._idstr = None
         else:
             self._close_device()
@@ -270,7 +267,7 @@ class BaseCommLink:
         ret_code = l[:2]
         colon = l[2]
         rest = l[3:].strip()
-        if ret_code not in resp_code_set or colon != ':':
+        if ret_code not in RESP_CODE_SET or colon != ':':
             return None
         return (ret_code, rest)
 
@@ -300,7 +297,7 @@ class BaseCommLink:
         return qai_helper.safe_fromjson(bytes(dict_str, 'utf-8'))
 
     @staticmethod
-    def RC_string(ret_code: TLSRetCode) -> str:
+    def rc_string(ret_code: TLSRetCode) -> str:
         """Convert the TLS reader return code into a descriptive string.
         For the error codes, see the document 'TLS ASCII protocol 2.5 rev B', page 14.
         We include an error code zero here to indicate a success.
@@ -311,7 +308,7 @@ class BaseCommLink:
            The descriptive string describing the ret_code.
         Raises: RuntimeError iff the ret_code is an unknown error code,
         """
-        ret_str = _tlsretcode_dct.get(ret_code, None)
+        ret_str = _TLSRETCODE_DCT.get(ret_code, None)
         if ret_str is None:
             raise RuntimeError("unknown error code {}".format(ret_code))
         return ret_str
@@ -344,6 +341,8 @@ class BaseCommLink:
            The required byte, or None if a timeout occurred on reading.
         """
         mydev = self.mydev
+        if mydev is None:
+            raise RuntimeError('dev is None')
         doread = True
         skipset = frozenset([b'\xff', b'\x00'])
         while doread:
@@ -354,7 +353,7 @@ class BaseCommLink:
                 # same as a timeout...
                 b = ""
             # print(" b: '{}'".format(b))
-            if len(b) == 0:
+            if not b:
                 # time out occurred
                 b = None
                 doread = False
@@ -383,11 +382,11 @@ class BaseCommLink:
             # print("newbyte: {}".format(newbyte))
             if newbyte is None:
                 return None
-            if newbyte != byteCR:
+            if newbyte != BYTE_CR:
                 retbytes += newbyte
             else:
                 newbyte = self._filterbyte()
-                if newbyte != byteLF:
+                if newbyte != BYTE_LF:
                     self.logger.error("rd: internal error 1")
                     raise RuntimeError('protocol error')
                 doread = False
@@ -412,7 +411,7 @@ class BaseCommLink:
             raise RuntimeError(msg)
         try:
             self.logger.debug("CL: writing '{}'".format(cmdstr))
-            self.mydev.write(bytes(cmdstr, 'utf-8') + byteCRLF)
+            self.mydev.write(bytes(cmdstr, 'utf-8') + BYTE_CRLF)
             self.mydev.flush()
         except Exception as e:
             msg = "write failed '{}'".format(e)
@@ -450,7 +449,7 @@ class BaseCommLink:
                 # time out
                 rlst = None
                 done = True
-            elif len(cur_line) > 0:
+            elif cur_line:
                 print("rr '{}' ({})".format(cur_line, len(cur_line)))
                 resp_tup = BaseCommLink._line_2_resptup(cur_line)
                 if resp_tup is not None and rlst is not None:
@@ -463,8 +462,37 @@ class BaseCommLink:
         self.logger.debug("raw_read_response got {}...".format(rlst))
         return CLResponse(rlst)
 
-    def _is_alive(self) -> bool:
+    def is_alive(self) -> bool:
         return self.mydev is not None
+
+    def _is_responsive(self) -> bool:
+        """Return := 'the RFID reader is responding to commands'"""
+        retcode = self._get_reader_info()
+        return retcode != BaseCommLink.RC_TIMEOUT
+
+    def _get_reader_info(self) -> TLSRetCode:
+        """Get information about the RFID reader.
+        Extract useful information and store this, but also
+        return the resulting return code.
+        """
+        return BaseCommLink.RC_TIMEOUT
+
+    def get_rfid_state(self) -> int:
+        """Determine the state of the serial communication channel (over BT)
+        to the RFID reader.
+
+        Returns:
+           One of
+             * RFID_ON (communication is alive)
+             * RFID_OFF (communication device is closed)
+             * RFID_TIMEOUT (communication device is open, but the RFID reader
+               is not responding, probably because it is out of range)
+        """
+        if self.is_alive():
+            if self._is_responsive():
+                return CommonMSG.RFID_ON
+            return CommonMSG.RFID_TIMEOUT
+        return CommonMSG.RFID_OFF
 
     def id_string(self) -> str:
         """return a descriptive string about this commlink device.
@@ -489,8 +517,8 @@ class BaseCommLink:
         be re established when the RFID reader comes into range.
         """
         print("_blocking_cmd 1")
-        if not self._is_alive():
-            self.HandleStateChange(True)
+        if not self.is_alive():
+            self.handle_state_change(True)
         try:
             self.send_cmd(cmdstr, comment)
         except RuntimeError:
@@ -499,8 +527,8 @@ class BaseCommLink:
             # In this case, we mark the commlink as being down, and return CLResponse(None)
             # to signal the time out condition.
             print("write failed.. timeout")
-            if self._is_alive():
-                self.HandleStateChange(False)
+            if self.is_alive():
+                self.handle_state_change(False)
             return CLResponse(None)
         print("_blocking_cmd 2")
         res = self.raw_read_response()
@@ -508,7 +536,7 @@ class BaseCommLink:
         return res
 
 
-_tlsretcode_dct = {0: 'No Error',
+_TLSRETCODE_DCT = {0: 'No Error',
                    1: 'Syntax Error',
                    2: 'Parameter not supported',
                    3: 'Action not enabled',
@@ -568,11 +596,11 @@ class SerialCommLink(BaseCommLink):
                                   baudrate=19200,
                                   parity='N')
             self.logger.debug('SerialCommlink: opening serial device.')
-        except IOError as e:
-            self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname, e))
+        except IOError as err:
+            self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname, err))
             myser = None
-        except Exception:
-            self.logger.error("commlink failed to open device '{}' to RFID Reader '{}'".format(devname))
+        except Exception as err:
+            self.logger.error("commlink failed to open device '{} to RFID Reader '{}''".format(devname, err))
             myser = None
         self.logger.debug("serial commlink '{}' OK".format(devname))
         return myser
@@ -580,11 +608,6 @@ class SerialCommLink(BaseCommLink):
     def _close_device(self) -> None:
         if self.mydev is not None:
             self.mydev.close()
-
-    def _is_responsive(self) -> bool:
-        """Return := 'the RFID reader is responding to commands'"""
-        retcode = self._get_reader_info()
-        return retcode != BaseCommLink.RC_TIMEOUT
 
     def _get_reader_info(self) -> TLSRetCode:
         """Get information about the RFID reader.
@@ -597,24 +620,6 @@ class SerialCommLink(BaseCommLink):
         if retcode == BaseCommLink.RC_OK and self.rfid_info_dct is None:
             self.rfid_info_dct = dict([(title, cl_resp[k]) for title, k in self._klst])
         return retcode
-
-    def get_RFID_state(self) -> int:
-        """Determine the state of the serial communication channel (over BT)
-        to the RFID reader.
-
-        Returns:
-           One of
-             * RFID_ON (communication is alive)
-             * RFID_OFF (communication device is closed)
-             * RFID_TIMEOUT (communication device is open, but the RFID reader
-               is not responding, probably because it is out of range)
-        """
-        if self._is_alive():
-            if self._is_responsive():
-                return CommonMSG.RFID_ON
-            else:
-                return CommonMSG.RFID_TIMEOUT
-        return CommonMSG.RFID_OFF
 
     def get_info_dct(self) -> typing.Optional[dict]:
         """Return a dictionary with information about the RFID reader.
@@ -632,16 +637,21 @@ class SerialCommLink(BaseCommLink):
            A string describing the RFID reader if the connection is alive.
            If the connection (serial device) is not active, or the connection
            blocks (timeout), then this is reported instead."""
+        is_dead = "ID string cannot be determined: commlink is down"
         if self._idstr is None:
-            if self._is_alive():
+            if self.is_alive():
                 retcode = self._get_reader_info()
                 if retcode == BaseCommLink.RC_TIMEOUT:
                     self._idstr = "ID string cannot be determined: commlink timed out"
                 elif retcode == BaseCommLink.RC_FAULTY:
                     self._idstr = "ID string cannot be determined: response is faulty"
                 else:
-                    dd = self.rfid_info_dct
-                    self._idstr = ", ".join(["{}: {}".format(title, dd[title]) for title, k in self._klst])
+                    info_dd = self.rfid_info_dct
+                    if info_dd is None:
+                        self._idstr = is_dead
+                    else:
+                        self._idstr = ", ".join(["{}: {}".format(title, info_dd[title])
+                                                 for title, k in self._klst])
             else:
-                self._idstr = "ID string cannot be determined: commlink is down"
+                self._idstr = is_dead
         return self._idstr

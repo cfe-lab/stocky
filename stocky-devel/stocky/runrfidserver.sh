@@ -12,7 +12,7 @@ export FLASK_DEBUG=1
 # this is the insecure version (no encryption via https, wss)
 # gunicorn -k flask_sockets.worker "stocky:init_app('serverconfig.yaml')" --bind 0.0.0.0:5000
 
-gunicorn --certfile /stockyconfig/cert.pem --keyfile /stockyconfig/key.pem -k flask_sockets.worker "rfidserver:initRFIDserver('serverconfig.yaml')" --bind 0.0.0.0:5050
+gunicorn --certfile /stockyconfig/cert.pem --keyfile /stockyconfig/key.pem -k flask_sockets.worker "rfidserver:init_rfid_server('serverconfig.yaml')" --bind 0.0.0.0:5050
 
 # non secure version...
 # gunicorn -k flask_sockets.worker "rfidserver:initRFIDserver('serverconfig.yaml')" --bind 0.0.0.0:6000

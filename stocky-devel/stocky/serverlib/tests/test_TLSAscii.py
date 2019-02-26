@@ -8,34 +8,31 @@ from gevent.queue import Queue
 
 import serverlib.commlink as commlink
 import serverlib.TLSAscii as TLSAscii
-from webclient.commonmsg import CommonMSG
 import serverlib.tests.test_commlink as test_commlink
+from webclient.commonmsg import CommonMSG
 
 
 class DeadCommLink(commlink.BaseCommLink):
     """A dummy commlink used for testing"""
 
-    def __init__(self, cfgdct: dict) -> None:
-        super().__init__(cfgdct)
-
     def open_device(self) -> typing.Any:
         return None
 
-    def _is_alive(self, doquick: bool = True) -> bool:
+    def is_alive(self, doquick: bool = True) -> bool:
         return False
 
     def id_string(self) -> str:
         return "DeadCommLink"
 
 
-class Test_TLSAscii:
+class TestTLSAscii:
 
     def setup_method(self) -> None:
         self.msgQ = Queue()
         self.logger = logging.Logger("testing")
         self.cl = test_commlink.DummyCommLink({'logger': self.logger})
         self.deadcl = DeadCommLink({'logger': self.logger})
-        if not self.cl._is_alive():
+        if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
@@ -48,13 +45,13 @@ class Test_TLSAscii:
         self.bad_epc = "123456"
 
     def test_radar01(self):
-        """BT_set_radar_mode() with valid/invalid arguments should behave
+        """bt_set_radar_mode() with valid/invalid arguments should behave
         appropriately."""
         with pytest.raises(ValueError):
-            self.tls.BT_set_radar_mode(self.bad_epc)
+            self.tls.bt_set_radar_mode(self.bad_epc)
         # --
-        self.tls.BT_set_radar_mode(self.good_epc)
-        self.tls.RadarGet()
+        self.tls.bt_set_radar_mode(self.good_epc)
+        self.tls.radar_get()
         # assert isinstance(rssi, int), "int expected"
         # print("GOOT {}".format(rssi))
         # assert False, "force fail"
@@ -64,7 +61,7 @@ class Test_TLSAscii:
         res = self.tls.is_in_radarmode()
         assert isinstance(res, bool), "expected bool"
         assert not res, 'not radarmode expected!'
-        self.tls.mode = TLSAscii.tls_mode.radar
+        self.tls.mode = TLSAscii.TlsMode.radar
         res = self.tls.is_in_radarmode()
         assert isinstance(res, bool), "expected bool"
         assert res, 'radarmode expected!'
@@ -96,11 +93,11 @@ class Test_TLSAscii:
         """Calling send_abort() to interrupt a command does work."""
         self.tls.send_abort()
 
-    def test_RFIDparams_configOK(self):
+    def test_rfid_params_config_ok(self):
         """The TLSAscii.rfid_lst and TLSAscii.rfid_order_lst lists have the same length"""
-        assert len(TLSAscii.rfid_lst) == len(TLSAscii.rfid_order_lst)
+        assert len(TLSAscii.RFID_LST) == len(TLSAscii.RFID_ORDER_LST)
 
-    def test_RFIDparams_alert(self):
+    def test_rfid_params_alert(self):
         """TLSAscii.RFIDParams(do_alert='on').tostr() returns the expected string"""
         exp_str = '-al on'
         rr = TLSAscii.RFIDParams(do_alert='on')
@@ -110,7 +107,7 @@ class Test_TLSAscii:
             raise RuntimeError("RFIDParams fail")
         # assert False, "force fail"
 
-    def test_RFIDparams_reset_to_defaults(self):
+    def test_rfidparams_reset_to_defaults(self):
         """TLSAscii.RFIDParams(reset_to_default=None).tostr() returns the expected string"""
         exp_str = '-x '
         rr = TLSAscii.RFIDParams(reset_to_default=None)
@@ -148,7 +145,7 @@ class Test_TLSAscii:
         dt = (2009, 10, 20, 22, 59, 59)
         self.tls.set_date_time(*dt)
 
-    def test_RFIDparams04(self):
+    def test_rfidparams04(self):
         """TLSAscii.RFIDParams(wonky_arg=99) should raise a RuntimeError."""
         with pytest.raises(RuntimeError):
             TLSAscii.RFIDParams(wonky_arg=99)
@@ -159,8 +156,8 @@ class Test_TLSAscii:
             TLSAscii.RunningAve(self.logger, 0)
 
     def test_stock_check_mode(self):
-        """BT_set_stock_check_mode() should not crash"""
-        self.tls.BT_set_stock_check_mode()
+        """bt_set_stock_check_mode() should not crash"""
+        self.tls.bt_set_stock_check_mode()
 
     def test_set_region(self):
         """Setting an invalid region code string should raise an exception.
@@ -190,15 +187,15 @@ class Test_TLSAscii:
             else:
                 assert run_ave is not None, "running ave is None for i> ave_len"
 
-    def test_RI2dist01(self):
-        """ TLSAscii.RunningAve.RI2dist should convert RI values into expected distance
+    def test_ri2dist01(self):
+        """ TLSAscii.RunningAve.ri2dist should convert RI values into expected distance
           values."""
         rivals = [(-65, 1.0),
                   (-70, 1.53),
                   (-62, 0.77)]
         EPS = 0.01
         for ri, exp_val in rivals:
-            got_val = TLSAscii.RunningAve.RI2dist(ri)
+            got_val = TLSAscii.RunningAve.ri2dist(ri)
             # print(" {} {}  {}".format(ri, exp_val, got_val))
             if math.fabs(got_val - exp_val) > EPS:
                 raise RuntimeError("unexpected distance RI: {}, exp: {}, got:  {}".format(ri,
@@ -247,9 +244,9 @@ class Test_TLSAscii:
                  ('EP', '000000000000000000001234'), ('RI', '-66'), ('OK', '')]
         # len_rfive = len(rfive)
         rsix = [t for t in rfive if t[0] != 'RI']
-        radar_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.radar)
-        stock_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.stock)
-        # undef_mode = TLSAscii.tls_mode(TLSAscii.tls_mode.undef)
+        radar_mode = TLSAscii.TlsMode(TLSAscii.TlsMode.radar)
+        stock_mode = TLSAscii.TlsMode(TLSAscii.TlsMode.stock)
+        # undef_mode = TLSAscii.TlsMode(TLSAscii.TlsMode.undef)
 
         rad_dat = CommonMSG.MSG_RF_RADAR_DATA
         # stk_dat = CommonMSG.MSG_RF_STOCK_DATA
@@ -353,33 +350,33 @@ class Test_TLSAscii:
         if resp is not None:
             raise RuntimeError("expected None")
 
-    def test_sendRFIDmsg(self):
-        """Test behaviour of send_RFID_msg() with a number of valid/ invalid
+    def test_send_rfid_msg(self):
+        """Test behaviour of send_rfid_msg() with a number of valid/ invalid
         arguments. E.g. sending an instance other than a CommonMSG should
         raise an exception.
         """
         with pytest.raises(TypeError):
-            self.tls.send_RFID_msg('bla')
+            self.tls.send_rfid_msg('bla')
 
         cm = CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, False)
-        self.tls.send_RFID_msg(cm)
-        assert self.tls.mode == TLSAscii.tls_mode.stock
+        self.tls.send_rfid_msg(cm)
+        assert self.tls.mode == TLSAscii.TlsMode.stock
 
         cm = CommonMSG(CommonMSG.MSG_WC_RADAR_MODE, True)
-        self.tls.send_RFID_msg(cm)
-        assert self.tls.mode == TLSAscii.tls_mode.radar
+        self.tls.send_rfid_msg(cm)
+        assert self.tls.mode == TLSAscii.TlsMode.radar
 
         cm = CommonMSG(CommonMSG.MSG_SV_GENERIC_COMMAND, '.iv')
-        self.tls.send_RFID_msg(cm)
-        assert self.tls.mode == TLSAscii.tls_mode.stock
+        self.tls.send_rfid_msg(cm)
+        assert self.tls.mode == TLSAscii.TlsMode.stock
 
         cm = CommonMSG(CommonMSG.MSG_SV_RAND_NUM, 'bla')
         with pytest.raises(RuntimeError):
-            self.tls.send_RFID_msg(cm)
-        # assert self.tls.mode == TLSAscii.tls_mode.undef
-        # assert self.tls.mode == TLSAscii.tls_mode.stock
+            self.tls.send_rfid_msg(cm)
+        # assert self.tls.mode == TLSAscii.TlsMode.undef
+        # assert self.tls.mode == TLSAscii.TlsMode.stock
 
-    def test_is_valid_EPC(self):
+    def test_is_valid_epc(self):
         """TLSAscii.is_valid_EPC(epc) should return the expected value
         on valid/invalid input"""
         for epc, exp_val in [('bla', False),
@@ -387,7 +384,7 @@ class Test_TLSAscii:
                              ('0000000AB000000000001237', True),
                              ('0000000GF000000000001237', False),
                              (100, False)]:
-            res = TLSAscii.is_valid_EPC(epc)
+            res = TLSAscii.is_valid_epc(epc)
             assert isinstance(res, bool), 'expected a bool'
             if res != exp_val:
                 raise RuntimeError("unexpected res={} for '{}'".format(res, epc))

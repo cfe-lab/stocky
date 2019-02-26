@@ -7,7 +7,7 @@ import webclient.commonmsg as commonmsg
 import serverlib.commlink as commlink
 
 
-class dummyserialdevice:
+class DummySerialDevice:
     """A dummy serial device that is loaded with content which can then
     be accessed in tests by issuing reads"""
 
@@ -49,7 +49,7 @@ class dummyserialdevice:
         self._isclosed = True
 
 
-class timeout_dummyserialdevice(dummyserialdevice):
+class TimeoutDummySerialDevice(DummySerialDevice):
     """A dummy serial device that always times out on reads"""
 
     def read(self, size: int = 1) -> bytes:
@@ -57,7 +57,7 @@ class timeout_dummyserialdevice(dummyserialdevice):
         return b''
 
 
-class exception_dummyserialdevice(dummyserialdevice):
+class ExceptionDummySerialDevice(DummySerialDevice):
     """A dummy serial device that raises an exception on reads"""
 
     def __init__(self, cont: bytes = b'') -> None:
@@ -76,24 +76,24 @@ class exception_dummyserialdevice(dummyserialdevice):
 class DummySerialCommLink(commlink.SerialCommLink):
 
     def open_device(self) -> typing.Any:
-        return dummyserialdevice(b'bla')
+        return DummySerialDevice(b'bla')
 
 
 class TimeoutDummySerialCommLink(commlink.SerialCommLink):
 
     def open_device(self) -> typing.Any:
-        return timeout_dummyserialdevice(b'bla')
+        return TimeoutDummySerialDevice(b'bla')
 
 
 class ExceptionDummySerialCommLink(commlink.SerialCommLink):
 
     def open_device(self) -> typing.Any:
-        return exception_dummyserialdevice(b'bla')
+        return ExceptionDummySerialDevice(b'bla')
 
 
 class DummyCommLink(commlink.BaseCommLink):
     """A dummy commlink used for testing.
-    This class will pretend to be a serial device, but actually
+    This class will pretend to be connected to a serial device, but actually
     sanity check the commands sent, then also generate some really simple
     answer codes.
     """
@@ -102,7 +102,7 @@ class DummyCommLink(commlink.BaseCommLink):
         super().__init__(cfgdct)
         self.resplst: typing.List[str] = []
 
-    def _is_alive(self, doquick: bool = True) -> bool:
+    def is_alive(self, doquick: bool = True) -> bool:
         return True
 
     def id_string(self) -> str:
@@ -110,6 +110,13 @@ class DummyCommLink(commlink.BaseCommLink):
 
     def open_device(self) -> typing.Any:
         return None
+
+    def _get_reader_info(self) -> commlink.TLSRetCode:
+        """Get information about the RFID reader.
+        Extract useful information and store this,but also
+        return the resulting return code.
+        """
+        return commlink.BaseCommLink.RC_TIMEOUT
 
     @staticmethod
     def get_cmd_from_str(cmdstr: str) -> typing.Tuple[str, dict]:
@@ -126,7 +133,7 @@ class DummyCommLink(commlink.BaseCommLink):
         if cmd[0] != '.':
             raise RuntimeError("cmdstr must start with a period")
         cc = cmd[1:]
-        if cc not in commlink.command_set:
+        if cc not in commlink.COMMAND_SET:
             raise RuntimeError("unknown command '{}'".format(cmd))
         optdct = {}
         i, n = 1, len(cmdargs)
@@ -202,18 +209,18 @@ class Test_exception_commlink:
         assert retcode == commlink.BaseCommLink.RC_TIMEOUT, "timeout expected"
 
     def test_is_responsive01(self) -> None:
-        """_is_responsive() should return False for a dummy device."""
+        """is_responsive() should return False for a dummy commlink."""
         res = self.dscl._is_responsive()
         assert isinstance(res, bool), "bool expected"
         assert not res, "expected False"
 
     def test_get_RFID_state(self) -> None:
         """get_RFID_state() should return RFID_TIMEOUT and get_info_dct() should return None
-        when using a dummy serial device."""
-        res = self.dscl.get_RFID_state()
+        when using a dummy commlink."""
+        res = self.dscl.get_rfid_state()
         assert isinstance(res, int), "int expected"
         print("RES {}".format(res))
-        assert res == commonmsg.CommonMSG.RFID_TIMEOUT, "expected False"
+        assert res == commonmsg.CommonMSG.RFID_TIMEOUT, "expected TIMEOUT"
         idct = self.dscl.get_info_dct()
         print("RES {}".format(idct))
         assert idct is None, "None expected"
@@ -226,7 +233,7 @@ class Test_timeout_commlink:
         self.logger = logging.Logger("testing")
         cfgdct = {'logger': self.logger}
         self.cl = CommLinkClass(cfgdct)
-        if not self.cl._is_alive():
+        if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
@@ -254,10 +261,10 @@ class Test_timeout_commlink:
             assert retcode == commlink.BaseCommLink.RC_FAULTY, "RC faulty expected"
 
     def test_handlestatechange01(self) -> None:
-        """dscl._is_alive() and id_string() should return expected values
-        after HandleStateChange(True)"""
-        self.dscl.HandleStateChange(True)
-        is_alive = self.dscl._is_alive()
+        """dscl.is_alive() and id_string() should return expected values
+        after handle_state_change(True)"""
+        self.dscl.handle_state_change(True)
+        is_alive = self.dscl.is_alive()
         assert isinstance(is_alive, bool), "bool expected"
         assert is_alive, "commlink should be alive"
         id_expected = "ID string cannot be determined: commlink timed out"
@@ -266,10 +273,10 @@ class Test_timeout_commlink:
         assert idstr == id_expected, "unexpected id string"
 
     def test_handlestatechange02(self) -> None:
-        """dscl._is_alive() and id_string() should return expected values
-        after HandleStateChange(False)"""
-        self.dscl.HandleStateChange(False)
-        is_alive = self.dscl._is_alive()
+        """dscl.is_alive() and id_string() should return expected values
+        after handle_state_change(False)"""
+        self.dscl.handle_state_change(False)
+        is_alive = self.dscl.is_alive()
         assert isinstance(is_alive, bool), "bool expected"
         assert not is_alive, "commlink should be alive"
         id_expected = "ID string cannot be determined: commlink is down"
@@ -284,7 +291,7 @@ class Test_commlink:
         self.logger = logging.Logger("testing")
         cfgdct = {'logger': self.logger}
         self.cl = CommLinkClass(cfgdct)
-        if not self.cl._is_alive():
+        if not self.cl.is_alive():
             print("Test cannot be performed: commlink is not alive")
         idstr = self.cl.id_string()
         print("commlink is alive. Ident is {}".format(idstr))
@@ -298,15 +305,15 @@ class Test_commlink:
         print("idstr: {}".format(idstr))
         assert idstr == exp_id, "unexpected idstring"
 
-    def test_Hextostr(self):
-        """commlink.HexStrtoStr must return the expected string on various input.
+    def test_hextostr(self):
+        """commlink.hexstr_to_str must return the expected string on various input.
         """
         lverb = False
         for instr, exp_outstr in [('4348454D3130303030000000', "CHEM10000", ),
                                   ('BLA', 'BLA'),
                                   ('BLAA', 'BLAA'),
                                   ('00FA01', '00FA01')]:
-            gotstr = commlink.HexStrtoStr(instr)
+            gotstr = commlink.hexstr_to_str(instr)
             if lverb:
                 print(" GOT {} --> {}".format(instr, gotstr))
             assert isinstance(gotstr, str), "string expected"
@@ -318,7 +325,7 @@ class Test_commlink:
         """_str_readline must strip out unwanted characters."""
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
-        dscl.mydev = dummyserialdevice(b'he\xffll\x00o' + commlink.byteCRLF)
+        dscl.mydev = DummySerialDevice(b'he\xffll\x00o' + commlink.BYTE_CRLF)
         retval = dscl._str_readline()
         assert isinstance(retval, str), 'string expected'
         assert retval == 'hello', 'hello expected'
@@ -329,7 +336,7 @@ class Test_commlink:
         """_str_readline must raise an exception if a line is not properly terminated."""
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
-        dscl.mydev = dummyserialdevice(b'he\xffll\x00o' + commlink.byteCR + commlink.byteCR)
+        dscl.mydev = DummySerialDevice(b'he\xffll\x00o' + commlink.BYTE_CR + commlink.BYTE_CR)
         with pytest.raises(RuntimeError):
             dscl._str_readline()
 
@@ -337,7 +344,7 @@ class Test_commlink:
         """_str_readline must raise an exception when it reads non-utf8 characters."""
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
-        dscl.mydev = dummyserialdevice(b'he\xfell\x00o' + commlink.byteCRLF)
+        dscl.mydev = DummySerialDevice(b'he\xfell\x00o' + commlink.BYTE_CRLF)
         with pytest.raises(RuntimeError):
             dscl._str_readline()
 
@@ -351,7 +358,7 @@ class Test_commlink:
             dscl.mydev = None
             dscl.raw_send_cmd('hello RFID')
         #
-        ds = dscl.mydev = dummyserialdevice()
+        ds = dscl.mydev = DummySerialDevice()
         teststr = 'hello RFID'
         dscl.raw_send_cmd(teststr)
         gotbytes = ds.get_cont()
@@ -373,19 +380,19 @@ class Test_commlink:
         testbytes = b"""CS: .iv'
         EP: 000000000000000000001242
         RI: -61
-        OK:""" + commlink.byteCRLF + commlink.byteCRLF
-        dscl.mydev = dummyserialdevice(testbytes)
+        OK:""" + commlink.BYTE_CRLF + commlink.BYTE_CRLF
+        dscl.mydev = DummySerialDevice(testbytes)
         retval = dscl.raw_read_response()
         assert isinstance(retval, commlink.CLResponse), 'wrong type'
         # assert False, "force fail"
 
     def test_is_alive01(self):
-        """_is_alive() should return expected values."""
+        """is_alive() should return expected values."""
         cfgdct = {'logger': self.logger}
         dscl = DummySerialCommLink(cfgdct)
-        assert dscl._is_alive(), "expected true"
+        assert dscl.is_alive(), "expected true"
         dscl.mydev = None
-        assert not dscl._is_alive(), "expected false"
+        assert not dscl.is_alive(), "expected false"
 
     def test_baseCL_notimp(self):
         """BaseCommLinkClass should raise NotImplemented errors on certain
@@ -398,8 +405,8 @@ class Test_commlink:
     def test_baseCL_RC_string_legal(self):
         """Converting legal retcodes to a descriptive string using
         RC_string should succeed."""
-        for retcode in commlink._tlsretcode_dct.keys():
-            retstr = BaseCommLinkClass.RC_string(retcode)
+        for retcode in commlink._TLSRETCODE_DCT.keys():
+            retstr = BaseCommLinkClass.rc_string(retcode)
             assert isinstance(retstr, str), "expected a string"
 
     def test_baseCL_RC_string_illegal(self):
@@ -408,7 +415,7 @@ class Test_commlink:
         """Convert illlegal retcodes"""
         for retcode in [-100, 50]:
             with pytest.raises(RuntimeError):
-                BaseCommLinkClass.RC_string(retcode)
+                BaseCommLinkClass.rc_string(retcode)
 
     def test_baseCL_comment_dct01(self):
         """BaseCommLinkClass.encode_comment_dict and
@@ -436,23 +443,23 @@ class Test_commlink:
 
     def test_cl_response_codes_len(self) -> None:
         """All commlink response codes must be of length 2"""
-        ll = commlink.resp_code_lst
+        ll = commlink.RESP_CODE_LST
         assert all([len(ret_code) == 2 for ret_code in ll])
 
     def test_cl_response_codes_unique(self) -> None:
         """All defined commlink response codes must be unique"""
-        ll = commlink.resp_code_lst
-        assert len(ll) == len(commlink.resp_code_set), "commlink response code not unique"
+        ll = commlink.RESP_CODE_LST
+        assert len(ll) == len(commlink.RESP_CODE_SET), "commlink response code not unique"
 
     def test_cl_command_codes_len(self) -> None:
         """All commlink command codes must be of length 2"""
-        ll = commlink.command_lst
+        ll = commlink.COMMAND_LST
         assert all([len(ret_code) == 2 for ret_code in ll])
 
     def test_cl_command_codes_unique(self) -> None:
         """All defined commlink command codes must be unique"""
-        ll = commlink.command_lst
-        assert len(ll) == len(commlink.command_set), "commlink command code not unique"
+        ll = commlink.COMMAND_LST
+        assert len(ll) == len(commlink.COMMAND_SET), "commlink command code not unique"
 
     def test_cl_line2resp(self) -> None:
         """Test BaseCommLink.line_2_resptup with legal and illegal input"""

@@ -12,5 +12,5 @@ export FLASK_DEBUG=1
 # this is the insecure version (no encryption via https, wss)
 # gunicorn -k flask_sockets.worker "stocky:init_app('serverconfig.yaml')" --bind 0.0.0.0:5000
 
-gunicorn --certfile /stockyconfig/cert.pem --keyfile /stockyconfig/key.pem -k flask_sockets.worker "stocky:initDBserver('serverconfig.yaml')" --bind 0.0.0.0:5000
+gunicorn --certfile /stockyconfig/cert.pem --keyfile /stockyconfig/key.pem -k flask_sockets.worker "stocky:init_db_server('serverconfig.yaml')" --bind 0.0.0.0:5000
 

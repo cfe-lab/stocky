@@ -1,5 +1,6 @@
-# The stocky web server main program using Flask socket
-# See the runserver.sh script in this directory for how to launch the program.
+"""The stocky web server main program using Flask socket
+   See the runserver.sh script in this directory for how to launch the program.
+"""
 
 import typing
 
@@ -39,7 +40,7 @@ def test_logging(l):
     l.critical("critical level")
 
 
-class stockyapp(flask.Flask):
+class StockyApp(flask.Flask):
     """A Flask app class that is required for the server to function.
     """
     def __init__(self):
@@ -58,12 +59,12 @@ class stockyapp(flask.Flask):
 
 
 logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
-app: typing.Optional[stockyapp] = stockyapp()
+app: typing.Optional[StockyApp] = StockyApp()
 socky: typing.Optional[Sockets] = Sockets(app)
 the_main: typing.Optional[stockyserver.CommonStockyServer] = None
 
 
-def initDBserver(cfgname: str) -> flask.Flask:
+def init_db_server(cfgname: str) -> flask.Flask:
     """This routine is used as a helper in order to launch the StockyServer class with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
     we would write something like:
@@ -79,7 +80,7 @@ def initDBserver(cfgname: str) -> flask.Flask:
     return app
 
 
-def initRFIDserver(cfgname: str) -> flask.Flask:
+def init_rfid_server(cfgname: str) -> flask.Flask:
     """This routine is used as a helper in order to launch the StockyServer class with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
     we would write something like:
