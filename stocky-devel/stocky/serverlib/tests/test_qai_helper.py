@@ -1,4 +1,4 @@
-
+"""Test the qai_helper module"""
 # import py.path
 import typing
 import pytest
@@ -35,8 +35,12 @@ QAI_DUMP_FILE = "./qaidump.yaml"
 
 # this is James Nakagawa's test server
 # TESTqai_url = "http://192.168.69.170:4567"
-TESTqai_url = "http://192.168.93.190:4567"
-TESTauth_uname = 'wscott'
+# TESTqai_url = "http://192.168.93.190:4567"
+
+# this is Jame's pre-release test server
+TESTqai_url = "http://192.168.69.223:8000"
+
+TESTauth_uname = 'stocky_test'
 TESTauth_password = 'abc123'
 
 # qai_url = "https://qai.cfenet.ubc.ca:3000/qcs_reagents/json_get"
@@ -949,15 +953,15 @@ class Test_qai_helper_get(DATAQAItester):
         assert rcode == HTTP_OK, "called failed"
 
     def test_changedata(self):
-        d = self.s.get_QAI_ChangeData()
+        d = self.s.get_qai_changedata()
         assert isinstance(d, dict), "dict expected"
         print("BLA {}".format(d))
         with pytest.raises(RuntimeError):
-            self.faulty_session.get_QAI_ChangeData()
+            self.faulty_session.get_qai_changedata()
 
     def test_qai_dump01(self):
         with pytest.raises(RuntimeError):
-            self.faulty_session.get_QAI_dump()
+            self.faulty_session.get_qai_dump()
 
     def test_clever_qai_update_args(self):
         """Passing wrongs args to the routine should raise a RuntimeError
@@ -968,14 +972,14 @@ class Test_qai_helper_get(DATAQAItester):
         tsdct: qai_helper.QAIChangedct = {}
         qaids = qai_helper.QAIDataset(rdct, tsdct)
         with pytest.raises(RuntimeError):
-            self.s.clever_update_QAI_dump(qaids)
+            self.s.clever_update_qai_dump(qaids)
         # now try again with a better tsdct..
         for k in qai_helper.QAISession.qai_key_lst:
             tsdct[k] = 'now'
         qaids = qai_helper.QAIDataset(rdct, tsdct)
         # a faulty session
         with pytest.raises(RuntimeError):
-            self.faulty_session.clever_update_QAI_dump(qaids)
+            self.faulty_session.clever_update_qai_dump(qaids)
 
 
 @dumpchemstock
@@ -993,6 +997,6 @@ class Test_dump:
 
     # @pytest.mark.skip(reason="Takes too long")
     def test_qai_dump02(self):
-        ds = self.s.get_QAI_dump()
+        ds = self.s.get_qai_dump()
         assert isinstance(ds, qai_helper.QAIDataset), "QAIDataset expected"
         yamlutil.writeyamlfile(ds, QAI_DUMP_FILE)

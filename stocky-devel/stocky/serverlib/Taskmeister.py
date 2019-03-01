@@ -36,6 +36,7 @@ class LoggingMixin:
         self._logger = logger
 
     def is_verbose(self) -> bool:
+        """Return: this logger is currently in verbose mode"""
         return hasattr(self, "_lverb") and self._lverb
 
     def _log_error(self, msg: str) -> None:
@@ -61,19 +62,19 @@ class DelayTaskMeister(LoggingMixin):
     """Put a designated message on the queue after a specified delay
     every time the class is triggered.
     """
-    def __init__(self, msgQ: gevent.queue.Queue,
+    def __init__(self, msg_q: gevent.queue.Queue,
                  logger,
                  sec_interval: float,
                  msg_tosend: CommonMSG) -> None:
         """
         Args:
-           msqG: the queue to put messages onto.
+           msq_q: the queue to put messages onto.
            logger: a logging instance to use for logging.
            sec_interval: the time to wait after triggering before putting a message on the queue
            msg_tosend: the message to put on the queue.
         """
         super().__init__(logger)
-        self.msgQ = msgQ
+        self.msg_q = msg_q
         self._sec_sleep = sec_interval
         self.msg_tosend = msg_tosend
 
@@ -86,7 +87,7 @@ class DelayTaskMeister(LoggingMixin):
 
     def _worker_one_shot(self) -> None:
         gevent.sleep(self._sec_sleep)
-        self.msgQ.put(self.msg_tosend)
+        self.msg_q.put(self.msg_tosend)
 
 
 class DaemonTaskMeister(LoggingMixin):
@@ -107,7 +108,7 @@ class DaemonTaskMeister(LoggingMixin):
         self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
         self.curstat = self.STATUS_UNDEF
         self.do_run = True
-        self.p = None
+        self.proc = None
         self.numchecks = 0
         # NOTE: I should launch the command here, THEN spawn off the checker loop
         # i.e. the checker loop must NOT spawn off the command itself...
@@ -119,14 +120,15 @@ class DaemonTaskMeister(LoggingMixin):
         if self.curstat == self.STATUS_CONFIG_ERROR:
             return
         try:
-            self.p = subprocess.Popen(self.cmdlst, shell=False)
+            self.proc = subprocess.Popen(self.cmdlst, shell=False)
             self.curstat = self.STATUS_RUNNING
-        except FileNotFoundError as e:
+        except FileNotFoundError as err:
             self.curstat = self.STATUS_CONFIG_ERROR
-            self._log_error("command '{}' config error: {}".format(self.cmdlst, e))
+            self._log_error("command '{}' config error: {}".format(self.cmdlst, err))
         self.numchecks = 0
 
     def get_status(self) -> int:
+        """Return the current status of the Taskmeister."""
         return self.curstat
 
     def stop_cmd(self, do_wait: bool = False) -> None:
@@ -143,20 +145,20 @@ class DaemonTaskMeister(LoggingMixin):
         self._do_kill()
 
     def _do_kill(self) -> None:
-        if self.p is not None:
-            self.p.kill()
-            self.p.wait()
-            self.p = None
+        if self.proc is not None:
+            self.proc.kill()
+            self.proc.wait()
+            self.proc = None
 
     def _dorun(self) -> None:
         while self.do_run:
             self._log_debug("***check daemon '{}'".format(self.cmdstr))
-            if self.p is None:
+            if self.proc is None:
                 self._log_debug("launch --")
                 self._launch_cmd()
             gevent.sleep(self._sec_sleep)
-            if self.p is not None:
-                retcode = self.p.poll()
+            if self.proc is not None:
+                retcode = self.proc.poll()
                 self.numchecks += 1
                 if retcode is None:
                     # the command is still running...
@@ -164,7 +166,7 @@ class DaemonTaskMeister(LoggingMixin):
                 else:
                     err_str = "***cmd '{}' exited with retcode {}".format(self.cmdstr, retcode)
                     self._log_error(err_str)
-                    self.p = None
+                    self.proc = None
                     if retcode == 0:
                         self.curstat = self.STATUS_COMPLETED
                     else:
@@ -178,7 +180,7 @@ class DaemonTaskMeister(LoggingMixin):
 class BaseTaskMeister(LoggingMixin):
     "A fundamental TaskMeister class."
 
-    def __init__(self, msgQ: gevent.queue.Queue,
+    def __init__(self, msg_q: gevent.queue.Queue,
                  logger,
                  sec_interval: float,
                  is_active: bool) -> None:
@@ -204,7 +206,7 @@ class BaseTaskMeister(LoggingMixin):
 
         Where :meth:`generate_msg` is overridden in subclasses.
         """
-        self.msgQ = msgQ
+        self.msg_q = msg_q
         super().__init__(logger)
         self._isactive = is_active
         self._sec_sleep = max(sec_interval, MIN_SEC_INTERVAL)
@@ -224,7 +226,7 @@ class BaseTaskMeister(LoggingMixin):
         If we are active, we put non-None messages onto the provided message queue
         that self.generate_msg() has created, then sleep for the required time.
         """
-        msgq = self.msgQ
+        msgq = self.msg_q
         while self._do_main_loop:
             if self._isactive:
                 msg = self.generate_msg()
@@ -234,7 +236,7 @@ class BaseTaskMeister(LoggingMixin):
             # --
             gevent.sleep(self._sec_sleep)
 
-    def _SetTaskFinished(self) -> None:
+    def _set_task_finished(self) -> None:
         """Cause the worker loop to terminate."""
         self._do_main_loop = False
 
@@ -254,7 +256,7 @@ class FileChecker(BaseTaskMeister):
     """Check for the existence of a specified file every sec_interval seconds, generating
     a message when the state changes.
     """
-    def __init__(self, msgQ: gevent.queue.Queue,
+    def __init__(self, msg_q: gevent.queue.Queue,
                  logger,
                  sec_interval: float,
                  do_activate: bool,
@@ -269,11 +271,12 @@ class FileChecker(BaseTaskMeister):
            do_activate: whether to set the class active upon instantiation.
            file_to_check: the name of the file to monitor.
         """
-        super().__init__(msgQ, logger, sec_interval, do_activate)
+        super().__init__(msg_q, logger, sec_interval, do_activate)
         self._path = pathlib.Path(file_to_check)
         self._curstate: typing.Optional[bool] = None
 
     def file_exists(self) -> bool:
+        """Return whether the file exists."""
         return self._path.exists()
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
@@ -285,8 +288,7 @@ class FileChecker(BaseTaskMeister):
         if self._curstate != newstate:
             self._curstate = newstate
             return CommonMSG(CommonMSG.MSG_SV_FILE_STATE_CHANGE, newstate)
-        else:
-            return None
+        return None
 
 
 class RandomGenerator(BaseTaskMeister):
@@ -301,9 +303,9 @@ class TickGenerator(BaseTaskMeister):
     """Generate a timer message every sec_interval seconds.
     The timer message contains the name (msgid) of the timer event.
     """
-    def __init__(self, msgQ: gevent.queue.Queue, logger,
+    def __init__(self, msg_q: gevent.queue.Queue, logger,
                  sec_interval: float, msgid: str) -> None:
-        super().__init__(msgQ, logger, sec_interval, False)
+        super().__init__(msg_q, logger, sec_interval, False)
         self.msgid = msgid
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
@@ -316,35 +318,33 @@ class CommandListGenerator(TickGenerator):
     An empty string in the list means that that cycle is skipped.
     This class is used for testing.
     """
-    def __init__(self, msgQ: gevent.queue.Queue, logger,
+    def __init__(self, msg_q: gevent.queue.Queue, logger,
                  sec_interval: float, msgid: str,
                  cmdlst: typing.List[str]) -> None:
-        super().__init__(msgQ, logger, sec_interval, msgid)
+        super().__init__(msg_q, logger, sec_interval, msgid)
         self.cmdlst = cmdlst
-        if len(cmdlst) == 0:
-            raise ValueError("cmdlst len is 0")
+        if not cmdlst:
+            raise ValueError("cmdlst is empty")
         self.nmsg = 0
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
         cmdstr = self.cmdlst[self.nmsg]
         self.nmsg = (self.nmsg + 1) % len(self.cmdlst)
-        if len(cmdstr) == 0:
-            return None
-        return CommonMSG(CommonMSG.MSG_SV_GENERIC_COMMAND, cmdstr)
+        return CommonMSG(CommonMSG.MSG_SV_GENERIC_COMMAND, cmdstr) if cmdstr else None
 
 
 class WebSocketReader(BaseTaskMeister):
     """The stocky server uses this Taskmeister to receive messages from the webclient
     in json format. It puts CommonMSG instances onto the queue."""
 
-    def __init__(self, msgQ: gevent.queue.Queue,
+    def __init__(self, msg_q: gevent.queue.Queue,
                  logger,
                  ws: WS.BaseWebSocket,
                  sec_interval: float = 0.0,
                  do_activate: bool = True) -> None:
         """
         Args:
-           msqG: the queue to put messages onto.
+           msq_q: the queue to put messages onto.
            logger: a logging instance to use for logging.
            ws: the websocket to read from.
            sec_interval: the time to wait between calls to generate_msg in the event loop.
@@ -352,7 +352,7 @@ class WebSocketReader(BaseTaskMeister):
            The active state can be changed at a later time with :meth:`set_active` .
         """
         self.ws = ws
-        super().__init__(msgQ, logger, sec_interval, do_activate)
+        super().__init__(msg_q, logger, sec_interval, do_activate)
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:
         """Block until a data message is received from the webclient over websocket
@@ -389,7 +389,7 @@ class WebSocketReader(BaseTaskMeister):
                 retmsg = None
         #
         if retmsg is not None and retmsg.msg == CommonMSG.MSG_WC_EOF:
-            self._SetTaskFinished()
+            self._set_task_finished()
         mmm = "WebSocketReader.generate_msg returning commonmsg..."
         self._log_debug(mmm)
         print(mmm)
@@ -407,10 +407,10 @@ class RandomRFIDScanner(BaseTaskMeister):
     are returned.
     This class is used for mocking a server for the QAI client to directly query.
     """
-    def __init__(self, msgQ: gevent.queue.Queue,
+    def __init__(self, msg_q: gevent.queue.Queue,
                  logger,
                  sec_interval: float) -> None:
-        super().__init__(msgQ, logger, sec_interval, False)
+        super().__init__(msg_q, logger, sec_interval, False)
         self.taglst = ["CHEM{}".format(11000+i) for i in range(20)]
 
     def generate_msg(self) -> typing.Optional[CommonMSG]:

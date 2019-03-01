@@ -1,0 +1,5 @@
+[DEFAULT]
+checkers = pylint, mypy3, flake8
+max_line_length = 120
+multi-thread = 1
+ignore_codes = E0401, R0903

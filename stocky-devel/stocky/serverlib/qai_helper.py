@@ -4,8 +4,9 @@ import typing
 import json
 import logging
 from random import Random
-import requests
 import time
+import requests
+
 
 import serverlib.timelib as timelib
 
@@ -43,9 +44,9 @@ def tojson(data: typing.Any) -> str:
     """
     try:
         retstr = json.dumps(data, separators=(',', ':'), default=str)
-    except TypeError as e:
+    except TypeError as e_r:
         logger.warning("problem converting to json '{}'".format(data))
-        raise e
+        raise e_r
     return retstr
 
 
@@ -84,6 +85,8 @@ def safe_fromjson(data_bytes: bytes) -> typing.Optional[typing.Any]:
 
 
 class Session(requests.Session):
+    """A specialised Session specific methods for access to QAI"""
+    _TEN_SECONDS = 10
 
     def __init__(self, qai_path: str) -> None:
         """
@@ -99,11 +102,10 @@ class Session(requests.Session):
         """In this routine, we call self.post directly.. therefore we
         should have a timeout that we catch in the calling routines...
         """
-        TEN_SECONDS = 10
         return self.post(self.qai_path + "/account/login",
                          data={'user_login': qai_user,
                                'user_password': password},
-                         timeout=TEN_SECONDS)
+                         timeout=self._TEN_SECONDS)
 
     def login(self, qai_user: str, password: str) -> None:
         """Login to the QAI system.
@@ -244,6 +246,7 @@ class Session(requests.Session):
         return (r.status_code, r.json())
 
     def patch_json(self, path: str, data: typing.Any, params=None, retries: int = 3) -> RequestValue:
+        """Perform a patch operation, expecting a json response."""
         return self._retry_json(self.patch, path, data=data, params=params, retries=retries)
 
     def post_json(self, path: str, data: typing.Any, retries: int = 3) -> RequestValue:
@@ -278,7 +281,7 @@ class Session(requests.Session):
         Returns:
            a string containing the required to add these RFID's to QAI.
         """
-        if rfidlst is None or len(rfidlst) == 0:
+        if not rfidlst:
             raise RuntimeError("Empty rfidlst")
         if newstock:
             ustr = self.qai_path + PATH_REAGENT_RECEIVE + '?'
@@ -376,15 +379,20 @@ QAIUpdatedct = typing.Dict[str, bool]
 
 
 class QAIDataset:
+    """A class containing data sent from QAI.
+    This includes a qaidct with data and a time stamp dictionary
+    """
     def __init__(self, qaidct: typing.Optional[QAIdct],
                  tsdct: QAIChangedct) -> None:
-        self._qaidct = qaidct or QAISession.get_empty_QAIdct()
+        self._qaidct = qaidct or QAISession.get_empty_qaidct()
         self._tsdct = tsdct
 
     def get_data(self) -> QAIdct:
+        """Return the QAI data from this instance."""
         return self._qaidct
 
     def get_timestamp(self) -> QAIChangedct:
+        """Return the time stamp information from this instance."""
         return self._tsdct
 
 
@@ -411,8 +419,9 @@ class QAISession(Session):
     qai_key_set = frozenset(qai_key_lst)
 
     @classmethod
-    def get_empty_QAIdct(cls) -> QAIdct:
-        return dict([(k, None) for k in cls.qai_key_lst])
+    def get_empty_qaidct(cls) -> QAIdct:
+        """Create a QAIdct representing 'no data'."""
+        return {k: None for k in cls.qai_key_lst}
 
     def _get_location_list(self) -> typing.List[dict]:
         """Retrieve a list of all locations stored in the QAI database.
@@ -473,7 +482,7 @@ class QAISession(Session):
             rdct[reag_id] = r_show
         return rdct
 
-    def get_QAI_ChangeData(self) -> QAIChangedct:
+    def get_qai_changedata(self) -> QAIChangedct:
         """Retrieve the current QAI change value (Oracle's system change number)
         for each data table we track.
 
@@ -495,7 +504,7 @@ class QAISession(Session):
             rdct[k] = rval
         return rdct
 
-    def get_QAI_dump(self) -> QAIDataset:
+    def get_qai_dump(self) -> QAIDataset:
         """Retrieve the complete reagent database as a QAIDataset.
 
         This routine attempts to download the complete data set from QAI, regardless
@@ -515,10 +524,9 @@ class QAISession(Session):
             if rcode != HTTP_OK:
                 raise RuntimeError("call for {} ({}) failed".format(k, url))
             rdct[k] = rval
-        tsdct = self.get_QAI_ChangeData()
-        return QAIDataset(rdct, tsdct)
+        return QAIDataset(rdct, self.get_qai_changedata())
 
-    def clever_update_QAI_dump(self, qaiDS: QAIDataset) -> QAIUpdatedct:
+    def clever_update_qai_dump(self, qai_ds: QAIDataset) -> QAIUpdatedct:
         """Update only those parts of the QAI dataset that are out of date.
 
         For every QAI database table stored locally, we store in addition
@@ -529,7 +537,7 @@ class QAISession(Session):
         The timestamps stored in qaiDS are also updated as necessary.
 
         Args:
-           qaiDS: the qai dataset to be updated if necessary.
+           qai_ds: the qai dataset to be updated if necessary.
 
         Returns:
            Return a dictionary with identical keys to qaiDS (i.e. the names of
@@ -540,12 +548,12 @@ class QAISession(Session):
         Raises:
            RuntimeError: if the response code from the QAI server is not HTTP_OK.
         """
-        tsdct = qaiDS.get_timestamp()
-        qaidct = qaiDS.get_data()
+        tsdct = qai_ds.get_timestamp()
+        qaidct = qai_ds.get_data()
         for dctname, tdct in [("tsdct", tsdct), ("qaidct", qaidct)]:
             if set(tdct.keys()) != self.qai_key_set:
                 raise RuntimeError("dct {} has wonky keys {}".format(dctname, tdct.keys()))
-        newtsdct = self.get_QAI_ChangeData()
+        newtsdct = self.get_qai_changedata()
         retdct: QAIUpdatedct = {}
         for k, dataurl in self.data_url_lst:
             new_timestamp = newtsdct[k]
@@ -595,7 +603,7 @@ class QAISession(Session):
             rcode, postres = self._post_reagitem_status(reag_item_id, 'MISSING')
             if rcode != HTTP_CREATED:
                 return dict(ok=False, rcode=rcode, res=postres)
-        elif opstring == 'found' or opstring == 'moved':
+        elif opstring in ('found', 'moved'):
             # confirm position, or set to current position.
             rcode, postres = self._set_reagitem_location(reag_item_id, locid)
 

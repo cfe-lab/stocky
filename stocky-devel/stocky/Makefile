@@ -52,7 +52,7 @@ chemstock-test: ## run the unit tests that access a local chemstocks YAML file
 func-test: ## run the unit tests 
 	pytest -v serverlib -k Test_funcs
 chemstock-qai-test: ## run the unit tests (chemstock with access to qai)
-	pytest -v serverlib --with_cs_qai --ff --maxfail=1 -k Test_Chemstock_WITHQAI --scospec chemstockqaitest.yaml
+	pytest -v serverlib --with_cs_qai --ff --maxfail=1 -k TestChemstockWithqai --scospec chemstockqaitest.yaml
 mypy: ## analyse the server code using mypy
 	mypy --ignore-missing-imports  stocky.py serverlib
 pep8: ## analyse the server code for compliance with pep8 using codestyle

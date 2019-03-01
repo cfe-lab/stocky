@@ -17,6 +17,9 @@ from flask_sockets import Sockets
 
 
 def get_logger_name(mylogger) -> str:
+    """Find the name of the logger provided.
+    This is useful when configuring logging.
+    """
     ld = logging.Logger.manager.loggerDict
     # ld = logman.loggerDict
     # print("loggernames {}".format(ld.keys()))
@@ -61,19 +64,19 @@ class StockyApp(flask.Flask):
 logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
 app: typing.Optional[StockyApp] = StockyApp()
 socky: typing.Optional[Sockets] = Sockets(app)
-the_main: typing.Optional[stockyserver.CommonStockyServer] = None
+THE_MAIN: typing.Optional[stockyserver.CommonStockyServer] = None
 
 
 def init_db_server(cfgname: str) -> flask.Flask:
     """This routine is used as a helper in order to launch the StockyServer class with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
     we would write something like:
-    gunicorn -k flask_sockets.worker "stocky:init_app('scoconfig.yaml')" --bind 0.0.0.0:5000
+    gunicorn -k flask_sockets.worker "stocky:init_db_server('scoconfig.yaml')" --bind 0.0.0.0:5000
     """
     print("hello from init_DBserver")
-    global the_main
+    global THE_MAIN
     # test_logging(app.logger)
-    the_main = stockyserver.StockyDBServer(app.logger, cfgname)
+    THE_MAIN = stockyserver.StockyDBServer(app.logger, cfgname)
     print("yama")
     # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
     print("goodbye from init_DBserver")
@@ -84,12 +87,12 @@ def init_rfid_server(cfgname: str) -> flask.Flask:
     """This routine is used as a helper in order to launch the StockyServer class with the
     name of a configuration file, e.g. in a launching shell script, such as runserver.sh,
     we would write something like:
-    gunicorn -k flask_sockets.worker "stocky:init_app('scoconfig.yaml')" --bind 0.0.0.0:5000
+    gunicorn -k flask_sockets.worker "stocky:init_rfid_server('scoconfig.yaml')" --bind 0.0.0.0:5000
     """
     print("hello from init_RFIDserver")
-    global the_main
+    global THE_MAIN
     # test_logging(app.logger)
-    the_main = stockyserver.StockyRFIDServer(app.logger, cfgname, commlink.SerialCommLink)
+    THE_MAIN = stockyserver.StockyRFIDServer(app.logger, cfgname, commlink.SerialCommLink)
     # logging.config.dictConfig(serverconfig.read_logging_config('logging.yaml'))
     print("goodbye from init_RFIDserver")
     return app
@@ -103,13 +106,13 @@ def goo(rawws: websocket):
     print("bla before '{}'".format(rawws))
     ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
     print("goo: got a websocket")
-    if the_main is not None:
-        the_main.set_websocket(ws)
+    if THE_MAIN is not None:
+        THE_MAIN.set_websocket(ws)
         print("goo: entering mainloop")
-        the_main.mainloop()
+        THE_MAIN.mainloop()
         print("goo: exited mainloop")
     else:
-        print('the_main is None!')
+        print('THE_MAIN is None!')
 
 
 # this launches the RFID_Ping_Server in response to the webclient program running in
@@ -119,7 +122,7 @@ def goo(rawws: websocket):
 def rfid_pinger(rawws: websocket):
     # print("bla before '{}'".format(rawws))
     ws = ServerWebSocket.JSONWebSocket(rawws, app.logger)
-    my_server = stockyserver.RFID_Ping_Server(app.logger, "RFIDPinger")
+    my_server = stockyserver.RfidPingServer(app.logger, "RFIDPinger")
     print("goo: got a websocket")
     my_server.set_websocket(ws)
     print("goo: entering mainloop")

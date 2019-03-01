@@ -23,39 +23,10 @@ withchemstockANDqa1 = pytest.mark.skipif(not pytest.config.option.with_cs_qai,
 TIME_ZONE = "America/Vancouver"
 
 
-class Test_funcs:
-    """Test a number of helper functions in the ChemStock module,
-    These functions do not depend on having a ChemStockDB instance.
+class TestFuncs:
+    """Test a number of helper functions in the chemdb module,
+    These functions do not depend on having a chemdbDB instance.
     """
-    def test_sortloclist01(self) -> None:
-        """ChemStock.sortloclist should preserve list length
-        """
-        olst = [{'name': r'SPH\West wing'},
-                {'name': r'SPH\West wing\dog house'},
-                {'name': r'SPH\East Wing'},
-                {'name': r'SPH\West wing\cat house'},
-                {'name': r'SPH'},
-                {'name': r'SPH\East Wing\Aviary'}]
-
-        sortlst = ChemStock.sortloclist(olst)
-        print("GOOT {}".format(sortlst))
-        # assert False, "force fail"
-        # NOTE: this is not really checking for correct sorting..
-        assert len(olst) == len(sortlst), "wrong list length"
-
-    def test_hash01(self) -> None:
-        """ChemStock.do_hash must produce the same hash irrespective of the order
-        in which dict elements were added to a dict.
-        """
-        dohash = ChemStock.do_hash
-        # create two identical dicts in different ways. The hash should be the same.
-        adct = dict(a=3, b=2, c=1)
-        bdct = {}
-        for k, v in sorted(adct.items(), key=lambda a: a[1]):
-            bdct[k] = v
-        ahash = dohash(adct)
-        bhash = dohash(bdct)
-        assert ahash == bhash, "hashes are different"
 
     def test_retrieve_column_names(self) -> None:
         """Must be able to determine the column names of an SQL table."""
@@ -65,21 +36,13 @@ class Test_funcs:
         print("keylst {}".format(klst))
         assert isinstance(klst, list), "list expected"
 
-    def test_setnode01(self) -> None:
-        """Calling node.setval() twice should raise an exception."""
-        n = ChemStock.node("blaname")
-        assert n.getval() is None, "None expected"
-        n.setval('newval99')
-        with pytest.raises(RuntimeError):
-            n.setval('newval100')
 
-
-class commontests:
+class CommonTests:
 
     def test_loadTS01(self):
         """Loading database timestamp data must succeed and contain data
         for all tables defined."""
-        tsdct = self.csdb.load_TS_data()
+        tsdct = self.csdb.get_ts_data()
         print("BLA {}".format(tsdct))
         assert isinstance(tsdct, dict), "dict expected"
         assert set(tsdct.keys()) == qai_helper.QAISession.qai_key_set, "unexpected dict keys"
@@ -113,7 +76,7 @@ class commontests:
         # assert False, " force fail"
 
 
-class Test_Chemstock_EMPTYDB(commontests):
+class Test_Chemstock_EMPTYDB(CommonTests):
     """Tests that require an empty DB AND no qai ACCESS"""
     @classmethod
     def setup_class(cls) -> None:
@@ -123,7 +86,7 @@ class Test_Chemstock_EMPTYDB(commontests):
     def test_update_nologin(self) -> None:
         """Calling update_from_QAI() without a qaisession should return
         a dict indicating failure."""
-        retdct = self.csdb.update_from_QAI()
+        retdct = self.csdb.update_from_qai()
         assert isinstance(retdct, dict), "dict expected!"
         assert not retdct['ok'], "expected ok == False"
         msg = retdct["msg"]
@@ -372,7 +335,7 @@ class Test_Chemstock_EMPTYDB(commontests):
 
 
 @withchemstock
-class Test_Chemstock_NOQAI(commontests):
+class Test_Chemstock_NOQAI(CommonTests):
     """Tests in which the database contains data which we load from a YAML file
     into a ChemStock database.."""
 
@@ -388,21 +351,21 @@ class Test_Chemstock_NOQAI(commontests):
             print("QAI yaml file not found. Generate this using the Test_dump test in test_qai_helper")
             print("*** NOTE: the development Makefile has a target 'dump_chemstock' that runs this test.")
             raise
-        load_ok = cls.csdb.loadQAI_data(qaids)
+        load_ok = cls.csdb.load_qai_data(qaids)
         assert load_ok, "data load failed"
         # assert False, "force fail"
 
     def test_update_from_qai01(self):
         """ haschanged should be False after calling update_from_QAI
         without access to QAI"""
-        self.csdb.update_from_QAI()
-        haschanged = self.csdb._haschanged
+        self.csdb.update_from_qai()
+        haschanged = self.csdb.has_changed()
         assert isinstance(haschanged, bool), "bool expected"
         assert not haschanged, "False expected"
 
 
 @withchemstockANDqa1
-class Test_Chemstock_WITHQAI(commontests):
+class TestChemstockWithqai(CommonTests):
     """Tests with chemstock and with QAI access"""
 
     @classmethod
@@ -428,7 +391,7 @@ class Test_Chemstock_WITHQAI(commontests):
         assert isinstance(old_upd, str), "string expected"
         if lverb:
             print("OLD UPDATE {}".format(old_upd))
-        csdb.update_from_QAI()
+        csdb.update_from_qai()
 
         new_upd = csdb.get_update_time()
         assert isinstance(new_upd, str), "string expected"

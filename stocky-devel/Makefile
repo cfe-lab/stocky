@@ -1,4 +1,3 @@
-
 # Makefile to facilitate the building and running of Stocky.
 # ****** Simply run 'make' in this directory to get a list of options *******
 
@@ -6,13 +5,21 @@
 BASE_IMAGE_NAME = stocky-base
 BASE_DOCKERFILE = ${BASE_IMAGE_NAME}.dock
 
-# in addition, we have another one that adds additional software needed
+# in addition, we have another stocky image that adds additional software needed
 # to produce documentation.
 DOCS_IMAGE_NAME = stocky-docs
 DOCS_DOCKERFILE = ${DOCS_IMAGE_NAME}.dock
 
+# we have a couchdb image
+COUCHDB_IMAGE_NAME = couchdb
+
 
 STOCKY_TOP_DIR = ${CURDIR}
+
+# the couchdb config directory
+COUCHDB_CONFIG_DIR =${STOCKY_TOP_DIR}/couchdb-config
+COUCHDB_DATA_DIR =${COUCHDB_CONFIG_DIR}/data
+
 
 # NOTE: there may be no leading or trailing spaces on the R.H.S of the equals sign of these
 # variables, otherwise the docker -v option will fail when launching
@@ -96,6 +103,7 @@ build-docs: $(BASE_DOCKERFILE) ## build the stocky-docs docker image for stocky
 	( docker build  -f $(DOCS_DOCKERFILE) -t ${DOCS_IMAGE_NAME} . )
 run-docs:  ## run the stocky-docs docker image with local code interactively with tcsh
 	${DOCKER_RUN_CMD} -v ${DEV_SRC}:/stockysrc -it ${DOCS_IMAGE_NAME} tcsh
-
+run-couchdb: ## run the couchdb docker image
+	docker run --rm -v ${COUCHDB_DATA_DIR}:/opt/couchdb/data -p 5894:5984 -d couchdb
 clean-logs: ## remove all log files from the stocky-devel-state directory
 	rm -f stocky-devel-state/*.log

@@ -233,6 +233,7 @@ class BaseCommLink:
         self._cmdnum = 0
         self.mydev: typing.Optional[typing.Any] = self.open_device()
         self._idstr: typing.Optional[str] = None
+        self.rfid_info_dct: typing.Optional[dict] = None
 
     def open_device(self) -> typing.Optional[typing.Any]:
         # NOTE: we do not raise an notimplemented exception here, because otherwise
@@ -242,6 +243,16 @@ class BaseCommLink:
 
     def _close_device(self) -> None:
         pass
+
+    def get_info_dct(self) -> typing.Optional[dict]:
+        """Return a dictionary with information about the RFID reader.
+
+        Returns:
+           A dict containing strings returned by the RFID reader such as
+           serial number, firmware version etc.
+           The dict return can be None if the reader has not been initialised.
+        """
+        return self.rfid_info_dct
 
     def handle_state_change(self, is_online: bool) -> None:
         """This routine is called when the serial device connecting to
@@ -618,17 +629,12 @@ class SerialCommLink(BaseCommLink):
         self.logger.debug("ID_STRING RESP: {}".format(cl_resp))
         retcode = cl_resp.return_code()
         if retcode == BaseCommLink.RC_OK and self.rfid_info_dct is None:
-            self.rfid_info_dct = dict([(title, cl_resp[k]) for title, k in self._klst])
+            d_d: typing.Dict[str, str] = {}
+            for title, k in self._klst:
+                str_lst = cl_resp[k]
+                d_d[title] = str_lst[0] if str_lst else ""
+            self.rfid_info_dct = d_d
         return retcode
-
-    def get_info_dct(self) -> typing.Optional[dict]:
-        """Return a dictionary with information about the RFID reader.
-
-        Returns:
-           a dict containing strings returned by the RFID reader such as
-           serial number, firmware version etc.
-        """
-        return self.rfid_info_dct
 
     def id_string(self) -> str:
         """Determine a string showing information about the connected RFID reader
