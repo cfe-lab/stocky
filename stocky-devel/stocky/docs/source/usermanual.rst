@@ -1,19 +1,14 @@
 User Manual
 ***********
 
-
 Background
 ==========
+The Stocky application works together with QAI in handling chemical stocks with RFID tags.
+The stocky application runs on a separate laptop which maintains a blue tooth connection
+to an RFID scanner. For the user adding or looking for items with RFID labels, all
+interactions with stocky is done through the browser on a machine in the laboratory (i.e. the user does not need to log in to the laptop directly). This machine will typically be in the room
+where the chemical stocks are being handled.
 
-
-Test Results
-============
-
-this is where the test results should be:
-
-.. test-results:: /stockysrc/goo.xml
-
-just above this line		
 
 General Work flow
 =================

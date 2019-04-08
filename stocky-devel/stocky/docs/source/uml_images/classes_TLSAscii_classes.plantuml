@@ -89,7 +89,7 @@ class RFIDParams {
     +pdct
     +tostr(self)
 }
-class tls_mode 
+class TlsMode 
 class stock {
     +name
     +value
@@ -103,29 +103,31 @@ class undef {
     +value
 }
 class RunningAve {
-    +Nave
+    +A_OFFSET
+    +N_PROP_TEN
     +logger
-    +RI2dist(ri:int)
+    +nave
     +add_clresp(self, clresp:commlink.CLResponse)
-    +do_ave(numexp:int, tlst:typing.List[int])
+    +do_ave(tlst:typing.List[int])
     +get_runningave(self)
     +reset_average(self)
+    +ri2dist(ri:int)
 }
 class TLSReader {
     +cur_state
     +mode
     +runningave
-    +BT_set_radar_mode(self, epc:typing.Optional[EPCstring])
-    +BT_set_stock_check_mode(self)
-    +RadarGet(self)
+    +bt_set_radar_mode(self, epc:typing.Optional[EPCstring])
+    +bt_set_stock_check_mode(self)
     +doalert(self, p:AlertParams)
     +generate_msg(self)
     +is_in_radarmode(self)
+    +radar_get(self)
     +read_user_bank(self, epc:EPCstring, num_chars:int)
     +readbarcode(self, p:BarcodeParams)
     +reset_inventory_options(self)
-    +send_RFID_msg(self, msg:CommonMSG)
     +send_abort(self)
+    +send_rfid_msg(self, msg:CommonMSG)
     +set_alert_default(self, p:AlertParams)
     +set_bluetooth(self, bt_on:bool, bundle_id:str, bundle_seed_id:str, bt_name:str, bt_spp:bool, bt_pairing_code:str)
     +set_date_time(self, yy:int, mm:int, dd:int, hrs:int, mins:int, secs:int)
@@ -134,8 +136,8 @@ class TLSReader {
     +write_user_bank(self, epc:EPCstring, data:str)
 }
 
-TLSReader o-- undef
 TLSReader o-- radar
+TLSReader o-- undef
 TLSReader o-- stock
 TLSReader o-- RunningAve
 

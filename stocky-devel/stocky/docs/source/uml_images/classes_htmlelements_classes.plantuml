@@ -85,12 +85,15 @@ class label {
     +get_text(self)
     +set_text(self, labeltext:str)
 }
-class option 
+class option {
+    +set_selected(self, on:bool)
+}
 class select {
     +add_or_set_option(self, idstr:str, name:str)
     +get_selected(self)
     +has_option_id(self, idstr:str)
     +num_options(self)
+    +set_selected(self, idstr:str)
 }
 class input {
     +getIDvaltuple(self)
@@ -104,6 +107,10 @@ class input_list {
 }
 class input_button 
 class input_submit 
+class input_checkbox {
+    +get_checked(self)
+    +set_checked(self, on:bool)
+}
 class LEDElement {
     +BLUE
     +GREEN
@@ -152,9 +159,11 @@ element <|-- option
 element <|-- select
 OnChangeMixin <|-- select
 element <|-- input
+OnChangeMixin <|-- input
 input <|-- input_list
 input <|-- input_button
 input <|-- input_submit
+input <|-- input_checkbox
 div <|-- LEDElement
 div <|-- alertbox
 textbutton o-- textnode

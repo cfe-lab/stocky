@@ -17,7 +17,6 @@ class WCstatus {
     +locmut_dct
     +locmut_hash
     +login_popup
-    +mainprog
     +mytab
     +qai_upd_text
     +spinner
@@ -26,16 +25,21 @@ class WCstatus {
     +uname_text
     +get_location_items(self, locid:str)
     +get_location_selector(self, parent:html.base_element, idstr:str, helptext:str, add_nosel:bool)
+    +get_locmut_dct(self)
     +get_reagent_info(self, rid:str)
+    +get_reagent_item_dct(self)
     +get_server_cfg_data(self)
+    +get_stockloc_dct(self)
     +is_QAI_logged_in(self)
     +is_WS_up(self)
+    +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
     +refresh_locmut_dct(self)
+    +send_WS_msg(self, msg:CommonMSG)
     +set_QAIupdate_state(self, d:dict)
     +set_RFID_state(self, newstate:int)
     +set_WS_state(self, is_up:bool)
     +set_busy(self, isbusy:bool)
-    +set_locmut_dct(self, dct:dict, newhash:str)
+    +set_locmut_dct(self, newdct:dict, newhash:str)
     +set_login_response(self, resdct:dict)
     +set_logout_status(self)
     +set_rfid_activity(self, on:bool)

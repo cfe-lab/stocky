@@ -4,4 +4,4 @@
 rm -f bla
 rm -f source/uml_images/*
 
-make singlehtml >& bla
+make latexpdf >& bla

@@ -27,10 +27,11 @@ class QAISession {
     +qai_key_lst
     +qai_key_set
     +timestamp_url_lst
-    +clever_update_QAI_dump(self, qaiDS:QAIDataset)
-    +get_QAI_ChangeData(self)
-    +get_QAI_dump(self)
-    +get_empty_QAIdct(cls)
+    +clever_update_qai_dump(self, qai_ds:QAIDataset)
+    +get_empty_qaidct(cls)
+    +get_qai_changedata(self)
+    +get_qai_dump(self)
+    +report_item_location(self, reag_item_id:int, locid:int, opstring:str)
 }
 
 Session <|-- QAISession

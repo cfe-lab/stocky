@@ -6,42 +6,47 @@ class BaseServer {
     +name
     +websocketTM
     +ws
+    +en_queue(self, msg:CommonMSG)
     +mainloop(self)
-    +send_WS_msg(self, msg:CommonMSG)
+    +send_ws_msg(self, msg:CommonMSG)
     +set_websocket(self, newws:ServerWebSocket.BaseWebSocket)
     +sleep(self, secs:int)
 }
-class StockyServer {
+class CommonStockyServer {
     +MSG_FOR_ME_SET
     +MSG_FOR_RFID_SET
     +MSG_FOR_WC_SET
     +cfg_dct
-    +cl
+    +comm_link
     +filewatcher
-    +qai_file
     +qaisession
     +rfcommtask
     +rfid_delay_task
     +stockdb
-    +timerTM
+    +timer_tm
     +tls
     +ws
-    +BT_init_reader(self)
-    +activate_RFID_spinner(self)
-    +handleRFID_CLstatechange(self, new_state:int)
-    +handleRFID_filestatechange(self, file_is_made:bool)
+    +activate_rfid_spinner(self)
+    +bt_init_reader(self)
+    +handle_rfid_clstatechange(self, new_state:int)
+    +handle_rfid_filestatechange(self, file_is_made:bool)
     +mainloop(self)
-    +send_QAI_status(self, upd_dct:typing.Optional[dict])
+    +send_qai_status(self, upd_dct:typing.Optional[dict])
     +send_server_config(self)
     +server_handle_msg(self, msg:CommonMSG)
 }
-class RFID_Ping_Server {
+class StockyDBServer 
+class StockyRFIDServer 
+class RfidPingServer {
+    +SEC_INTERVAL_SECS
     +scan_generator
     +ws
     +mainloop(self)
 }
 
-BaseServer <|-- StockyServer
-BaseServer <|-- RFID_Ping_Server
+BaseServer <|-- CommonStockyServer
+CommonStockyServer <|-- StockyDBServer
+CommonStockyServer <|-- StockyRFIDServer
+BaseServer <|-- RfidPingServer
 
 @enduml

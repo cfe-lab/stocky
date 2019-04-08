@@ -13,20 +13,21 @@ class BaseRawWebSocket {
 }
 class RawWebsocket {
     +close(self)
-    +send_raw(self, data_to_server)
+    +send_raw(self, data_to_server:typing.Any)
 }
 class CNVWebsocket {
-    +decode(self, data_from_server)
-    +encode(self, data_to_server)
+    +decode(self, data_from_server:typing.Any)
+    +encode(self, data_to_server:typing.Any)
     +is_open(self)
     +on_close_cb(self, event)
-    +on_message_JSON(self, data)
+    +on_error_cb(self, event)
+    +on_message_JSON(self, data:typing.Any)
     +on_message_cb(self, event)
-    +send(self, data_to_server)
+    +send(self, data_to_server:typing.Any)
 }
 class JSONWebsocket {
-    +decode(self, data_from_server)
-    +encode(self, data_to_server)
+    +decode(self, data_from_server:typing.Any)
+    +encode(self, data_to_server:typing.Any)
 }
 
 BaseRawWebSocket <|-- RawWebsocket

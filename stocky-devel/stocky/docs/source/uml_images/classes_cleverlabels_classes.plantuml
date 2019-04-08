@@ -1,5 +1,12 @@
 @startuml
 title classes cleverlabels
+class SliderSwitch {
+    +attA
+    +attB
+    +laba
+    +labb
+    +offattr
+}
 class ToggleLabel {
     +attdct
     +is_astate
@@ -22,6 +29,15 @@ class SimpleFSM {
     +get_new_state(self, curstate:int, event:str)
 }
 class FSMLabel {
+    +FSM_CLICK_EVENT
+    +curstate
+    +fsm
+    +state_attrdct
+    +enter_event(self, newevent:str)
+    +get_current_state(self)
+    +reset_state(self)
+}
+class ToggleFSMLabel {
     +FSM_CLICK_EVENT
     +curstate
     +fsm

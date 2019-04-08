@@ -48,6 +48,7 @@ class rowtracker {
     +action_tog
     +detected
     +expected
+    +has_rfid_label
     +id
     +rownum
     +scanstat_tog
@@ -59,6 +60,7 @@ class CheckFSM {
     +ST_REPORT_MISSING
     +ST_REPORT_MOVED
     +dd
+    +hasRFIDlabel
     +isdetected_lab
     +isexpected
     +get_init_state(self)
@@ -69,19 +71,35 @@ class CheckLabel {
     +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
 }
 class CheckScanList {
+    +rfid_sel_but
     +wcstatus
     +get_move_list(self)
+    +rcvMsg(self, whofrom:'base.base_obj', msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
     +reset(self, ll:typing.Optional[list])
 }
 class CheckStockView {
     +GO_CHECK_STOCK
     +gobutton
     +location_sel
+    +rfid_sel_but
     +scanlist
     +Redraw(self)
     +rcvMsg(self, whofrom:'base.base_obj', msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
 }
-class UploadLocMutView 
+class LocMutTable {
+    +wcstatus
+    +get_locmove_list(self)
+    +rcvMsg(self, whofrom:'base.base_obj', msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +reset(self)
+}
+class UploadLocMutView {
+    +GO_UPLOAD_LOCMUT
+    +gobutton
+    +locmut_tab
+    +Redraw(self)
+    +rcvMsg(self, whofrom:'base.base_obj', msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +stop_locmut_download(self)
+}
 class ConfigStatusView {
     +cfg_tab
     +Redraw(self)
@@ -98,5 +116,6 @@ SwitcheeView <|-- ConfigStatusView
 AddNewStockView o-- AddScanList
 rowtracker o-- CheckLabel
 CheckStockView o-- CheckScanList
+UploadLocMutView o-- LocMutTable
 
 @enduml

@@ -4,7 +4,7 @@ class LoggingMixin {
     +is_verbose(self)
 }
 class DelayTaskMeister {
-    +msgQ
+    +msg_q
     +msg_tosend
     +trigger(self)
 }
@@ -21,13 +21,13 @@ class DaemonTaskMeister {
     +do_run
     +greenlet
     +numchecks
-    +p
+    +proc
     +get_status(self)
     +stop_and_restart_cmd(self)
     +stop_cmd(self, do_wait:bool=False)
 }
 class BaseTaskMeister {
-    +msgQ
+    +msg_q
     +generate_msg(self)
     +set_active(self, is_active:bool)
 }

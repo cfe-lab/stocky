@@ -18,20 +18,22 @@ class BaseCommLink {
     +cfgdct
     +logger
     +mydev
-    +HandleStateChange(self, is_online:bool)
-    +RC_string(ret_code:TLSRetCode)
+    +rfid_info_dct
     +encode_comment_dict(d:dict)
     +extract_comment_dict(s:str)
+    +get_info_dct(self)
+    +get_rfid_state(self)
+    +handle_state_change(self, is_online:bool)
     +id_string(self)
+    +is_alive(self)
     +open_device(self)
     +raw_read_response(self)
     +raw_send_cmd(self, cmdstr:str)
+    +rc_string(ret_code:TLSRetCode)
     +send_cmd(self, cmdstr:str, comment:str=None)
 }
 class SerialCommLink {
     +rfid_info_dct
-    +get_RFID_state(self)
-    +get_info_dct(self)
     +id_string(self)
     +open_device(self)
 }

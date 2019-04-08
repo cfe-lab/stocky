@@ -2,7 +2,8 @@
 title classes wccontroller
 class WebClientController {
     +numlst
-    +init_view(self)
+    +wcstatus
+    +init_view(self, ws:serversocketbase.base_server_socket)
     +send_WS_msg(self, msg:CommonMSG)
 }
 class stocky_mainprog {
@@ -12,8 +13,9 @@ class stocky_mainprog {
     +topdoc
     +wcstatus
     +addnewstock(self, url:str)
-    +init_view(self)
+    +init_view(self, ws:serversocketbase.base_server_socket)
     +rcvMsg(self, whofrom:base.base_obj, msgdesc:base.MSGdesc_Type, msgdat:typing.Optional[base.MSGdata_Type])
+    +set_locmut_update(self, rdct:dict, newhash:str)
     +set_login_status(self, resdct:dict)
     +set_qai_update(self, resdct:dict)
     +setradardata(self, radarinfo:typing.List[typing.Tuple[(str, int, float)]])

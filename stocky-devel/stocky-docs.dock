@@ -1,4 +1,3 @@
-
 # docker image for generating stocky documentation
 
 FROM stocky-base:latest
@@ -31,6 +30,13 @@ RUN python3 setup.py develop
 # WORKDIR /snakefood
 # RUN wget https://bitbucket.org/hajek/snakefood/get/abc8b1652d44.zip
 # RUN unzip abc8b1652d44.zip && cd hajek-snakefood-abc8b1652d44  && python3 setup.py install
+
+# install latex for documentation in PDF
+RUN apt-get -y install texlive-full
+#texlive-latex \
+# texlive-collection-latex\
+# texlive-collection-latexrecommended\
+# texlive-collection-latexextra
 
 
 

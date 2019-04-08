@@ -57,37 +57,28 @@ class TableChange {
     +stamp
     +table_name
 }
-class Locmutation {
-    +created_at
+class LocMutation {
     +ignore
     +locid
     +op
     +reag_item_id
-}
-class node {
-    +child_dct
-    +name
-    +val
-    +addtree(self, dct)
-    +dfslst(self, topname, lst)
-    +getval(self)
-    +setval(self, newval)
+    +sent_to_qai
 }
 class ChemStockDB {
-    +qaisession
-    +DOgenerate_webclient_stocklist(self)
-    +add_loc_changes(self, locid:int, locdat:LocChangeList)
-    +calc_final_state(self, slst:typing.List[dict])
-    +generate_webclient_stocklist(self)
+    +add_loc_changes(self, locid:int, locdat:chemdb.LocChangeList)
     +get_db_stats(self)
     +get_loc_changes(self, oldhash:typing.Optional[str]=None)
+    +get_location_list(self)
+    +get_reagent_item_list(self)
+    +get_reagent_item_status_list(self)
+    +get_reagent_list(self)
+    +get_ts_data(self)
     +get_update_time(self)
-    +loadQAI_data(self, qaiDS:qai_helper.QAIDataset, update_dct:typing.Optional[qai_helper.QAIUpdatedct]=None)
-    +load_TS_data(self)
+    +load_qai_data(self, qai_ds:qai_helper.QAIDataset, update_dct:typing.Optional[qai_helper.QAIUpdatedct]=None)
     +number_of_loc_changes(self)
+    +perform_loc_changes(self, move_dct:dict)
     +reset_loc_changes(self)
     +set_ignore_flag(self, reag_item_id:int, do_ignore:bool)
-    +update_from_QAI(self)
 }
 
 
